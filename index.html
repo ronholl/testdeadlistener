@@ -1649,9 +1649,11 @@ function startPlayback(show,idx){
   // iOS fires 'pause' when it interrupts the audio session (screen lock, call, etc)
   // Track this so resumeAudio knows to reload rather than just call play()
   audio.onpause=function(){
-    if(!playIntent)return; // user-initiated pause, ignore
-    // playIntent is still true — iOS interrupted us
-    _dbgLog('audio.onpause fired with playIntent=true — iOS interrupted session');
+    // Only flag as interrupted if we were actually playing audio
+    // (not during initial load/seek which also fires pause events)
+    if(!playing)return;
+    if(!playIntent)return;
+    _dbgLog('audio.onpause fired while playing — iOS interrupted session');
     audio._interrupted=true;
   };
   playIntent=true;
@@ -3001,8 +3003,9 @@ function pauseAtPosition(show,trackIdx,pos){
   };
   audio.onerror=function(){playing=false;playIntent=false;};
   audio.onpause=function(){
+    if(!playing)return;
     if(!playIntent)return;
-    _dbgLog('audio.onpause (pauseAtPosition) playIntent=true — iOS interrupted');
+    _dbgLog('audio.onpause (pauseAtPosition) while playing — iOS interrupted');
     audio._interrupted=true;
   };
   // Seek to saved position — use both onloadedmetadata and a one-shot ontimeupdate
@@ -3017,8 +3020,8 @@ function pauseAtPosition(show,trackIdx,pos){
     if(!_seeked)_doSeek();
     savePos(show.id,audio.currentTime);updateProgress();
   };
+  playing=false;playIntent=false;  // set before load() so onpause doesn't flag as interrupted
   audio.load();
-  playing=false;playIntent=false;
   playingShow=show;playingTrackIdx=trackIdx;
   renderList();renderMiniPlayer();updateSpPlayer();
   // Set media session — registers handlers so lock screen/Watch/Siri all work
