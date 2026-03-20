@@ -1656,24 +1656,8 @@ function startPlayback(show,idx){
     renderSetlistBody(show);
     // Preload next track silently
     preloadNextTrack(show,idx+1);
-    if('mediaSession' in navigator){
-      const _t=show.tracks&&show.tracks[idx];
-      let _s='Track '+(idx+1);
-      if(show.songs&&show.songs[idx])_s=show.songs[idx];
-      else if(_t&&_t.title)_s=_t.title;
-      else if(_t&&_t.name)_s=_t.name.replace(/\.mp3$/i,'').replace(/[-_]/g,' ');
-      navigator.mediaSession.metadata=new MediaMetadata({
-        title:_s,artist:'Grateful Dead',
-        album:(show.venue||'')+(show.date?' · '+show.date:''),
-        artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]
-      });
-      navigator.mediaSession.playbackState='playing';
-      navigator.mediaSession.setActionHandler('play',function(){if(audio&&audio.paused){audio.play();playing=true;playIntent=true;navigator.mediaSession.playbackState='playing';renderMiniPlayer();updateSpPlayer();}});
-      navigator.mediaSession.setActionHandler('pause',function(){if(audio){audio.pause();playing=false;playIntent=false;navigator.mediaSession.playbackState='paused';renderMiniPlayer();updateSpPlayer();}});
-      navigator.mediaSession.setActionHandler('nexttrack',function(){if(curShow&&curTrackIdx+1<(curShow.tracks||[]).length)startPlayback(curShow,curTrackIdx+1);});
-      navigator.mediaSession.setActionHandler('previoustrack',function(){if(audio&&audio.currentTime>3)audio.currentTime=0;else if(curShow&&curTrackIdx>0)startPlayback(curShow,curTrackIdx-1);});
-      try{navigator.mediaSession.setActionHandler('seekto',function(d){if(audio&&d.seekTime!=null)audio.currentTime=d.seekTime;});}catch(e){}
-    }
+    setMediaSession(show,idx,'playing');
+    registerMediaHandlers(show,idx);
   }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
 }
 
@@ -2829,24 +2813,17 @@ function restoreLastPosition(){
     if(Date.now()-saved.ts > 86400000){localStorage.removeItem('gd_restore');return;}
     const show=shows.find(s=>s.id===saved.showId);
     if(!show)return;
-    // If the show isn't visible (myOnly filter excludes it), temporarily show all
-    // so the user can see what's being restored
-    const showInFiltered=filtered.some(s=>s.id===show.id);
-    if(!showInFiltered&&myOnly){
-      myOnly=false;
-      const myBtn=document.getElementById('myBtn');
-      if(myBtn)myBtn.classList.remove('on');
-      applyFilters();
-    }
-    // Load the show meta if needed, then pause at position
+    // Restore playback without touching the current filter (myOnly stays as loginAs set it)
+    // If the show isn't in the filtered list (e.g. not attended), that's fine —
+    // the mini-player shows it and the user can tap to open it
     curShow=show;curTrackIdx=saved.trackIdx||0;
     const afterRestore=function(){
       if(show.tracks&&show.tracks.length>saved.trackIdx){
         pauseAtPosition(show,saved.trackIdx,saved.pos);
-        // Scroll the list to the restored show after a brief render delay
+        // Only scroll to it if it's actually visible in the current filter
         setTimeout(function(){
           const idx=filtered.findIndex(s=>s.id===show.id);
-          if(idx<0)return;
+          if(idx<0)return; // not in current filter — that's fine, mini-player has it
           const list=document.getElementById('list');
           if(!list)return;
           const rows=list.querySelectorAll('.row');
@@ -2859,6 +2836,74 @@ function restoreLastPosition(){
     } else {
       afterRestore();
     }
+  }catch(e){}
+}
+
+// ── MEDIA SESSION ─────────────────────────────────────────────────
+// Sets metadata (title, artist, artwork) visible on lock screen / Watch / car
+function setMediaSession(show,trackIdx,state){
+  if(!('mediaSession' in navigator))return;
+  const track=show.tracks&&show.tracks[trackIdx];
+  let title='Track '+(trackIdx+1);
+  if(show.songs&&show.songs[trackIdx])title=show.songs[trackIdx];
+  else if(track&&track.title)title=track.title;
+  else if(track&&track.name)title=track.name.replace(/\.mp3$/i,'').replace(/[-_]/g,' ');
+  navigator.mediaSession.metadata=new MediaMetadata({
+    title:title,
+    artist:'Grateful Dead',
+    album:(show.venue||'')+(show.date?' · '+show.date:''),
+    artwork:[
+      {src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},
+      {src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}
+    ]
+  });
+  navigator.mediaSession.playbackState=state||'playing';
+}
+
+// Registers play/pause/next/prev/seek handlers — must be called every time a
+// new track starts (including on restore after reload) so OS controls work
+function registerMediaHandlers(show,trackIdx){
+  if(!('mediaSession' in navigator))return;
+  navigator.mediaSession.setActionHandler('play',function(){
+    if(audio&&audio.paused){
+      audio.play().then(function(){
+        playing=true;playIntent=true;
+        navigator.mediaSession.playbackState='playing';
+        renderMiniPlayer();updateSpPlayer();
+      }).catch(function(){});
+    }
+  });
+  navigator.mediaSession.setActionHandler('pause',function(){
+    if(audio){
+      audio.pause();playing=false;playIntent=false;
+      navigator.mediaSession.playbackState='paused';
+      renderMiniPlayer();updateSpPlayer();
+    }
+  });
+  navigator.mediaSession.setActionHandler('nexttrack',function(){
+    const s=playingShow;const i=playingTrackIdx;
+    if(s&&i+1<(s.tracks||[]).length)startPlayback(s,i+1);
+  });
+  navigator.mediaSession.setActionHandler('previoustrack',function(){
+    const s=playingShow;const i=playingTrackIdx;
+    if(audio&&audio.currentTime>3){audio.currentTime=0;}
+    else if(s&&i>0){startPlayback(s,i-1);}
+  });
+  try{
+    navigator.mediaSession.setActionHandler('seekto',function(d){
+      if(audio&&d.seekTime!=null){
+        audio.currentTime=d.seekTime;
+        if(d.fastSeek&&audio.fastSeek)audio.fastSeek(d.seekTime);
+      }
+    });
+  }catch(e){}
+  try{
+    navigator.mediaSession.setActionHandler('seekbackward',function(d){
+      if(audio)audio.currentTime=Math.max(0,audio.currentTime-(d.seekOffset||10));
+    });
+    navigator.mediaSession.setActionHandler('seekforward',function(d){
+      if(audio)audio.currentTime=Math.min(audio.duration||0,audio.currentTime+(d.seekOffset||10));
+    });
   }catch(e){}
 }
 
@@ -2894,16 +2939,9 @@ function pauseAtPosition(show,trackIdx,pos){
   playing=false;playIntent=false;
   playingShow=show;playingTrackIdx=trackIdx;
   renderList();renderMiniPlayer();updateSpPlayer();
-  // Set media session so lock screen/car shows song even when paused
-  if('mediaSession' in navigator&&track){
-    const sName=(show.songs&&show.songs[trackIdx])||track.name||'Track '+(trackIdx+1);
-    navigator.mediaSession.metadata=new MediaMetadata({
-      title:sName,artist:'Grateful Dead',
-      album:(show.venue||'')+(show.date?' · '+show.date:''),
-      artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'}]
-    });
-    navigator.mediaSession.playbackState='paused';
-  }
+  // Set media session — registers handlers so lock screen/Watch/Siri all work
+  setMediaSession(show,trackIdx,'paused');
+  registerMediaHandlers(show,trackIdx);
   setHdrSt('⏸ Paused · '+show.date,'ok');
   setTimeout(function(){setHdrSt('','');},4000);
 }
