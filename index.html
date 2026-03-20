@@ -1677,35 +1677,34 @@ function preloadNextTrack(show,nextIdx){
 }
 
 function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
-function resumeAudio(){
-  if(!audio)return;
-  playIntent=true;
-  // If audio is in a bad state (interrupted, stale after lock screen), recreate it
-  // readyState < 2 means iOS dropped the audio data
-  if(audio.readyState<2&&playingShow){
-    const pos=audio.currentTime||0;
-    const show=playingShow;
-    const idx=playingTrackIdx;
-    startPlayback(show,idx);
-    // Seek to where we were once it loads
-    const orig=audio.oncanplay;
-    audio.addEventListener('canplay',function h(){
-      audio.removeEventListener('canplay',h);
-      if(pos>1)try{audio.currentTime=pos;}catch(e){}
-    },{once:true});
-    return;
+function _dbgLog(msg){
+  // Persistent debug overlay — tap to dismiss — visible when returning from lock screen
+  let el=document.getElementById('_dbgOverlay');
+  if(!el){
+    el=document.createElement('div');
+    el.id='_dbgOverlay';
+    el.style.cssText='position:fixed;bottom:80px;left:12px;right:12px;z-index:9999;background:#000;border:2px solid #f60;border-radius:10px;padding:12px;font-family:monospace;font-size:11px;color:#f60;line-height:1.6;white-space:pre-wrap;word-break:break-all';
+    el.onclick=function(){el.remove();};
+    el.innerHTML='<b>DEBUG (tap to dismiss)</b>\n';
+    document.body.appendChild(el);
   }
+  const ts=new Date().toTimeString().slice(0,8);
+  el.innerHTML+='['+ts+'] '+msg+'\n';
+}
+function resumeAudio(){
+  if(!audio){_dbgLog('resumeAudio: no audio element');return;}
+  const dbg='readyState='+audio.readyState+' paused='+audio.paused+'\nsrc=...'+audio.src.slice(-40)+'\nplaying='+playing+' playIntent='+playIntent;
+  _dbgLog('PLAY TAPPED\n'+dbg);
+  playIntent=true;
   audio.play().then(function(){
     playing=true;
     if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
     updateSpPlayer();renderMiniPlayer();renderList();
+    _dbgLog('play() resolved — playing='+playing+' readyState='+audio.readyState);
   }).catch(function(e){
-    console.warn('resumeAudio failed:',e.message);
-    // play() rejected — try restarting the track from current position
-    if(playingShow){
-      const pos=audio?audio.currentTime:0;
-      startPlayback(playingShow,playingTrackIdx);
-    }
+    _dbgLog('play() FAILED: '+e.name+': '+e.message);
+    playing=false;playIntent=false;
+    updateSpPlayer();renderMiniPlayer();
   });
 }
 function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
@@ -2958,23 +2957,6 @@ function pauseAtPosition(show,trackIdx,pos){
   audio.ontimeupdate=function(){
     if(!_seeked)_doSeek();
     savePos(show.id,audio.currentTime);updateProgress();
-  };
-  // Play briefly then pause to activate the iOS audio session.
-  // Without this, the lock screen play button can't resume a cold audio element.
-  audio.oncanplay=function(){
-    audio.oncanplay=null;
-    audio.play().then(function(){
-      audio.pause();
-      // Re-seek after the play/pause cycle since iOS resets currentTime
-      if(pos&&pos>0){
-        try{audio.currentTime=pos;}catch(e){}
-      }
-      playing=false;playIntent=false;
-      navigator.mediaSession&&(navigator.mediaSession.playbackState='paused');
-      renderMiniPlayer();updateSpPlayer();
-    }).catch(function(){
-      // Autoplay blocked — that's fine, lock screen won't show but in-app works
-    });
   };
   audio.load();
   playing=false;playIntent=false;
