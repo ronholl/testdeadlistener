@@ -806,7 +806,12 @@ function onLoaded(list){
       loginAs(saved,false);
     } else if(!localStorage.getItem('gd_welcomed')){
       document.getElementById('loginScreen').style.display='none';
-      showHelp();
+      // New users: show poster first (once only), then help screen
+      if(POSTER_URL&&!localStorage.getItem('gd_poster_seen')){
+        showPoster();
+      } else {
+        showHelp();
+      }
     }
     // else login screen stays visible
   } else if(curUser){
@@ -1077,13 +1082,23 @@ function changeViewUser(){viewUser=document.getElementById('usel').value;applyFi
 function toggleMy(){
   const myBtn=document.getElementById('myBtn');
   const tb=document.getElementById('theirBtn');
+  // Guest has no shows — clicking My Shows resets to all shows
+  if(!curUser){
+    myOnly=false;
+    viewUser='all';
+    document.getElementById('usel').value='all';
+    if(myBtn)myBtn.classList.remove('on');
+    if(tb){tb.style.display='none';tb.classList.remove('on');}
+    applyFilters();updateAttCount();updateViewStats();
+    return;
+  }
   if(myBtn.classList.contains('on')&&viewUser===curUser){
     // Already on MY shows - toggle off to show all
     myOnly=false;
     myBtn.classList.remove('on');
   } else {
     // Switch to my shows
-    viewUser=curUser||viewUser;
+    viewUser=curUser;
     document.getElementById('usel').value=viewUser;
     myOnly=true;
     myBtn.classList.add('on');
@@ -2468,6 +2483,14 @@ function closePoster(){
   const el=document.getElementById('posterOverlay');
   if(el)el.style.display='none';
   document.body.style.overflow='';
+  // If this was the first-time poster (help not shown yet), show help next
+  if(!localStorage.getItem('gd_poster_seen')){
+    localStorage.setItem('gd_poster_seen','1');
+    showHelp();
+  } else if(!localStorage.getItem('gd_welcomed')){
+    // Poster seen but help not yet — show help
+    showHelp();
+  }
 }
 
 function showHelp(){
@@ -2514,24 +2537,7 @@ function closeHelp(){
   const mp=document.getElementById('miniPlayer');if(mp)mp.style.display='';
   const firstVisit=!localStorage.getItem('gd_welcomed');
   localStorage.setItem('gd_welcomed','1');
-  // First-time users: show poster (if configured) then proceed to login
-  if(firstVisit&&POSTER_URL&&!localStorage.getItem('gd_poster_seen')){
-    localStorage.setItem('gd_poster_seen','1');
-    showPoster();
-    // When they close the poster, show login
-    function onPosterClose(){
-      closePoster();
-      if(shows.length>0){renderLoginScreen();document.getElementById('loginScreen').style.display='flex';}
-    }
-    const overlay=document.getElementById('posterOverlay');
-    const xBtn=overlay.querySelector('button');
-    if(xBtn){
-      const orig=xBtn.onclick;
-      xBtn.onclick=function(){onPosterClose();xBtn.onclick=orig;};
-    }
-    return;
-  }
-  // On first visit (no poster), show login
+  // After closing help, go to login on first visit
   if(firstVisit&&shows.length>0){
     renderLoginScreen();
     document.getElementById('loginScreen').style.display='flex';
