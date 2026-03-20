@@ -1722,28 +1722,35 @@ function _dbgShow(){
   el.onclick=function(e){if(e.target===el)el.remove();};
   document.body.appendChild(el);
 }
+// Guard against concurrent calls — only one resumeAudio at a time
+let _resuming=false;
 function resumeAudio(){
   if(!audio){_dbgLog('resumeAudio: no audio element');return;}
-  const dbg='readyState='+audio.readyState+' paused='+audio.paused+'\nsrc=...'+audio.src.slice(-40)+'\nplaying='+playing+' playIntent='+playIntent+' interrupted='+!!audio._interrupted;
+  // Already playing — nothing to do (handles visibilitychange + lock screen tap race)
+  if(!audio.paused&&playing){_dbgLog('resumeAudio: already playing, skip');return;}
+  // Prevent concurrent calls (visibilitychange auto-resume + manual tap arriving together)
+  if(_resuming){_dbgLog('resumeAudio: already resuming, skip');return;}
+  _resuming=true;
+  const dbg='readyState='+audio.readyState+' paused='+audio.paused+'\nsrc=...'+audio.src.slice(-40)+'\nplaying='+playing+' interrupted='+!!audio._interrupted;
   _dbgLog('PLAY TAPPED\n'+dbg);
   playIntent=true;
-  // iOS interrupts the audio session on screen lock — play() resolves but is silent.
-  // Fix: reload the audio element to re-acquire the session, then seek back and play.
+  // iOS interrupted — reload to re-acquire audio session
   if(audio._interrupted){
+    audio._interrupted=false; // clear immediately to prevent second call re-entering
     _dbgLog('iOS interrupted — reloading audio to re-acquire session');
-    audio._interrupted=false;
     const pos=audio.currentTime||0;
-    const savedSrc=audio.src;
-    audio.load(); // re-acquires iOS audio session
+    audio.load();
     audio.addEventListener('canplay',function h(){
       audio.removeEventListener('canplay',h);
       if(pos>1){try{audio.currentTime=pos;}catch(e){}}
       audio.play().then(function(){
-        playing=true;
+        playing=true;userWantsPlaying=true;
+        _resuming=false;
         if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
         updateSpPlayer();renderMiniPlayer();renderList();
         _dbgLog('play() after reload resolved — pos='+audio.currentTime);
       }).catch(function(e){
+        _resuming=false;
         _dbgLog('play() after reload FAILED: '+e.name+': '+e.message);
         playing=false;playIntent=false;
         updateSpPlayer();renderMiniPlayer();
@@ -1755,6 +1762,7 @@ function resumeAudio(){
   const posAtPlay=audio.currentTime;
   audio.play().then(function(){
     playing=true;userWantsPlaying=true;
+    _resuming=false;
     if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
     updateSpPlayer();renderMiniPlayer();renderList();
     _dbgLog('play() resolved — playing='+playing+' readyState='+audio.readyState+' pos='+Math.round(audio.currentTime));
@@ -1786,12 +1794,18 @@ function resumeAudio(){
       }
     },800);
   }).catch(function(e){
+    _resuming=false;
     _dbgLog('play() FAILED: '+e.name+': '+e.message);
     playing=false;playIntent=false;
     updateSpPlayer();renderMiniPlayer();
   });
 }
-function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
+function togglePlay(){
+  if(_resuming)return; // mid-resume, ignore tap
+  if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}
+  else if(playing)pauseAudio();
+  else resumeAudio();
+}
 function skipTrack(dir){
   if(!curShow?.tracks)return;
   if(dir===-1){
@@ -2111,11 +2125,15 @@ document.addEventListener('visibilitychange',function(){
   if(document.hidden)return; // going to background — nothing to do
   if(!audio||!userWantsPlaying)return; // user didn't start playback
   _dbgLog('visibilitychange: foreground — playing='+playing+' paused='+audio.paused+' interrupted='+!!audio._interrupted);
-  // If user wanted audio but it stopped while backgrounded, mark interrupted and auto-resume
-  if(!playing&&audio.paused&&userWantsPlaying){
+  // If user wanted audio but it stopped while backgrounded, auto-resume
+  // Guard: don't fire if already playing or another resume is in progress
+  if(!playing&&audio.paused&&userWantsPlaying&&!_resuming){
     audio._interrupted=true;
     _dbgLog('Auto-resuming after background interruption');
-    setTimeout(function(){resumeAudio();},300); // brief delay for iOS audio session to settle
+    setTimeout(function(){
+      // Double-check still needed after delay
+      if(!playing&&audio&&audio.paused&&userWantsPlaying)resumeAudio();
+    },400);
   }
 });
 // Set poster button visible once DOM is ready (element is below the script tag)
