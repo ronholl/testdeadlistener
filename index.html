@@ -581,6 +581,7 @@ let curUser=null;      // logged-in user name
 let guestMode=false;   // browsing without login
 let viewUser='all';    // which user's shows to browse
 let curShow=null, audio=null, playing=false, curTrackIdx=0;
+let userWantsPlaying=false; // true when user explicitly started playback — survives iOS interruptions
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=true;
 let positions={}, songIndex={}, metaCache={};
@@ -1659,7 +1660,7 @@ function startPlayback(show,idx){
   playIntent=true;
   if(!newAudio._preloaded)audio.src=url;
   audio.play().then(function(){
-    playing=true;
+    playing=true;userWantsPlaying=true;
     renderList();renderMiniPlayer();updateSpPlayer();
     const el=document.getElementById('track-'+idx);
     if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -1686,7 +1687,7 @@ function preloadNextTrack(show,nextIdx){
   // Don't call play() - just let browser buffer it
 }
 
-function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
+function pauseAudio(){if(!audio)return;playIntent=false;userWantsPlaying=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
 function _dbgLog(msg){
   // Write to localStorage first (survives DOM issues in media session callbacks)
   try{
@@ -1751,7 +1752,7 @@ function resumeAudio(){
     return;
   }
   audio.play().then(function(){
-    playing=true;
+    playing=true;userWantsPlaying=true;
     if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
     updateSpPlayer();renderMiniPlayer();renderList();
     _dbgLog('play() resolved — playing='+playing+' readyState='+audio.readyState);
@@ -2075,6 +2076,19 @@ function switchTab(name){
 }
 
 loadData();
+
+// When app returns to foreground, check if iOS killed our audio session
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden)return; // going to background — nothing to do
+  if(!audio||!userWantsPlaying)return; // user didn't start playback
+  _dbgLog('visibilitychange: foreground — playing='+playing+' paused='+audio.paused+' interrupted='+!!audio._interrupted);
+  // If user wanted audio but it stopped while backgrounded, mark interrupted and auto-resume
+  if(!playing&&audio.paused&&userWantsPlaying){
+    audio._interrupted=true;
+    _dbgLog('Auto-resuming after background interruption');
+    setTimeout(function(){resumeAudio();},300); // brief delay for iOS audio session to settle
+  }
+});
 // Set poster button visible once DOM is ready (element is below the script tag)
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
@@ -2952,8 +2966,17 @@ function registerMediaHandlers(show,trackIdx){
     resumeAudio();
   });
   navigator.mediaSession.setActionHandler('pause',function(){
-    _dbgLog('PAUSE handler fired');
+    const wasBackgrounded=document.hidden||document.visibilityState==='hidden';
+    _dbgLog('PAUSE handler fired — hidden='+wasBackgrounded+' userWants='+userWantsPlaying);
     if(audio){
+      if(wasBackgrounded&&userWantsPlaying){
+        // iOS paused us because we went to background — not a user action
+        audio._interrupted=true;
+        _dbgLog('iOS interrupted (backgrounded while playing)');
+        // Keep userWantsPlaying=true so foreground return can auto-resume
+      } else {
+        userWantsPlaying=false; // genuine user pause
+      }
       audio.pause();playing=false;playIntent=false;
       navigator.mediaSession.playbackState='paused';
       renderMiniPlayer();updateSpPlayer();
