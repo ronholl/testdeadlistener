@@ -1677,7 +1677,37 @@ function preloadNextTrack(show,nextIdx){
 }
 
 function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
-function resumeAudio(){if(!audio)return;playIntent=true;audio.play().then(()=>{playing=true;if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';updateSpPlayer();renderMiniPlayer();renderList();});}
+function resumeAudio(){
+  if(!audio)return;
+  playIntent=true;
+  // If audio is in a bad state (interrupted, stale after lock screen), recreate it
+  // readyState < 2 means iOS dropped the audio data
+  if(audio.readyState<2&&playingShow){
+    const pos=audio.currentTime||0;
+    const show=playingShow;
+    const idx=playingTrackIdx;
+    startPlayback(show,idx);
+    // Seek to where we were once it loads
+    const orig=audio.oncanplay;
+    audio.addEventListener('canplay',function h(){
+      audio.removeEventListener('canplay',h);
+      if(pos>1)try{audio.currentTime=pos;}catch(e){}
+    },{once:true});
+    return;
+  }
+  audio.play().then(function(){
+    playing=true;
+    if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+    updateSpPlayer();renderMiniPlayer();renderList();
+  }).catch(function(e){
+    console.warn('resumeAudio failed:',e.message);
+    // play() rejected — try restarting the track from current position
+    if(playingShow){
+      const pos=audio?audio.currentTime:0;
+      startPlayback(playingShow,playingTrackIdx);
+    }
+  });
+}
 function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
 function skipTrack(dir){
   if(!curShow?.tracks)return;
@@ -2865,16 +2895,7 @@ function setMediaSession(show,trackIdx,state){
 function registerMediaHandlers(show,trackIdx){
   if(!('mediaSession' in navigator))return;
   navigator.mediaSession.setActionHandler('play',function(){
-    if(audio){
-      playIntent=true;
-      audio.play().then(function(){
-        playing=true;
-        navigator.mediaSession.playbackState='playing';
-        renderMiniPlayer();updateSpPlayer();
-      }).catch(function(e){
-        console.warn('Media session play failed:',e.message);
-      });
-    }
+    resumeAudio();
   });
   navigator.mediaSession.setActionHandler('pause',function(){
     if(audio){
