@@ -2865,12 +2865,15 @@ function setMediaSession(show,trackIdx,state){
 function registerMediaHandlers(show,trackIdx){
   if(!('mediaSession' in navigator))return;
   navigator.mediaSession.setActionHandler('play',function(){
-    if(audio&&audio.paused){
+    if(audio){
+      playIntent=true;
       audio.play().then(function(){
-        playing=true;playIntent=true;
+        playing=true;
         navigator.mediaSession.playbackState='playing';
         renderMiniPlayer();updateSpPlayer();
-      }).catch(function(){});
+      }).catch(function(e){
+        console.warn('Media session play failed:',e.message);
+      });
     }
   });
   navigator.mediaSession.setActionHandler('pause',function(){
@@ -2914,7 +2917,7 @@ function pauseAtPosition(show,trackIdx,pos){
   // Create audio element paused at position
   if(audio){audio.pause();audio=null;}
   audio=new Audio();
-  audio.preload='metadata';
+  audio.preload='auto';  // buffer data so iOS lock screen play can resume it
   audio.src=url;
   audio.onended=function(){
     if(!playIntent)return;
@@ -2934,6 +2937,23 @@ function pauseAtPosition(show,trackIdx,pos){
   audio.ontimeupdate=function(){
     if(!_seeked)_doSeek();
     savePos(show.id,audio.currentTime);updateProgress();
+  };
+  // Play briefly then pause to activate the iOS audio session.
+  // Without this, the lock screen play button can't resume a cold audio element.
+  audio.oncanplay=function(){
+    audio.oncanplay=null;
+    audio.play().then(function(){
+      audio.pause();
+      // Re-seek after the play/pause cycle since iOS resets currentTime
+      if(pos&&pos>0){
+        try{audio.currentTime=pos;}catch(e){}
+      }
+      playing=false;playIntent=false;
+      navigator.mediaSession&&(navigator.mediaSession.playbackState='paused');
+      renderMiniPlayer();updateSpPlayer();
+    }).catch(function(){
+      // Autoplay blocked — that's fine, lock screen won't show but in-app works
+    });
   };
   audio.load();
   playing=false;playIntent=false;
