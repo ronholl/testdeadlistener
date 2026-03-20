@@ -1143,7 +1143,8 @@ function renderList(){
   // Show max 4 badges to avoid crowding
   const shownUsers=users.slice(0,4);
   const myUser2=curUser||viewUser;
-  el.innerHTML=archiveDownBanner+filtered.slice(0,300).map(s=>{
+  const _cap=(myOnly||(viewUser&&viewUser!=='all'))?2500:300;
+  el.innerHTML=archiveDownBanner+filtered.slice(0,_cap).map(s=>{
     const ip=playingShow?.id===s.id&&!!audio;
     const myUser=curUser||viewUser;
     const myAtt=myUser&&myUser!=='all'&&s.attended[myUser];
@@ -1181,7 +1182,7 @@ function renderList(){
       </div>
     </div>`;
   }).join('');
-  if(filtered.length>300)el.innerHTML+=`<div class="empty" style="font-size:9px">First 300 shown — filter to narrow</div>`;
+  if(filtered.length>_cap)el.innerHTML+=`<div class="empty" style="font-size:9px">First ${_cap} shown — filter to narrow</div>`;
 }
 
 // ── DEADHEADS ────────────────────────────────────────────────────────
