@@ -1992,6 +1992,11 @@ function switchTab(name){
 }
 
 loadData();
+// Set poster button visible immediately if poster is configured
+(function(){
+  const pb=document.getElementById('viewPosterBtn');
+  if(pb&&POSTER_URL)pb.style.display='block';
+})();
 
 // ── FAVORITES ─────────────────────────────────────────────────────
 // allFavorites: [{user, showId, date, venue}] — loaded from sheet
@@ -3030,7 +3035,7 @@ function retryShowMeta(id){
   </div>
 
   <!-- ── ADMIN MESSAGE OVERLAY ── -->
-  <div id="msgOverlay" style="display:none;position:fixed;inset:0;z-index:550;background:rgba(0,0,0,.85);display:none;align-items:center;justify-content:center;padding:20px;box-sizing:border-box">
+  <div id="msgOverlay" style="display:none;position:fixed;inset:0;z-index:550;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;box-sizing:border-box">
     <div style="background:#140c0c;border:1px solid rgba(200,168,75,.4);border-radius:18px;max-width:380px;width:100%;padding:28px 24px 22px;position:relative;box-shadow:0 16px 48px rgba(0,0,0,.9)">
       <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Message from Ron</div>
       <div id="msgText" style="font-size:15px;color:#d8d0c0;line-height:1.7;margin-bottom:20px"></div>
