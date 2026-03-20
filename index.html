@@ -1992,11 +1992,11 @@ function switchTab(name){
 }
 
 loadData();
-// Set poster button visible immediately if poster is configured
-(function(){
+// Set poster button visible once DOM is ready (element is below the script tag)
+document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
   if(pb&&POSTER_URL)pb.style.display='block';
-})();
+});
 
 // ── FAVORITES ─────────────────────────────────────────────────────
 // allFavorites: [{user, showId, date, venue}] — loaded from sheet
