@@ -2414,14 +2414,17 @@ async function prefetchRelistenAvailability(){
 // Client stores 'gd_msg_seen' = last seen id. Shows once per new id.
 async function checkAdminMsg(){
   try{
-    const r=await fetch(SCRIPT_URL+'?action=getMessage',{signal:AbortSignal.timeout(4000)});
-    if(!r.ok)return;
-    const d=await r.json();
-    if(!d.id||!d.text)return;                          // no active message
+    const r=await fetch(SCRIPT_URL+'?action=getMessage',{signal:AbortSignal.timeout(6000)});
+    if(!r.ok){console.warn('getMessage HTTP error',r.status);return;}
+    const text=await r.text();
+    let d;
+    try{d=JSON.parse(text);}catch(e){console.warn('getMessage bad JSON',text.slice(0,100));return;}
+    if(!d.id||!d.text){console.log('getMessage: no active message',JSON.stringify(d));return;}
     const seen=localStorage.getItem('gd_msg_seen')||'';
-    if(seen===d.id)return;                              // already seen this one
+    if(seen===d.id){console.log('getMessage: already seen',d.id);return;}
+    console.log('getMessage: showing message',d.id);
     showMsg(d.id,d.text);
-  }catch(e){}
+  }catch(e){console.warn('checkAdminMsg error',e.message);}
 }
 function showMsg(id,text){
   const overlay=document.getElementById('msgOverlay');
@@ -2444,7 +2447,7 @@ function showPoster(){
   if(!POSTER_URL)return;
   const el=document.getElementById('posterOverlay');
   const img=document.getElementById('posterImg');
-  if(img&&!img.src)img.src=POSTER_URL;
+  if(img)img.src=POSTER_URL;  // always set — getAttribute('src') would be '' but img.src is base URL
   if(el){el.style.display='block';el.scrollTop=0;}
   document.body.style.overflow='hidden';
 }
