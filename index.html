@@ -1751,11 +1751,40 @@ function resumeAudio(){
     },{once:true});
     return;
   }
+  const audioAtPlayTime=audio; // capture ref in case it changes
+  const posAtPlay=audio.currentTime;
   audio.play().then(function(){
     playing=true;userWantsPlaying=true;
     if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
     updateSpPlayer();renderMiniPlayer();renderList();
-    _dbgLog('play() resolved — playing='+playing+' readyState='+audio.readyState);
+    _dbgLog('play() resolved — playing='+playing+' readyState='+audio.readyState+' pos='+Math.round(audio.currentTime));
+    // Verify audio is actually advancing after 800ms — iOS silent-play check
+    setTimeout(function(){
+      if(!audioAtPlayTime||audioAtPlayTime!==audio)return; // track changed
+      if(!playing)return; // paused since
+      const moved=audio.currentTime-posAtPlay;
+      _dbgLog('Audio check after 800ms: moved='+moved.toFixed(2)+'s paused='+audio.paused);
+      if(moved<0.05&&!audio.paused){
+        // play() resolved but time isn't moving — iOS silent play bug
+        // Recreate the entire audio element to escape the dead session
+        _dbgLog('SILENT PLAY DETECTED — recreating audio element');
+        const deadSrc=audio.src;
+        const deadPos=audio.currentTime;
+        const deadShow=playingShow;
+        const deadIdx=playingTrackIdx;
+        audio.pause();audio.src='';audio=null;
+        playing=false;
+        // startPlayback recreates everything fresh
+        startPlayback(deadShow,deadIdx);
+        // Seek to position once it loads
+        const a2=audio;
+        a2.addEventListener('playing',function h(){
+          a2.removeEventListener('playing',h);
+          if(deadPos>2)try{a2.currentTime=deadPos;}catch(e){}
+          _dbgLog('Recreated audio playing from pos='+deadPos);
+        },{once:true});
+      }
+    },800);
   }).catch(function(e){
     _dbgLog('play() FAILED: '+e.name+': '+e.message);
     playing=false;playIntent=false;
