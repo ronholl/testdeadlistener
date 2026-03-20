@@ -949,7 +949,7 @@ function checkPin(){
   }
 }
 
-function loginAs(name,save){
+async function loginAs(name,save){
   curUser=name;
   guestMode=false;
   // Hide all login screens IMMEDIATELY - before anything else that could throw
@@ -983,10 +983,23 @@ function loginAs(name,save){
   if(myOnly)document.getElementById('myBtn').classList.add('on');
   else document.getElementById('myBtn').classList.remove('on');
   const _tb=document.getElementById('theirBtn');if(_tb){_tb.style.display='none';_tb.classList.remove('on');}
+  // Check for admin message BEFORE rendering shows — wait up to 1.5s then proceed
+  // This ensures the message appears first, not mid-browse
+  try{
+    await Promise.race([
+      checkAdminMsg(),
+      new Promise(function(resolve){setTimeout(resolve,1500);}) // max wait
+    ]);
+  }catch(e){}
+  // If a message is showing, wait for it to be dismissed before rendering
+  if(document.getElementById('msgOverlay').style.display==='flex'){
+    await new Promise(function(resolve){
+      const orig=window.dismissMsg;
+      window.dismissMsg=function(){orig();window.dismissMsg=orig;resolve();};
+    });
+  }
   applyFilters();updateAttCount();updateViewStats();
   setHdrSt('Welcome back, '+name+'!','ok');
-  // Check for admin broadcast message — delay so welcome clears first
-  setTimeout(checkAdminMsg, 2500);
 }
 
 function switchUser(){
