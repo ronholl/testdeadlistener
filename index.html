@@ -119,10 +119,10 @@ body{display:flex;justify-content:center}
 .hdr-sub{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:1px}
 .hdr-st{font-size:9px;margin-top:1px;min-height:11px}
 .hdr-st.ok{color:var(--green)}.hdr-st.err{color:var(--red)}.hdr-st.busy{color:var(--gold)}
-.hdr-user{display:flex;align-items:center;gap:6px;flex-shrink:0;cursor:pointer;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2);border-radius:20px;padding:5px 10px 5px 6px}
+.hdr-user{display:flex;align-items:center;gap:6px;flex-shrink:0;cursor:pointer;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2);border-radius:50%;width:32px;height:32px;padding:0;justify-content:center}
 .hdr-user:active{background:rgba(200,168,75,.15)}
 .hdr-user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--serif)}
-.hdr-user-name{font-size:11px;color:var(--gold)}
+.hdr-user-name{display:none}
 .tabs{display:flex;background:#111;border-bottom:1px solid var(--border);position:sticky;top:65px;z-index:119}
 .tab{flex:1;padding:9px 4px;text-align:center;font-size:10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono);transition:all .15s;user-select:none}
 .tab.on{color:var(--gold);border-bottom-color:var(--gold)}
@@ -269,11 +269,11 @@ body{display:flex;justify-content:center}
 .mp-time{font-size:9px;color:var(--muted);min-width:30px;font-variant-numeric:tabular-nums}
 .mp-time.r{text-align:right}
 .mp-idle{padding:12px 0;text-align:center;color:var(--muted);font-size:11px;font-style:italic}
-.others-view{padding:0}
+.others-view{padding:0;overflow-y:auto;flex:1;min-height:0}
 .ogrid{margin-top:0}
-.orow{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.orow{display:flex;align-items:center;gap:10px;padding:5px 12px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
 .orow:active{background:rgba(200,168,75,.05)}
-.oavatar-sm{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:13px;font-weight:700;flex-shrink:0}
+.oavatar-sm{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:10px;font-weight:700;flex-shrink:0}
 .orow-name{flex:1;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .orow-bar{width:60px;flex-shrink:0;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
 .orow-cnt{font-size:12px;color:var(--gold);min-width:40px;text-align:right}
@@ -424,6 +424,7 @@ body{display:flex;justify-content:center}
     </div>
 
     <div class="login-prompt">Who's listening?</div>
+    <div id="loginCloseBtn" onclick="cancelLogin()" style="display:none;position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10" title="Close">×</div>
     <div class="login-users" id="loginUsers">
       <div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>
     </div>
@@ -525,7 +526,7 @@ body{display:flex;justify-content:center}
       <div class="stat"><span class="stat-n" id="s-yrs">—</span><span class="stat-l">Years</span></div>
     </div>
     <div class="filters">
-      <input class="srch" id="q" type="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()"/>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="text" autocomplete="off" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
       <div class="frow">
         <select class="fsel" id="yrSel" onchange="applyFilters()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
@@ -539,7 +540,7 @@ body{display:flex;justify-content:center}
 
   <div id="tab-songs" style="display:none">
     <div class="song-view">
-      <input class="srch" id="songQ" type="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()"/>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="songQ" type="text" autocomplete="off" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('songQ').value='';renderFeaturedSongs()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
       <div class="cntbar" id="songCnt" style="padding:4px 0;border:none">Type a song name to search</div>
     </div>
     <div class="song-results" id="songResults"></div>
@@ -561,6 +562,14 @@ const USER_COLORS=['#c44040','#4a7fc1','#c8a84b','#52b788','#9b6dbd','#e87d3e','
 
 // ── STATE ─────────────────────────────────────────────────────────
 let shows=[], filtered=[], users=[], userCols={}, userPins={};
+let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
+function rebuildAttCache(){
+  attCache={};
+  users.forEach(function(u){
+    attCache[u]=shows.filter(function(s){return s.attended&&s.attended[u];}).length;
+  });
+}
+function attCount(u){return attCache[u]||0;}
 let curUser=null;      // logged-in user name
 let guestMode=false;   // browsing without login
 let viewUser='all';    // which user's shows to browse
@@ -578,8 +587,10 @@ function savePos(id,t){
   positions[id]=Math.floor(t);
   try{
     localStorage.setItem('gd_pos',JSON.stringify(positions));
-    if(curShow&&audio){
-      localStorage.setItem('gd_restore',JSON.stringify({showId:curShow.id,trackIdx:curTrackIdx,pos:Math.floor(t),ts:Date.now()}));
+    // Always save playingShow/playingTrackIdx, not curShow/curTrackIdx
+    // curShow is whatever is open in the setlist panel — could be a different show
+    if(playingShow&&audio){
+      localStorage.setItem('gd_restore',JSON.stringify({showId:playingShow.id,trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()}));
     }
   }catch(e){}
 }
@@ -772,6 +783,11 @@ function onLoaded(list){
   document.getElementById('s-total').textContent=list.length.toLocaleString();
   document.getElementById('s-yrs').textContent=yrs[0]+'–'+yrs[yrs.length-1];
 
+  // Apply any locally-cached attendance changes on top of sheet data first
+  // so rebuildAttCache() is correct before loginAs() reads attCount()
+  loadAttendedLocal();
+  rebuildAttCache();
+
   // Build login screen with real user data
   // Only show login if not already logged in (user may have entered PIN during load)
   if(!curUser && !guestMode){
@@ -792,8 +808,6 @@ function onLoaded(list){
     document.getElementById('loginScreen').style.display='none';
   }
 
-  // Apply any locally-cached attendance changes on top of sheet data
-  loadAttendedLocal();
   renderOthers();applyFilters();
   bgLoadBatch(0);
   // Restore last playback position after a short delay
@@ -823,8 +837,8 @@ function renderLoginScreen(){
   const sorted=[...users].sort(function(a,b){
     if(a===curUser) return -1;
     if(b===curUser) return 1;
-    const ca=shows.filter(function(s){return s.attended[a];}).length;
-    const cb=shows.filter(function(s){return s.attended[b];}).length;
+    const ca=attCount(a);
+    const cb=attCount(b);
     return cb-ca;
   });
 
@@ -838,7 +852,7 @@ function renderLoginScreen(){
     }
     return matched.map(function(u){
       const i=users.indexOf(u);
-      const cnt=shows.filter(function(s){return s.attended[u];}).length;
+      const cnt=attCount(u);
       const col=USER_COLORS[i%USER_COLORS.length];
       const isMe=u===curUser;
       const action=isMe?'cancelLogin()':'showPin(\''+u+'\')';
@@ -942,7 +956,7 @@ function loginAs(name,save){
   // Set viewer to self by default
   viewUser=name;
   document.getElementById('usel').value=name;
-  const _uc=shows.filter(function(s){return s.attended&&s.attended[name];}).length;
+  const _uc=attCount(name);
   myOnly=_uc>0;
   if(myOnly)document.getElementById('myBtn').classList.add('on');
   else document.getElementById('myBtn').classList.remove('on');
@@ -956,6 +970,8 @@ function switchUser(){
   // Tapping own name closes, tapping another name asks for PIN
   renderLoginScreen();
   document.getElementById('loginScreen').style.display='flex';
+  var cb=document.getElementById('loginCloseBtn');
+  if(cb)cb.style.display=curUser?'flex':'none';
 }
 
 // ── NEW USER REGISTRATION ─────────────────────────────────────────
@@ -967,6 +983,16 @@ function showNewUser(){
   document.getElementById('nuMsg').textContent='';
   document.getElementById('nuSubmit').disabled=true;
   document.getElementById('nuName').focus();
+  // Pre-check user count via GET (CORS-friendly) so we can warn immediately if bus is full
+  fetch(SCRIPT_URL+'?action=getUserCount').then(r=>r.json()).then(d=>{
+    if(d.spotsLeft===0){
+      const msg=document.getElementById('nuMsg');
+      msg.innerHTML='The bus is full right now 🚌'
+        +'<br><br>You can <span style="color:var(--gold);cursor:pointer;text-decoration:underline" onclick="enterGuestMode()">browse as a Guest</span>'
+        +' or email <a href="mailto:ronsdeadheadlistener@gmail.com" style="color:var(--gold)">ronsdeadheadlistener@gmail.com</a> to request a spot.';
+      msg.className='nu-msg err';
+    }
+  }).catch(()=>{});// silently ignore if count check fails
 }
 
 function nuPinInput(idx){
@@ -981,13 +1007,22 @@ function nuPinKey(e,idx){
     document.getElementById('nup'+(idx-1)).focus();
   }
 }
+// Names that look too much like Ron's — block them
+const RESERVED_NAMES=/^ron(\s+h)?$/i;  // block 'Ron' and 'Ron H' only
+function isReservedName(n){return RESERVED_NAMES.test(n.trim());}
+
 function nuValidate(){
   const name=document.getElementById('nuName').value.trim();
   const pin=[0,1,2,3].map(i=>document.getElementById('nup'+i).value).join('');
-  const valid=name.length>=2&&pin.length===4&&!users.includes(name);
+  const reserved=isReservedName(name);
+  const taken=users.includes(name);
+  const valid=name.length>=2&&pin.length===4&&!taken&&!reserved;
   document.getElementById('nuSubmit').disabled=!valid;
   const msg=document.getElementById('nuMsg');
-  if(name.length>=2&&users.includes(name)){
+  if(name.length>=2&&reserved){
+    msg.textContent='That name is reserved — Ron is already on the bus 🚌';
+    msg.className='nu-msg err';
+  }else if(name.length>=2&&taken){
     msg.textContent='That name is already taken — pick a different one';
     msg.className='nu-msg err';
   }else{
@@ -1000,22 +1035,25 @@ async function registerNewUser(){
   const pin=[0,1,2,3].map(i=>document.getElementById('nup'+i).value).join('');
   const btn=document.getElementById('nuSubmit');
   const msg=document.getElementById('nuMsg');
+  if(isReservedName(name)){
+    msg.textContent='That name is reserved — Ron is already on the bus 🚌';
+    msg.className='nu-msg err';
+    return;
+  }
   btn.disabled=true;btn.textContent='Saving…';
   msg.textContent='Adding you to the sheet…';msg.className='nu-msg';
   try{
     await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
       body:JSON.stringify({action:'addUser',name,pin}),
       headers:{'Content-Type':'text/plain;charset=utf-8'}});
-    // Optimistically add to local state
+
     users.push(name);userCols[name]=3+users.length-1;userPins[name]=pin;
     shows.forEach(s=>{s.attended[name]=false;});
+    rebuildAttCache();
     renderLoginScreen();
     renderOthers();
-    // ── Bulk prefetch all years from Relisten ────────────────────
-  // Fetches 31 years in parallel (~400ms), marks shows as available
-  // instantly so green ▶ indicators appear without waiting for full loads
-  prefetchRelistenAvailability();
-  const usel=document.getElementById('usel');
+    prefetchRelistenAvailability();
+    const usel=document.getElementById('usel');
     const o=document.createElement('option');o.value=name;o.textContent=name;usel.appendChild(o);
     msg.textContent='Done! Logging you in…';msg.className='nu-msg ok';
     setTimeout(()=>loginAs(name,true),800);
@@ -1065,17 +1103,17 @@ function applyFilters(){
 }
 function updateAttCount(){
   if(viewUser==='all'){document.getElementById('s-att').textContent='—';return;}
-  document.getElementById('s-att').textContent=shows.filter(s=>s.attended[viewUser]).length.toLocaleString();
+  document.getElementById('s-att').textContent=attCount(viewUser).toLocaleString();
 }
 function updateViewStats(){
   const el=document.getElementById('ucnt');
   if(viewUser==='all'){el.innerHTML='';return;}
-  const cnt=shows.filter(s=>s.attended[viewUser]).length;
+  const cnt=attCount(viewUser);
   el.innerHTML='<b>'+cnt+'</b> shows';
   const myBtn=document.getElementById('myBtn');
   if(myBtn){
     // Hide My Shows only if the LOGGED-IN user has 0 shows
-    const myCnt=curUser?shows.filter(s=>s.attended[curUser]).length:0;
+    const myCnt=curUser?attCount(curUser):0;
     if(myCnt===0&&curUser){
       myBtn.style.display='none';
       if(myOnly){myOnly=false;myBtn.classList.remove('on');applyFilters();}
@@ -1097,7 +1135,7 @@ function renderList(){
   const shownUsers=users.slice(0,4);
   const myUser2=curUser||viewUser;
   el.innerHTML=archiveDownBanner+filtered.slice(0,300).map(s=>{
-    const ip=curShow?.id===s.id;
+    const ip=playingShow?.id===s.id&&!!audio;
     const myUser=curUser||viewUser;
     const myAtt=myUser&&myUser!=='all'&&s.attended[myUser];
     const isFav=isFavorited(s.id);
@@ -1139,8 +1177,8 @@ function renderList(){
 
 // ── DEADHEADS ────────────────────────────────────────────────────────
 function renderOthers(){
-  const max=Math.max(...users.map(u=>shows.filter(s=>s.attended[u]).length),1);
-  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:shows.filter(s=>s.attended[u]).length};}).sort(function(a,b){return b.cnt-a.cnt;});
+  const max=Math.max(...users.map(u=>attCount(u)),1);
+  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:attCount(u)};}).sort(function(a,b){return b.cnt-a.cnt;});
   document.getElementById('ogrid').innerHTML=sorted.map(function(item){
     const u=item.u,c=USER_COLORS[item.i%USER_COLORS.length],cnt=item.cnt;
     return '<div class="orow" onclick="browseUser(\'' + u + '\')">'
@@ -1211,7 +1249,8 @@ async function openSetlist(id){
   _sp.style.top=(_hdrH+_tabsH)+'px';
   _sp.style.height='calc(100vh - '+(_hdrH+_tabsH)+'px)';
   _sp.classList.add('open');
-  var _mpEl=document.getElementById('miniPlayer');if(_mpEl)_mpEl.style.visibility='hidden';
+  // Hide the show list so .row.playing gold bar can't bleed through the panel
+  var _list=document.getElementById('list');if(_list)_list.style.visibility='hidden';
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
   updateSpFavBtn();
   if(!show.metaLoaded){
@@ -1234,13 +1273,25 @@ function closeSetlist(){
   const _spc=document.getElementById('setlistPanel');
   _spc.classList.remove('open');_spc.style.top='';_spc.style.height='';
   const _mpEl2=document.getElementById('miniPlayer');if(_mpEl2)_mpEl2.style.visibility='';
+  // Restore show list visibility
+  var _list=document.getElementById('list');if(_list)_list.style.visibility='';
   var _activeTab=setlistOriginTab||'shows';
   var _tb=document.getElementById('tab-btn-'+_activeTab);if(_tb)_tb.classList.add('on');
   if(typeof setlistOriginTab!=='undefined'&&setlistOriginTab){
     switchTab(setlistOriginTab);
   }
 }
-function openSetlistForCurrent(){if(curShow)openSetlist(curShow.id);}
+function openSetlistForCurrent(){
+  const target=playingShow||curShow;
+  if(!target)return;
+  // Open the setlist and highlight the playing track
+  openSetlist(target.id).then(function(){
+    if(playingShow&&playingTrackIdx>=0){
+      const el=document.getElementById('track-'+playingTrackIdx);
+      if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
+    }
+  });
+}
 
 // ── META LOADING ──────────────────────────────────────────────────
 const BG_BATCH=20,BG_DELAY=200;
@@ -1477,19 +1528,20 @@ function renderSetlistBody(show){
   // ── Track list: clean 3-column grid ─────────────────────────
   let html='';
   show.tracks.forEach(function(t,i){
-    const isCur=playingShow&&playingShow.id===show.id&&playingTrackIdx===i&&!!audio;
     const dur=t.length?fmtT(parseFloat(t.length)):'';
     // Strip trailing "->" from display, show "→" as a subtle connector
     const hasTransition=t.name&&t.name.trim().endsWith('->');
     const songName=t.name?t.name.replace(/\s*->$/,'').trim():'Track '+(i+1);
     html+=
-      '<div class="tl-row'+(isCur?' tl-cur':'')+'" id="track-'+i+'" onclick="playTrack('+i+')">'+
+      '<div class="tl-row" id="track-'+i+'" onclick="playTrack('+i+')">'+
         '<span class="tl-num">'+(i+1)+'</span>'+
         '<span class="tl-title">'+esc(songName)+(hasTransition?' <span class="tl-arrow">→</span>':'')+'</span>'+
         '<span class="tl-dur">'+dur+'</span>'+
       '</div>';
   });
   body.innerHTML=html;
+  // After DOM is written, apply highlight via the single source of truth
+  updateSpPlayer();
 }
 
 
@@ -1517,7 +1569,9 @@ function fmtSize(b){const mb=b/1048576;return(mb>100?Math.round(mb):mb.toFixed(1
 // ── PLAYBACK ─────────────────────────────────────────────────────
 function playTrack(idx){
   if(!curShow?.tracks)return;
-  startPlayback(curShow,Math.max(0,Math.min(idx,curShow.tracks.length-1)));
+  const target=Math.max(0,Math.min(idx,curShow.tracks.length-1));
+  curTrackIdx=target;
+  startPlayback(curShow,target);
 }
 function quickPlay(id){
   const show=shows.find(s=>s.id===id);if(!show||show.notAvail)return;
@@ -1615,7 +1669,7 @@ function preloadNextTrack(show,nextIdx){
 
 function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
 function resumeAudio(){if(!audio)return;playIntent=true;audio.play().then(()=>{playing=true;if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';updateSpPlayer();renderMiniPlayer();renderList();});}
-function togglePlay(){if(!audio&&curShow)startPlayback(curShow,curTrackIdx);else if(playing)pauseAudio();else resumeAudio();}
+function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
 function skipTrack(dir){
   if(!curShow?.tracks)return;
   if(dir===-1){
@@ -1658,19 +1712,14 @@ function updateSpPlayer(){
     now.textContent='';
     if(sub)sub.textContent='';
   }
-  // Highlight tracks only in the show that's actually playing
-  if(curShow&&curShow.tracks){
-    curShow.tracks.forEach(function(_,i){
-      const el=document.getElementById('track-'+i);
-      if(!el)return;
-      // Only highlight if this show IS the playing show
-      const isCur=playingShow&&playingShow.id===curShow.id&&playingTrackIdx===i&&!!audio;
-      if(isCur)el.classList.add('tl-cur');
-      else el.classList.remove('tl-cur');
-    });
-    if(playingShow&&playingShow.id===curShow.id&&audio){
-      const curEl=document.getElementById('track-'+playingTrackIdx);
-      if(curEl)curEl.scrollIntoView({block:'nearest',behavior:'smooth'});
+  // Clear ALL tl-cur rows in the DOM first (covers stale rows from previously browsed shows)
+  document.querySelectorAll('.tl-cur').forEach(function(el){el.classList.remove('tl-cur');});
+  // Then highlight only the currently playing track — but only if the browsed show IS the playing show
+  if(playingShow&&curShow&&playingShow.id===curShow.id&&audio){
+    const curEl=document.getElementById('track-'+playingTrackIdx);
+    if(curEl){
+      curEl.classList.add('tl-cur');
+      curEl.scrollIntoView({block:'nearest',behavior:'smooth'});
     }
   }
   updateProgress();
@@ -1868,8 +1917,7 @@ async function openSetlistAndPlay(id,song){
   _sp.style.top=(_hdrH+_tabsH)+'px';
   _sp.style.height='calc(100vh - '+(_hdrH+_tabsH)+'px)';
   _sp.classList.add('open');
-
-  // Helper: find track, set index, render, play
+  var _listB=document.getElementById('list');if(_listB)_listB.style.visibility='hidden';
   const doPlay=function(){
     const i=findTrackIdx(show,song);
     curTrackIdx=i>=0?i:0;
@@ -1922,6 +1970,7 @@ function switchTab(name){
   if(_spc&&_spc.classList.contains('open')){
     _spc.classList.remove('open');_spc.style.top='';_spc.style.height='';
     const _mpEl2=document.getElementById('miniPlayer');if(_mpEl2)_mpEl2.style.visibility='';
+    var _list=document.getElementById('list');if(_list)_list.style.visibility='';
   }
   if(name==='jam')initJamTab();
   if(name==='songs'){const q=document.getElementById('songQ');if(q&&q.value.length<2)renderFeaturedSongs();}
@@ -2544,6 +2593,7 @@ async function doMarkAttended(show,user,attended){
   if(!show||!user)return;
   show.attended[user]=attended;
   saveAttendedLocal(show.id,user,attended);
+  rebuildAttCache();
   renderList();updateAttCount();renderOthers();updateSpAttBtn();
   setHdrSt('Saving…','busy');
   try{
@@ -2677,16 +2727,35 @@ function restoreLastPosition(){
     if(Date.now()-saved.ts > 86400000){localStorage.removeItem('gd_restore');return;}
     const show=shows.find(s=>s.id===saved.showId);
     if(!show)return;
+    // If the show isn't visible (myOnly filter excludes it), temporarily show all
+    // so the user can see what's being restored
+    const showInFiltered=filtered.some(s=>s.id===show.id);
+    if(!showInFiltered&&myOnly){
+      myOnly=false;
+      const myBtn=document.getElementById('myBtn');
+      if(myBtn)myBtn.classList.remove('on');
+      applyFilters();
+    }
     // Load the show meta if needed, then pause at position
     curShow=show;curTrackIdx=saved.trackIdx||0;
+    const afterRestore=function(){
+      if(show.tracks&&show.tracks.length>saved.trackIdx){
+        pauseAtPosition(show,saved.trackIdx,saved.pos);
+        // Scroll the list to the restored show after a brief render delay
+        setTimeout(function(){
+          const idx=filtered.findIndex(s=>s.id===show.id);
+          if(idx<0)return;
+          const list=document.getElementById('list');
+          if(!list)return;
+          const rows=list.querySelectorAll('.row');
+          if(rows[idx])rows[idx].scrollIntoView({block:'center',behavior:'smooth'});
+        },200);
+      }
+    };
     if(!show.metaLoaded){
-      loadShowMeta(show,true).then(function(){
-        if(show.tracks&&show.tracks.length>saved.trackIdx){
-          pauseAtPosition(show,saved.trackIdx,saved.pos);
-        }
-      });
-    } else if(show.tracks&&show.tracks.length>saved.trackIdx){
-      pauseAtPosition(show,saved.trackIdx,saved.pos);
+      loadShowMeta(show,true).then(afterRestore);
+    } else {
+      afterRestore();
     }
   }catch(e){}
 }
@@ -2698,9 +2767,8 @@ function pauseAtPosition(show,trackIdx,pos){
   // Create audio element paused at position
   if(audio){audio.pause();audio=null;}
   audio=new Audio();
-  audio.preload='none';
+  audio.preload='metadata';
   audio.src=url;
-  audio.ontimeupdate=function(){savePos(show.id,audio.currentTime);updateProgress();};
   audio.onended=function(){
     if(!playIntent)return;
     const next=trackIdx+1;
@@ -2708,9 +2776,17 @@ function pauseAtPosition(show,trackIdx,pos){
     else{playing=false;playIntent=false;renderList();renderMiniPlayer();}
   };
   audio.onerror=function(){playing=false;playIntent=false;};
-  // Set position when metadata loads
-  audio.onloadedmetadata=function(){
-    if(pos&&pos>0)audio.currentTime=pos;
+  // Seek to saved position — use both onloadedmetadata and a one-shot ontimeupdate
+  // because on iOS, seeking in onloadedmetadata alone is unreliable
+  let _seeked=false;
+  function _doSeek(){
+    if(!pos||pos<=0||_seeked)return;
+    try{audio.currentTime=pos;_seeked=true;}catch(e){}
+  }
+  audio.onloadedmetadata=function(){_doSeek();};
+  audio.ontimeupdate=function(){
+    if(!_seeked)_doSeek();
+    savePos(show.id,audio.currentTime);updateProgress();
   };
   audio.load();
   playing=false;playIntent=false;
@@ -2878,66 +2954,57 @@ function retryShowMeta(id){
         <button onclick="closeHelp()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,.06);border:none;color:var(--muted);font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
 
         <!-- Logo + Title -->
-        <div style="text-align:center;margin-bottom:24px">
+        <div style="text-align:center;margin-bottom:20px">
           <img id="welcomeLogo" style="width:88px;height:88px;border-radius:50%;border:2px solid rgba(200,168,75,.3);margin-bottom:14px;display:block;margin-left:auto;margin-right:auto">
-          <div style="font-family:var(--serif);font-size:28px;color:var(--gold);letter-spacing:.5px;line-height:1.2">Ron's Deadhead Listener</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:.5px">1965 – 1995 · 2,386 Shows</div>
+          <div style="font-family:var(--serif);font-size:26px;color:var(--gold);letter-spacing:.5px;line-height:1.2">Built for Deadheads by Ron</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px;letter-spacing:.5px">1965 – 1995 · 2,386 Shows · Relisten</div>
         </div>
 
-        <!-- What it is -->
-        <div style="font-size:15px;color:#c8c0b0;line-height:1.8;margin-bottom:20px;text-align:center">
-          Browse and listen to every recorded Grateful Dead concert.<br>
-          Audio streams from archive.org via Relisten.
+        <!-- Install on phone — PROMINENT AT TOP -->
+        <div style="background:rgba(200,168,75,.1);border:2px solid rgba(200,168,75,.5);border-radius:12px;padding:18px 18px 16px;margin-bottom:16px;position:relative">
+          <div style="position:absolute;top:-11px;left:16px;background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;letter-spacing:.5px">INSTALL THE APP</div>
+          <div style="font-size:13px;color:#c8c0b0;line-height:1.9;margin-top:4px">
+            Browse and play every Grateful Dead show right from your home screen — no App Store, no browser chrome, just music.<br><br>
+            <b style="color:var(--gold)">iPhone · Safari only:</b><br>
+            1&nbsp; Tap the <b style="color:#d8d0c0">Share ⎙</b> button at the bottom<br>
+            2&nbsp; Scroll down and tap <b style="color:#d8d0c0">Add to Home Screen</b><br>
+            3&nbsp; Tap <b style="color:#d8d0c0">Add</b> — done ✓<br><br>
+            <b style="color:var(--gold)">Android · Chrome:</b><br>
+            Tap <b style="color:#d8d0c0">⋮ Menu</b> → <b style="color:#d8d0c0">Add to Home screen</b>
+          </div>
         </div>
 
-        <!-- How to use -->
+        <!-- What's Here -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
-          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">The Four Tabs</div>
+          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">What's Here</div>
           <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
-            <b style="color:#d8d0c0">Shows</b> — all 2,386 concerts. Filter by year, search by venue, city or date. Tap any show for its setlist &amp; player<br>
-            <b style="color:#d8d0c0">Songs</b> — type any song name to find every show it was played. Tap a result to jump to that show<br>
-            <b style="color:#d8d0c0">Deadheads</b> — all registered listeners with their show counts. Tap a name to browse their attended shows<br>
-            <b style="color:#d8d0c0">Jam</b> — discover shows: On This Day, Play a Show, and Best Versions
-          </div>
-        </div>
-        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
-          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Reading the Show List</div>
-          <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
-            <span style="color:rgba(82,183,136,.9)">&#9654;</span> <b style="color:#d8d0c0">Green arrow</b> — audio available on Relisten<br>
-            <span style="color:var(--gold);font-size:11px">SBD</span> <b style="color:#d8d0c0">Gold badge</b> — soundboard recording (best quality)<br>
-            <b style="color:#d8d0c0">Colored circles</b> — which listeners attended this show<br>
-            <b style="color:#d8d0c0">+ button</b> — mark as a show you attended<br>
-            <b style="color:#d8d0c0">My shows filter</b> — show only your attended shows
+            🎵 <b style="color:#d8d0c0">Shows</b> — all 2,386 concerts. Filter by year, search venue, city or date. Tap any show for its setlist &amp; player<br>
+            🔍 <b style="color:#d8d0c0">Songs</b> — type any song to find every show it was played. Tap a result to jump straight there<br>
+            💀 <b style="color:#d8d0c0">Deadheads</b> — other Deadheads show lists. Tap a name to browse their attended shows<br>
+            🎲 <b style="color:#d8d0c0">Jam</b> — discover shows: Favorites, On This Day, Play a Show, and Best Versions
           </div>
         </div>
 
-        <!-- Sign in -->
-        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
-          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Signing In</div>
-          <div style="font-size:14px;color:#b8b0a0;line-height:2">
-            <b style="color:#d8d0c0">Tap your name</b> — enter PIN to log in and track your attended shows<br>
-            <b style="color:#d8d0c0">Explore the Archive</b> — listen to everything, no sign-in needed
-          </div>
-        </div>
-        <!-- Jam tab -->
+        <!-- The Jam Tab detail -->
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
           <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">The Jam Tab</div>
           <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
-            <b style="color:#d8d0c0">⭐ Favorites</b> — starred shows from all listeners. Your favorites pin to the top of your show list (max 5)<br>
-            <b style="color:#d8d0c0">📅 On This Day</b> — shows recorded on today’s date across all years, sorted by rating<br>
-            <b style="color:#d8d0c0">🎲 Play a Show</b> — roll the dice for a surprise — weighted toward top rated shows<br>
-            <b style="color:#d8d0c0">🏆 Best Versions</b> — type any song name to find its highest rated performances
+            ⭐ <b style="color:#d8d0c0">Favorites</b> — starred shows from all listeners. Your favorites pin to the top of your list (max 5)<br>
+            📅 <b style="color:#d8d0c0">On This Day</b> — shows from today's date across all years, sorted by rating<br>
+            🎲 <b style="color:#d8d0c0">Play a Show</b> — roll the dice for a surprise, weighted toward top rated shows<br>
+            🏆 <b style="color:#d8d0c0">Best Versions</b> — type any song name to find its highest rated performances
           </div>
         </div>
 
-        <!-- Install on phone -->
-        <div style="background:rgba(200,168,75,.1);border:2px solid rgba(200,168,75,.5);border-radius:12px;padding:18px 18px 16px;margin-bottom:24px;position:relative">
-          <div style="position:absolute;top:-11px;left:16px;background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;letter-spacing:.5px">INSTALL THE APP</div>
-          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;margin-top:4px">📱 Add to Your Home Screen</div>
-          <div style="font-size:14px;color:#b8b0a0;line-height:2.2">
-            Get the full experience — launches instantly like a real app, no browser needed.<br>
-            <b style="color:#d8d0c0">iPhone (Safari):</b> tap the <b style="color:var(--gold)">Share ↑</b> button &rarr; <b style="color:var(--gold)">Add to Home Screen</b><br>
-            <b style="color:#d8d0c0">Android (Chrome):</b> tap the <b style="color:var(--gold)">⋮ Menu</b> &rarr; <b style="color:var(--gold)">Add to Home screen</b>
+        <!-- Reading the show list -->
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
+          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">Reading the Show List</div>
+          <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
+            <span style="color:rgba(82,183,136,.9)">▶</span> <b style="color:#d8d0c0">Green arrow</b> — audio available on Relisten<br>
+            <span style="color:var(--gold);font-size:11px">SBD</span> <b style="color:#d8d0c0">Gold badge</b> — soundboard recording (best quality)<br>
+            <b style="color:#d8d0c0">Colored circles</b> — which Deadheads attended this show<br>
+            <b style="color:#d8d0c0">+ button</b> — mark as a show you attended<br>
+            <b style="color:#d8d0c0">My shows filter</b> — see only your attended shows
           </div>
         </div>
 
@@ -2946,16 +3013,21 @@ function retryShowMeta(id){
           Loading stats…
         </div>
 
-        <!-- Contact -->
-        <div style="text-align:center;margin-bottom:14px">
-          <span id="contact-link" style="font-size:15px;color:var(--muted);cursor:pointer;text-decoration:underline" onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d">&#9993; <span id="contact-email">ronsdeadheadlistener&#64;gmail.com</span></span>
-          <div style="font-size:10px;color:rgba(255,255,255,.2);margin-top:4px;letter-spacing:.5px">questions · new users · feedback</div>
+        <!-- Get in Touch -->
+        <div style="text-align:center;margin-bottom:18px">
+          <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Get in Touch</div>
+          <span id="contact-link" style="font-size:15px;color:#c8c0b0;cursor:pointer" onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d">✉ <span id="contact-email" style="text-decoration:underline">ronsdeadheadlistener&#64;gmail.com</span></span>
+          <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:5px">questions · new users · feedback</div>
+        </div>
+
+        <!-- Share nudge -->
+        <div style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:20px;font-style:italic">
+          If you like it, share it with another Deadhead 💀
         </div>
 
         <!-- CTA button -->
         <button onclick="closeHelp()" style="width:100%;background:linear-gradient(135deg,#c8a84b,#a87c28);border:none;border-radius:12px;padding:15px;color:#000;font-family:var(--mono);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px">
-          Let&#39;s Listen &#9654;
-        </button>
+          Let&#39;s Listen ▶</button>
 
       </div>
     </div>
@@ -3044,8 +3116,8 @@ function retryShowMeta(id){
       <div class="loading"><span class="spinner"></span>Fetching tracks…</div>
     </div>
     <div class="sp-player">
-      <div class="sp-now" id="sp-now">—</div>
-      <div class="sp-now-sub" id="sp-now-sub"></div>
+      <div class="sp-now" id="sp-now" onclick="openSetlistForCurrent()" style="cursor:pointer">—</div>
+      <div class="sp-now-sub" id="sp-now-sub" onclick="openSetlistForCurrent()" style="cursor:pointer"></div>
       <div class="prog-wrap">
         <span class="ptime" id="sp-tc">0:00</span>
         <div class="pbar" onclick="seekClick(event)">
