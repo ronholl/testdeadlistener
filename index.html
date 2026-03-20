@@ -2446,19 +2446,21 @@ function dismissMsg(){
 function showPoster(){
   if(!POSTER_URL)return;
   const el=document.getElementById('posterOverlay');
-  const img=document.getElementById('posterImg');
-  if(img){
+  if(!el)return;
+  // Build fresh content each time — avoids iOS stale-element image loading issues
+  const wrap=el.querySelector('.poster-wrap');
+  if(wrap){
+    wrap.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:60px 20px">Loading poster…</div>';
+    const img=new Image();
+    img.style.cssText='max-width:100%;width:100%;height:auto;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.8);display:block';
+    img.onload=function(){wrap.innerHTML='';wrap.appendChild(img);};
     img.onerror=function(){
-      img.alt='Poster failed to load — check that final_deadhead_poster_web.jpg is in the repo';
-      img.style.display='none';
-      const errMsg=document.createElement('div');
-      errMsg.style.cssText='color:var(--muted);font-size:13px;text-align:center;padding:40px 20px';
-      errMsg.textContent='Poster image not found. Make sure final_deadhead_poster_web.jpg is uploaded to the repo.';
-      img.parentNode.appendChild(errMsg);
+      wrap.innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:60px 20px">Could not load poster.<br><br>Make sure <b style=\'color:var(--gold)\'>final_deadhead_poster_web.jpg</b><br>is in the GitHub repo.</div>';
     };
-    img.src=POSTER_URL+'?v='+Date.now(); // cache-bust so iOS doesn't serve a stale failed request
+    img.src=POSTER_URL;
   }
-  if(el){el.style.display='block';el.scrollTop=0;}
+  el.style.display='block';
+  el.scrollTop=0;
   document.body.style.overflow='hidden';
 }
 function closePoster(){
@@ -3042,8 +3044,8 @@ function retryShowMeta(id){
   <!-- ── POSTER OVERLAY ── -->
   <div id="posterOverlay" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.95);overflow-y:auto;-webkit-overflow-scrolling:touch">
     <button onclick="closePoster()" style="position:fixed;top:14px;right:14px;z-index:601;width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.7);border:2px solid rgba(200,168,75,.6);color:var(--gold);font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
-    <div style="display:flex;align-items:flex-start;justify-content:center;min-height:100%;padding:60px 12px 24px">
-      <img id="posterImg" alt="" style="max-width:100%;width:auto;height:auto;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.8);display:block">
+    <div class="poster-wrap" style="display:flex;align-items:flex-start;justify-content:center;min-height:100%;padding:60px 12px 24px">
+      <div style="color:var(--muted);font-size:13px;text-align:center;padding:60px 20px">Loading poster…</div>
     </div>
   </div>
 
