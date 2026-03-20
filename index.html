@@ -762,7 +762,7 @@ function mkShow(d,v,c,att,r){
     songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
-function onLoaded(list){
+async function onLoaded(list){
   shows=list;
   try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
@@ -808,7 +808,7 @@ function onLoaded(list){
     const saved=localStorage.getItem('gd_user');
     const savedPin=localStorage.getItem('gd_pin');
     if(saved&&users.includes(saved)&&userPins[saved]&&savedPin===userPins[saved]){
-      loginAs(saved,false);
+      await loginAs(saved,false); // await so message shows before list renders
     } else if(!localStorage.getItem('gd_welcomed')){
       document.getElementById('loginScreen').style.display='none';
       // New users: show poster first (once only), then help screen
@@ -827,8 +827,8 @@ function onLoaded(list){
 
   renderOthers();applyFilters();
   bgLoadBatch(0);
-  // Restore last playback position after a short delay
-  setTimeout(restoreLastPosition, 1500);
+  // Restore last playback position after message (if any) has been shown and dismissed
+  setTimeout(restoreLastPosition, 300);
   loadFavorites(); // Load immediately - uses cache for instant display
   if(curUser)updateViewStats();
 }
