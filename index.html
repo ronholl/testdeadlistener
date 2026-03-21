@@ -762,19 +762,51 @@ function mkShow(d,v,c,att,r){
     songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
+// ── META CACHE: persist full show metadata across sessions ──────────
+function saveMetaCache(show){
+  try{
+    const c=JSON.parse(localStorage.getItem('gd_meta_cache')||'{}');
+    c[show.id]={
+      archiveId:show.archiveId||null,
+      tracks:show.tracks||[],
+      totalDur:show.totalDur||0,
+      rating:show.rating||0,
+      notAvail:!!show.notAvail,
+      allRestricted:!!show.allRestricted,
+      setBreaks:show.setBreaks||null
+    };
+    localStorage.setItem('gd_meta_cache',JSON.stringify(c));
+  }catch(e){}
+}
+
 function onLoaded(list){
   shows=list;
+  // ── Restore full metadata from cache (songs + tracks/archiveId) ──
   try{
-    const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const songCache=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const metaCache2=JSON.parse(localStorage.getItem('gd_meta_cache')||'{}');
     shows.forEach(function(s){
-      if(cached[s.id]&&!s.songs){
-        s.songs=cached[s.id];
-        cached[s.id].forEach(function(song){
+      // Restore songs / setlist
+      if(songCache[s.id]&&!s.songs){
+        s.songs=songCache[s.id];
+        songCache[s.id].forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
           if(!songIndex[key].some(function(e){return e.id===s.id;}))
             songIndex[key].push({id:s.id,date:s.date,venue:s.venue,city:s.city,song:song});
         });
+      }
+      // Restore full audio meta — marks metaLoaded so bgLoad skips this show
+      if(metaCache2[s.id]){
+        const m=metaCache2[s.id];
+        s.archiveId=m.archiveId;
+        s.tracks=m.tracks||[];
+        s.totalDur=m.totalDur||0;
+        s.rating=m.rating||0;
+        s.notAvail=!!m.notAvail;
+        s.allRestricted=!!m.allRestricted;
+        if(m.setBreaks)s.setBreaks=m.setBreaks;
+        s.metaLoaded=true;
       }
     });
   }catch(e){}
@@ -1432,6 +1464,7 @@ async function loadShowMeta(show,priority){
           }
           show.metaLoaded=true;
           show.notAvail=tracks.length===0;
+          saveMetaCache(show);
           relistenOk=true;
         }
       }
@@ -1468,6 +1501,7 @@ async function loadShowMeta(show,priority){
         show.metaLoaded=true;show.notAvail=false;show.allRestricted=true;
         show.archiveId=docs[0].identifier;show.rating=docs[0].avg_rating||0;
         show.tracks=[];show.totalDur=0;
+        saveMetaCache(show);
         if(priority)renderSetlistBody(show);return;
       }
       const best=docs.find(function(d){return !d['access-restricted-item'];})||docs[0];
@@ -1505,6 +1539,7 @@ async function loadShowMeta(show,priority){
       show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       show.metaLoaded=true;show.notAvail=show.tracks.length===0;
+      saveMetaCache(show);
     }
 
     stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
@@ -3084,7 +3119,7 @@ function retryShowMeta(id){
     <div style="background:#140c0c;border:1px solid rgba(200,168,75,.4);border-radius:18px;max-width:380px;width:100%;padding:28px 24px 22px;position:relative;box-shadow:0 16px 48px rgba(0,0,0,.9)">
       <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Message from Ron</div>
       <div id="msgText" style="font-size:15px;color:#d8d0c0;line-height:1.7;margin-bottom:14px"></div>
-      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline">ronsdeadheadlistener@gmail.com</span></div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3c4e53524f58595d5854595d5850554f485952594e7c5b515d5550125f5351">[email&#160;protected]</a></span></div>
       <button onclick="dismissMsg()" style="width:100%;background:linear-gradient(135deg,#c8a84b,#a87c28);border:none;border-radius:10px;padding:12px;color:#000;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer">Got it 👍</button>
     </div>
   </div>
@@ -3285,9 +3320,4 @@ function retryShowMeta(id){
             <circle cx="2" cy="20" r="1" fill="currentColor"/>
           </svg>
         </button>
-        <button class="cbtn" id="sp-fav" onclick="toggleFavoriteFromPlayer()" title="Add to favorites" style="padding:0 14px;gap:6px;font-size:14px">+ fav</button>
-      </div>
-    </div>
-  </div>
-
-</div>i
+        <button class="cbtn" id="sp-fav" onclick="toggleFavoriteFromPlay
