@@ -762,51 +762,19 @@ function mkShow(d,v,c,att,r){
     songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
-// ── META CACHE: persist full show metadata across sessions ──────────
-function saveMetaCache(show){
-  try{
-    const c=JSON.parse(localStorage.getItem('gd_meta_cache')||'{}');
-    c[show.id]={
-      archiveId:show.archiveId||null,
-      tracks:show.tracks||[],
-      totalDur:show.totalDur||0,
-      rating:show.rating||0,
-      notAvail:!!show.notAvail,
-      allRestricted:!!show.allRestricted,
-      setBreaks:show.setBreaks||null
-    };
-    localStorage.setItem('gd_meta_cache',JSON.stringify(c));
-  }catch(e){}
-}
-
 function onLoaded(list){
   shows=list;
-  // ── Restore full metadata from cache (songs + tracks/archiveId) ──
   try{
-    const songCache=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
-    const metaCache2=JSON.parse(localStorage.getItem('gd_meta_cache')||'{}');
+    const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
     shows.forEach(function(s){
-      // Restore songs / setlist
-      if(songCache[s.id]&&!s.songs){
-        s.songs=songCache[s.id];
-        songCache[s.id].forEach(function(song){
+      if(cached[s.id]&&!s.songs){
+        s.songs=cached[s.id];
+        cached[s.id].forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
           if(!songIndex[key].some(function(e){return e.id===s.id;}))
             songIndex[key].push({id:s.id,date:s.date,venue:s.venue,city:s.city,song:song});
         });
-      }
-      // Restore full audio meta — marks metaLoaded so bgLoad skips this show
-      if(metaCache2[s.id]){
-        const m=metaCache2[s.id];
-        s.archiveId=m.archiveId;
-        s.tracks=m.tracks||[];
-        s.totalDur=m.totalDur||0;
-        s.rating=m.rating||0;
-        s.notAvail=!!m.notAvail;
-        s.allRestricted=!!m.allRestricted;
-        if(m.setBreaks)s.setBreaks=m.setBreaks;
-        s.metaLoaded=true;
       }
     });
   }catch(e){}
@@ -1464,7 +1432,6 @@ async function loadShowMeta(show,priority){
           }
           show.metaLoaded=true;
           show.notAvail=tracks.length===0;
-          saveMetaCache(show);
           relistenOk=true;
         }
       }
@@ -1501,7 +1468,6 @@ async function loadShowMeta(show,priority){
         show.metaLoaded=true;show.notAvail=false;show.allRestricted=true;
         show.archiveId=docs[0].identifier;show.rating=docs[0].avg_rating||0;
         show.tracks=[];show.totalDur=0;
-        saveMetaCache(show);
         if(priority)renderSetlistBody(show);return;
       }
       const best=docs.find(function(d){return !d['access-restricted-item'];})||docs[0];
@@ -1539,7 +1505,6 @@ async function loadShowMeta(show,priority){
       show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       show.metaLoaded=true;show.notAvail=show.tracks.length===0;
-      saveMetaCache(show);
     }
 
     stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
@@ -1693,6 +1658,19 @@ function startPlayback(show,idx){
   audio.onerror=function(){playing=false;playIntent=false;updateSpPlayer();};
   playIntent=true;
   if(!newAudio._preloaded)audio.src=url;
+  // Create/reuse AudioContext and connect audio element to keep it alive in background
+  if(!window._audioCtx){
+    try{
+      window._audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    }catch(e){}
+  }
+  if(window._audioCtx&&!audio._ctxConnected){
+    try{
+      var src=window._audioCtx.createMediaElementSource(audio);
+      src.connect(window._audioCtx.destination);
+      audio._ctxConnected=true;
+    }catch(e){}
+  }
   audio.play().then(function(){
     playing=true;
     renderList();renderMiniPlayer();updateSpPlayer();
@@ -1713,7 +1691,7 @@ function startPlayback(show,idx){
         artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]
       });
       navigator.mediaSession.playbackState='playing';
-      navigator.mediaSession.setActionHandler('play',function(){if(audio&&audio.paused){audio.play();playing=true;playIntent=true;navigator.mediaSession.playbackState='playing';renderMiniPlayer();updateSpPlayer();}});
+      navigator.mediaSession.setActionHandler('play',function(){if(audio&&audio.paused){resumeAudio();}});
       navigator.mediaSession.setActionHandler('pause',function(){if(audio){audio.pause();playing=false;playIntent=false;navigator.mediaSession.playbackState='paused';renderMiniPlayer();updateSpPlayer();}});
       navigator.mediaSession.setActionHandler('nexttrack',function(){const _s=playingShow;const _i=playingTrackIdx;if(_s&&_i+1<(_s.tracks||[]).length)startPlayback(_s,_i+1);});
       navigator.mediaSession.setActionHandler('previoustrack',function(){const _s=playingShow;const _i=playingTrackIdx;if(audio&&audio.currentTime>3){audio.currentTime=0;}else if(_s&&_i>0){startPlayback(_s,_i-1);}});
@@ -1739,7 +1717,24 @@ function preloadNextTrack(show,nextIdx){
 }
 
 function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
-function resumeAudio(){if(!audio)return;playIntent=true;audio.play().then(()=>{playing=true;if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';updateSpPlayer();renderMiniPlayer();renderList();});}
+function resumeAudio(){
+  if(!audio)return;
+  playIntent=true;
+  // iOS suspends the AudioContext when app goes to background.
+  // Resume it first or the counter moves but no sound plays.
+  var doPlay=function(){
+    audio.play().then(function(){
+      playing=true;
+      if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+      updateSpPlayer();renderMiniPlayer();renderList();
+    }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
+  };
+  if(window._audioCtx&&window._audioCtx.state==='suspended'){
+    window._audioCtx.resume().then(doPlay).catch(doPlay);
+  }else{
+    doPlay();
+  }
+}
 function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
 function skipTrack(dir){
   if(!curShow?.tracks)return;
@@ -2058,6 +2053,21 @@ loadData();
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
   if(pb&&POSTER_URL)pb.style.display='block';
+});
+
+// ── BACKGROUND AUDIO FIX ─────────────────────────────────────────────
+// When returning to foreground after iOS suspended the AudioContext,
+// resume it so audio that was "playing" (counter moving, no sound) comes back.
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'){
+    if(window._audioCtx&&window._audioCtx.state==='suspended'){
+      window._audioCtx.resume().catch(function(){});
+    }
+    // If we think we're playing but audio is paused (iOS killed it), restart it
+    if(playIntent&&audio&&audio.paused){
+      audio.play().catch(function(){});
+    }
+  }
 });
 
 // ── FAVORITES ─────────────────────────────────────────────────────
@@ -3119,7 +3129,7 @@ function retryShowMeta(id){
     <div style="background:#140c0c;border:1px solid rgba(200,168,75,.4);border-radius:18px;max-width:380px;width:100%;padding:28px 24px 22px;position:relative;box-shadow:0 16px 48px rgba(0,0,0,.9)">
       <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Message from Ron</div>
       <div id="msgText" style="font-size:15px;color:#d8d0c0;line-height:1.7;margin-bottom:14px"></div>
-      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="3c4e53524f58595d5854595d5850554f485952594e7c5b515d5550125f5351">[email&#160;protected]</a></span></div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89fbe6e7faedece8ede1ece8ede5e0fafdece7ecfbc9eee4e8e0e5a7eae6e4">[email&#160;protected]</a></span></div>
       <button onclick="dismissMsg()" style="width:100%;background:linear-gradient(135deg,#c8a84b,#a87c28);border:none;border-radius:10px;padding:12px;color:#000;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer">Got it 👍</button>
     </div>
   </div>
