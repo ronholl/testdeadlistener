@@ -586,6 +586,31 @@ let myOnly=false, sortDesc=true;
 let positions={}, songIndex={}, metaCache={};
 let preloadAudio=null; // preloaded next track for seamless playback
 let playIntent=false;
+
+// ── iOS BACKGROUND AUDIO KEEPALIVE ──────────────────────────────────────
+// iOS suspends the audio hardware when a PWA backgrounds, even if audio is
+// playing. A silent zero-gain oscillator in an AudioContext keeps the audio
+// session alive. We do NOT route the HTMLAudioElement through this graph
+// (that would break .duration/.currentTime). The oscillator just prevents
+// iOS from shutting down the audio hardware session entirely.
+var _iosAC=null,_iosKeepNode=null;
+function _startAudioKeepAlive(){
+  try{
+    if(!_iosAC)_iosAC=new(window.AudioContext||window.webkitAudioContext)();
+    if(_iosAC.state==='suspended')_iosAC.resume();
+    if(!_iosKeepNode){
+      var osc=_iosAC.createOscillator();
+      var gain=_iosAC.createGain();
+      gain.gain.value=0;
+      osc.connect(gain);gain.connect(_iosAC.destination);
+      osc.start(0);
+      _iosKeepNode=osc;
+    }
+  }catch(e){}
+}
+function _stopAudioKeepAlive(){
+  try{if(_iosKeepNode){_iosKeepNode.disconnect();_iosKeepNode=null;}}catch(e){}
+}
 let pinTarget=null, pinBuffer='';
 let debugLines=[];
 
@@ -1660,6 +1685,7 @@ function startPlayback(show,idx){
   if(!newAudio._preloaded)audio.src=url;
   audio.play().then(function(){
     playing=true;
+    _startAudioKeepAlive(); // keep iOS audio session alive in background
     renderList();renderMiniPlayer();updateSpPlayer();
     const el=document.getElementById('track-'+idx);
     if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -1707,28 +1733,21 @@ function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=fa
 function resumeAudio(){
   if(!audio)return;
   playIntent=true;
-  // On iOS, after backgrounding, audio.play() can resolve but produce no sound.
-  // Strategy: try play(); if the element immediately shows paused again after a tick,
-  // reload from currentTime and play again. This recovers from iOS silent-failure.
-  var pos=audio.currentTime;
-  audio.play().then(function(){
-    playing=true;
-    if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
-    updateSpPlayer();renderMiniPlayer();renderList();
-    // Check after 300ms: if iOS silently failed (paused without firing error), reload
-    setTimeout(function(){
-      if(playIntent&&audio&&audio.paused){
-        var reloadPos=audio.currentTime||pos;
-        audio.load();
-        audio.currentTime=reloadPos;
-        audio.play().then(function(){
-          playing=true;
-          if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
-          updateSpPlayer();renderMiniPlayer();
-        }).catch(function(){});
-      }
-    },300);
-  }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
+  // Resume the keepalive AudioContext first — this is what unlocks the iOS
+  // audio hardware after backgrounding. Then play the audio element.
+  function doPlay(){
+    audio.play().then(function(){
+      playing=true;
+      if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+      updateSpPlayer();renderMiniPlayer();renderList();
+    }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
+  }
+  if(_iosAC&&_iosAC.state==='suspended'){
+    _iosAC.resume().then(doPlay).catch(doPlay);
+  }else{
+    _startAudioKeepAlive();
+    doPlay();
+  }
 }
 function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
 function skipTrack(dir){
@@ -2051,11 +2070,17 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 // ── BACKGROUND AUDIO RECOVERY ──────────────────────────────────────────
-// When returning to foreground on iOS, if we think we're playing but
-// audio has been silently paused, kick it back to life.
+// When returning to foreground on iOS, resume the AudioContext keepalive
+// (which unlocks hardware), then kick audio if it stalled.
 document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible'&&playIntent&&audio&&audio.paused){
-    audio.play().catch(function(){});
+  if(document.visibilityState==='visible'){
+    if(_iosAC&&_iosAC.state==='suspended'){
+      _iosAC.resume().then(function(){
+        if(playIntent&&audio&&audio.paused)audio.play().catch(function(){});
+      }).catch(function(){});
+    }else if(playIntent&&audio&&audio.paused){
+      audio.play().catch(function(){});
+    }
   }
 });
 
