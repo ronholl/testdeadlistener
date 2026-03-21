@@ -597,7 +597,8 @@ var _iosAC=null,_iosKeepNode=null;
 function _startAudioKeepAlive(){
   try{
     if(!_iosAC)_iosAC=new(window.AudioContext||window.webkitAudioContext)();
-    if(_iosAC.state==='suspended')_iosAC.resume();
+    // iOS 17+ can put AudioContext in 'interrupted' state (not just 'suspended')
+    if(_iosAC.state==='suspended'||_iosAC.state==='interrupted')_iosAC.resume();
     if(!_iosKeepNode){
       var osc=_iosAC.createOscillator();
       var gain=_iosAC.createGain();
@@ -1718,6 +1719,7 @@ function startPlayback(show,idx){
       navigator.mediaSession.setActionHandler('previoustrack',function(){const _s=playingShow;const _i=playingTrackIdx;if(audio&&audio.currentTime>3){audio.currentTime=0;}else if(_s&&_i>0){startPlayback(_s,_i-1);}});
       try{navigator.mediaSession.setActionHandler('seekbackward',function(d){if(audio)audio.currentTime=Math.max(0,audio.currentTime-(d.seekOffset||10));});navigator.mediaSession.setActionHandler('seekforward',function(d){if(audio)audio.currentTime=Math.min(audio.duration||0,audio.currentTime+(d.seekOffset||10));});}catch(e){}
       try{navigator.mediaSession.setActionHandler('seekto',function(d){if(audio&&d.seekTime!=null)audio.currentTime=d.seekTime;});}catch(e){}
+      try{navigator.mediaSession.setActionHandler('stop',function(){pauseAudio();});}catch(e){}
     }
   }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
 }
@@ -1744,13 +1746,58 @@ function resumeAudio(){
   // Resume the keepalive AudioContext first — this is what unlocks the iOS
   // audio hardware after backgrounding. Then play the audio element.
   function doPlay(){
+    // Snapshot position before play — if currentTime stops advancing after
+    // play() resolves we know iOS gave us a silent/interrupted audio element
+    // and we must reload from position (this fixes lock-screen play → no sound).
+    var snapPos=audio.currentTime;
+    var snapSrc=audio.src||audio.currentSrc;
     audio.play().then(function(){
       playing=true;
-      if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+      if('mediaSession' in navigator){
+        navigator.mediaSession.playbackState='playing';
+        // Re-sync position state so lock screen scrubber is accurate
+        if(navigator.mediaSession.setPositionState&&audio.duration&&!isNaN(audio.duration)){
+          try{navigator.mediaSession.setPositionState({duration:audio.duration,playbackRate:1,position:audio.currentTime});}catch(e){}
+        }
+      }
       updateSpPlayer();renderMiniPlayer();renderList();
+      // ── iOS silent-play detector ──────────────────────────────────
+      // After a lock-screen interruption, audio.play() may resolve but
+      // produce no sound and currentTime freezes. Detect this after 1.2 s
+      // and reload the src from the saved position if stalled.
+      setTimeout(function(){
+        if(!playIntent||!audio||!playing)return;
+        if(audio.paused||audio.ended)return; // expected states, skip
+        var delta=audio.currentTime-snapPos;
+        if(delta<0.05&&snapSrc){
+          // Still frozen — iOS audio element is silently broken.
+          // Re-source it at the last known position.
+          var recoverPos=snapPos;
+          var recoverSrc=snapSrc;
+          audio.pause();
+          audio.src=recoverSrc;
+          audio.load();
+          var didSeek=false;
+          function trySeek(){
+            if(recoverPos>0&&!didSeek){
+              try{audio.currentTime=recoverPos;didSeek=true;}catch(e){}
+            }
+          }
+          audio.onloadedmetadata=function(){trySeek();};
+          audio.addEventListener('canplay',function onCP(){
+            audio.removeEventListener('canplay',onCP);
+            trySeek();
+            audio.play().then(function(){
+              playing=true;
+              if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+              updateSpPlayer();renderMiniPlayer();renderList();
+            }).catch(function(){playing=false;playIntent=false;updateSpPlayer();});
+          },{once:true});
+        }
+      },1200);
     }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
   }
-  if(_iosAC&&_iosAC.state==='suspended'){
+  if(_iosAC&&(_iosAC.state==='suspended'||_iosAC.state==='interrupted')){
     _iosAC.resume().then(doPlay).catch(doPlay);
   }else{
     _startAudioKeepAlive();
@@ -2082,12 +2129,39 @@ document.addEventListener('DOMContentLoaded',function(){
 // (which unlocks hardware), then kick audio if it stalled.
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'){
-    if(_iosAC&&_iosAC.state==='suspended'){
-      _iosAC.resume().then(function(){
-        if(playIntent&&audio&&audio.paused)audio.play().catch(function(){});
-      }).catch(function(){});
-    }else if(playIntent&&audio&&audio.paused){
-      audio.play().catch(function(){});
+    function _kickAudio(){
+      if(!playIntent||!audio)return;
+      if(audio.paused){
+        audio.play().catch(function(){});
+      } else {
+        // Audio claims playing but may be frozen (iOS background cycle bug).
+        // Check if currentTime advances; if not, reload from position.
+        var snapPos=audio.currentTime;
+        setTimeout(function(){
+          if(!playIntent||!audio||audio.paused||audio.ended)return;
+          if(audio.currentTime-snapPos<0.05){
+            var pos=audio.currentTime;
+            var src=audio.src||audio.currentSrc;
+            if(!src)return;
+            audio.pause();
+            audio.src=src;
+            audio.load();
+            audio.addEventListener('canplay',function onCP(){
+              audio.removeEventListener('canplay',onCP);
+              if(pos>0){try{audio.currentTime=pos;}catch(e){}}
+              audio.play().then(function(){
+                if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+                updateSpPlayer();renderMiniPlayer();
+              }).catch(function(){});
+            },{once:true});
+          }
+        },1000);
+      }
+    }
+    if(_iosAC&&(_iosAC.state==='suspended'||_iosAC.state==='interrupted')){
+      _iosAC.resume().then(_kickAudio).catch(_kickAudio);
+    }else{
+      _kickAudio();
     }
   }
 });
@@ -2993,6 +3067,7 @@ function pauseAtPosition(show,trackIdx,pos){
     navigator.mediaSession.setActionHandler('nexttrack',function(){const _s=playingShow;const _i=playingTrackIdx;if(_s&&_i+1<(_s.tracks||[]).length)startPlayback(_s,_i+1);});
     navigator.mediaSession.setActionHandler('previoustrack',function(){const _s=playingShow;const _i=playingTrackIdx;if(audio&&audio.currentTime>3){audio.currentTime=0;}else if(_s&&_i>0){startPlayback(_s,_i-1);}});
     try{navigator.mediaSession.setActionHandler('seekbackward',function(d){if(audio)audio.currentTime=Math.max(0,audio.currentTime-(d.seekOffset||10));});navigator.mediaSession.setActionHandler('seekforward',function(d){if(audio)audio.currentTime=Math.min(audio.duration||0,audio.currentTime+(d.seekOffset||10));});}catch(e){}
+    try{navigator.mediaSession.setActionHandler('stop',function(){pauseAudio();});}catch(e){}
   }
   setHdrSt('⏸ Paused · '+show.date,'ok');
   setTimeout(function(){setHdrSt('','');},4000);
