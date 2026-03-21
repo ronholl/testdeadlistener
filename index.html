@@ -1746,82 +1746,13 @@ function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=fa
 function resumeAudio(){
   if(!audio)return;
   playIntent=true;
-
-  // ── Lock-screen / background recovery ────────────────────────────────
-  // iOS often returns a "zombie" audio element after a lock-screen
-  // interruption: play() resolves with no error, but audio is silent and
-  // currentTime never advances. The only reliable fix is to recreate the
-  // <audio> element from scratch at the saved position.
-  // We always attempt play() first (fast path for normal resume), then
-  // run a stall-check after 1.5 s and recreate if needed.
-
-  function _rebuildAndPlay(){
-    // Recreate the audio element from scratch — this is the nuclear option
-    // that beats iOS's zombie-element problem.
-    var oldSrc=audio.src||audio.currentSrc||'';
-    var oldPos=audio.currentTime||0;
-    var oldEnded=audio.onended;
-    var oldError=audio.onerror;
-    var oldTimeupdate=audio.ontimeupdate;
-    // Detach old element silently
-    try{audio.pause();}catch(e){}
-    audio.onended=null;audio.onerror=null;audio.ontimeupdate=null;
-    var newAudio=new Audio();
-    newAudio.preload='auto';
-    newAudio.onended=oldEnded;
-    newAudio.onerror=oldError;
-    newAudio.ontimeupdate=oldTimeupdate;
-    audio=newAudio;
-    if(!oldSrc){playing=false;playIntent=false;updateSpPlayer();return;}
-    audio.src=oldSrc;
-    audio.load();
-    var didSeek=false;
-    function trySeek(){
-      if(oldPos>0&&!didSeek){try{audio.currentTime=oldPos;didSeek=true;}catch(e){}}
-    }
-    audio.onloadedmetadata=function(){trySeek();};
-    audio.addEventListener('canplay',function onCP(){
-      audio.removeEventListener('canplay',onCP);
-      trySeek();
-      audio.play().then(function(){
-        playing=true;
-        if('mediaSession' in navigator){
-          navigator.mediaSession.playbackState='playing';
-          try{if(navigator.mediaSession.setPositionState&&audio.duration&&!isNaN(audio.duration))
-            navigator.mediaSession.setPositionState({duration:audio.duration,playbackRate:1,position:audio.currentTime});}catch(e){}
-        }
-        updateSpPlayer();renderMiniPlayer();renderList();
-      }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
-    },{once:true});
-  }
-
   function doPlay(){
-    var snapPos=audio.currentTime;
     audio.play().then(function(){
       playing=true;
-      if('mediaSession' in navigator){
-        navigator.mediaSession.playbackState='playing';
-        try{if(navigator.mediaSession.setPositionState&&audio.duration&&!isNaN(audio.duration))
-          navigator.mediaSession.setPositionState({duration:audio.duration,playbackRate:1,position:audio.currentTime});}catch(e){}
-      }
+      if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
       updateSpPlayer();renderMiniPlayer();renderList();
-      // Stall check — if currentTime hasn't moved after 1.5 s the element is zombie
-      setTimeout(function(){
-        if(!playIntent||!audio||!playing)return;
-        if(audio.paused||audio.ended)return;
-        if(audio.currentTime-snapPos<0.05){
-          // Zombie detected — nuke and rebuild
-          _rebuildAndPlay();
-        }
-      },1500);
-    }).catch(function(e){
-      if(e.name!=='AbortError'){
-        // play() itself rejected — try rebuilding before giving up
-        _rebuildAndPlay();
-      }
-    });
+    }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
   }
-
   if(_iosAC&&(_iosAC.state==='suspended'||_iosAC.state==='interrupted')){
     _iosAC.resume().then(doPlay).catch(doPlay);
   }else{
