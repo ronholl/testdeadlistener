@@ -1822,6 +1822,16 @@ function renderSetlistBody(show){
     return;
   }
   if(show.notAvail||(!show.tracks||!show.tracks.length)){
+    // Auto-retry once silently before showing the no-audio message.
+    // This handles the common case where a transient network issue caused
+    // the first fetch to fail — most of the time a single retry resolves it.
+    if(!show._autoRetried){
+      show._autoRetried=true;
+      show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;
+      show.tracks=null;show.archiveId=null;
+      loadShowMeta(show,true).then(function(){renderSetlistBody(show);});
+      return;
+    }
     // No audio — show message but still render any cached setlist songs below
     var _noAudioMsg=show.notAvail
       ? 'No recordings found for this show.<br><small style="opacity:.6">Not in Relisten database and not found on archive.org.</small><br><br>'
@@ -3686,7 +3696,7 @@ function updateSpFavBtn(){
 function retryShowMeta(id){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
-  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;
+  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Retrying…';
   loadShowMeta(show,true).then(()=>renderSetlistBody(show));
