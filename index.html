@@ -1497,13 +1497,15 @@ function openSetlistForCurrent(){
 }
 
 // ── META LOADING ──────────────────────────────────────────────────
-const BG_BATCH=20,BG_DELAY=100;
+const BG_BATCH=10,BG_DELAY=200;
 let bgRunning=false;
 function bgLoadBatch(){
   if(bgRunning)return;
   if(!shows||!shows.length)return;
   bgRunning=true;
-  const candidates=shows.filter(s=>!s.metaLoaded&&!s.notAvail);
+  // Candidates: unloaded shows. Include notAvail=true ones that aren't metaLoaded —
+  // those were left un-restored by onLoaded (prior outage cache) and need a fresh fetch.
+  const candidates=shows.filter(s=>!s.metaLoaded);
   const batch=candidates.slice(0,BG_BATCH);
   if(!batch.length){bgRunning=false;updateSongCntProgress();return;}
   const promises=batch.map((s,i)=>new Promise(res=>
@@ -1517,7 +1519,7 @@ function bgLoadBatch(){
   Promise.allSettled(promises).then(function(){
     updateSongCntProgress();
     bgRunning=false;
-    setTimeout(bgLoadBatch,300);
+    setTimeout(bgLoadBatch,1000);
   });
 }
 // Update the Songs tab counter with bg-load progress (only when not searching)
@@ -1805,14 +1807,27 @@ function renderSetlistBody(show){
     body.innerHTML='<div class="sp-unavail">Access-restricted (likely on a commercial release).<br><br>'+recLinks+'<br><a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">View on Relisten ↗</a></div>';
     return;
   }
-  if(show.notAvail){
-    body.innerHTML='<div class="sp-unavail">No recordings found for this show.<br><small style="opacity:.6">Not in Relisten database and not found on archive.org.</small><br><br>'+
-      '<a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">Search Relisten ↗</a>'+
-      '<br><br><button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry</button></div>';
-    return;
-  }
-  if(!show.tracks||!show.tracks.length){
-    body.innerHTML='<div class="sp-unavail">No streamable audio found.<br><br><a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">Search Relisten ↗</a></div>';
+  if(show.notAvail||(!show.tracks||!show.tracks.length)){
+    // No audio — show message but still render any cached setlist songs below
+    var _noAudioMsg=show.notAvail
+      ? 'No recordings found for this show.<br><small style="opacity:.6">Not in Relisten database and not found on archive.org.</small><br><br>'
+        +'<a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">Search Relisten ↗</a>'
+        +'<br><br><button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry</button>'
+      : 'No streamable audio found.<br><br><a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">Search Relisten ↗</a>'+
+        '<br><br><button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry</button>';
+    if(show.songs&&show.songs.length){
+      var _songRows=show.songs.map(function(s,i){
+        return '<div class="tl-row" style="opacity:.7;cursor:default">'+
+          '<span class="tl-num">'+(i+1)+'</span>'+
+          '<span class="tl-title">'+esc(s)+'</span>'+
+          '</div>';
+      }).join('');
+      body.innerHTML='<div class="sp-unavail" style="margin-bottom:12px">'+_noAudioMsg+'</div>'+
+        '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 12px 4px">Setlist</div>'+
+        _songRows;
+    } else {
+      body.innerHTML='<div class="sp-unavail">'+_noAudioMsg+'</div>';
+    }
     return;
   }
 
@@ -3559,6 +3574,9 @@ async function syncData(){
         myOnly=true;
         applyFilters();updateAttCount();updateViewStats();
       }
+      // Restart background loader so any shows missing audio/setlists get a fresh attempt
+      bgRunning=false;
+      bgLoadBatch();
       setHdrSt('✓ Synced','ok');
     } else {
       setHdrSt('⚠ Sync failed','err');
@@ -3674,10 +3692,10 @@ function retryShowMeta(id){
 
   <!-- ── ADMIN MESSAGE OVERLAY ── -->
   <div id="msgOverlay" style="display:none;position:fixed;inset:0;z-index:550;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:20px;box-sizing:border-box">
-    <div style="background:#140c0c;border:1px solid rgba(200,168,75,.4);border-radius:18px;max-width:380px;width:100%;padding:28px 24px 22px;position:relative;box-shadow:0 16px 48px rgba(0,0,0,.9)">
+    <div style="background:#140c0c;border:1px solid rgba(200,168,75,.4);border-radius:18px;max-width:380px;width:100%;padding:28px 24px 22px;position:relative;box-shadow:0 16px 48px rgba(0,0,0,.9);max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
       <div style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Message from Ron</div>
       <div id="msgText" style="font-size:15px;color:#d8d0c0;line-height:1.7;margin-bottom:14px"></div>
-      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5f2d30312c3b3a3e3b373a3e3b33362c2b3a313a2d1f38323e3633713c3032">[email&#160;protected]</a></span></div>
+      <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:16px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline">ronsdeadheadlistener&#64;gmail.com</span></div>
       <button onclick="dismissMsg()" style="width:100%;background:linear-gradient(135deg,#c8a84b,#a87c28);border:none;border-radius:10px;padding:12px;color:#000;font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer">Got it 👍</button>
     </div>
   </div>
