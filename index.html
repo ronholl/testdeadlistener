@@ -872,9 +872,9 @@ function onLoaded(list){
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
     // wiping on every launch.
-    if(localStorage.getItem('gd_meta_loaded_v')!=='5'){
+    if(localStorage.getItem('gd_meta_loaded_v')!=='6'){
       localStorage.removeItem('gd_meta_loaded');
-      localStorage.setItem('gd_meta_loaded_v','5');
+      localStorage.setItem('gd_meta_loaded_v','6');
     }
     // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
     const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
@@ -1692,9 +1692,12 @@ async function loadShowMeta(show,priority){
     // The bg loop will leave these shows unloaded; archive.org is only tried
     // on-demand when the user taps the show.
     if(!relistenOk&&!priority){
-      // Leave unloaded so bg loop retries later (Relisten may index it eventually)
-      show.metaLoaded=false;show.notAvail=false;
-      if(priority)renderSetlistBody(show);
+      // Relisten has nothing for this show. Mark it loaded so the bg loop
+      // doesn't spin on it forever. notAvail=false means it will still show
+      // a Retry button when opened — archive.org is tried on-demand then.
+      show.metaLoaded=true;show.notAvail=true;show.tracks=[];show.totalDur=0;
+      // Do NOT save to localStorage — keep it soft so the next session
+      // tries Relisten again (Relisten may add the show later).
       return;
     }
     if(!relistenOk){
@@ -3684,7 +3687,7 @@ function retryShowMeta(id){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
   show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;
-  document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying archive.org…</div>';
+  document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Retrying…';
   loadShowMeta(show,true).then(()=>renderSetlistBody(show));
 }
