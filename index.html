@@ -27,6 +27,9 @@
 
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ron's Deadhead Listener">
+<!-- Google Cast SDK — loads only in Chrome; ignored by Safari/Firefox -->
+<script>window['__onGCastApiAvailable'] = function(isAvailable){if(isAvailable)initCastApi();};</script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
 <meta name="theme-color" content="#0d0d0d">
 
 
@@ -868,15 +871,29 @@ function onLoaded(list){
   shows=list;
   try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    // Restore Relisten availability cache (avoids re-fetching 31 years every launch)
+    const relistenCache=JSON.parse(localStorage.getItem('gd_relisten_avail')||'{}');
     shows.forEach(function(s){
+      // Restore setlist + mark metaLoaded so bg loop skips this show
       if(cached[s.id]&&!s.songs){
         s.songs=cached[s.id];
+        s.metaLoaded=true;
         cached[s.id].forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
           if(!songIndex[key].some(function(e){return e.id===s.id;}))
             songIndex[key].push({id:s.id,date:s.date,venue:s.venue,city:s.city,song:song});
         });
+      }
+      // Restore Relisten availability flags
+      if(relistenCache[s.date]){
+        const rc=relistenCache[s.date];
+        s.relistenAvail   = rc.avail;
+        s.relistenSources = rc.sources||0;
+        s.relistenSbd     = rc.sbd||false;
+        s.relistenRating  = rc.rating||0;
+        s.relistenDur     = rc.dur||0;
+        if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
     });
   }catch(e){}
@@ -1994,6 +2011,8 @@ function startPlayback(show,idx){
     const el=document.getElementById('track-'+idx);
     if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});
     renderSetlistBody(show);
+    // If a Cast session is active, hand this track off to the Cast device
+    if(castActive && castSession){ _castLoadCurrent(); }
     // Preload next track silently
     preloadNextTrack(show,idx+1);
     if('mediaSession' in navigator){
@@ -2153,7 +2172,7 @@ function renderMiniPlayer(){
         <button class="mp-btn" onclick="event.stopPropagation();skipTrack(-1)" title="Previous">⏮</button>
         <button class="mp-btn main" onclick="event.stopPropagation();togglePlay()">${playing?'⏸':'▶'}</button>
         <button class="mp-btn" onclick="event.stopPropagation();skipTrack(1)" title="Next">⏭</button>
-        <button class="mp-btn" onclick="event.stopPropagation();tryCast()" title="AirPlay/Cast">
+        <button class="mp-btn cast-btn" onclick="event.stopPropagation();tryCast()" title="AirPlay/Cast">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/>
             <circle cx="2" cy="20" r="1" fill="currentColor"/>
@@ -2355,20 +2374,131 @@ async function openSetlistAndPlay(id,song){
   }
 }
 
+// ── GOOGLE CAST ───────────────────────────────────────────────────
+// Replace 'YOUR_APP_ID' with your Cast Application ID from
+// cast.google.com/publish once you've registered the app.
+// Until then everything works normally — cast button just won't appear.
+const CAST_APP_ID = 'YOUR_APP_ID';
+
+let castSession = null;   // active Cast session, if any
+let castActive  = false;  // true while audio is playing on a Cast device
+
+function initCastApi(){
+  try{
+    const ctx = cast.framework.CastContext.getInstance();
+    ctx.setOptions({
+      receiverApplicationId: CAST_APP_ID,
+      autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+    });
+
+    // Listen for session state changes
+    ctx.addEventListener(
+      cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+      function(ev){
+        const s = cast.framework.SessionState;
+        if(ev.sessionState === s.SESSION_STARTED || ev.sessionState === s.SESSION_RESUMED){
+          castSession = ctx.getCurrentSession();
+          castActive  = true;
+          // If something is already playing locally, hand it off to the Cast device
+          if(audio && playingShow){
+            _castLoadCurrent();
+          }
+          _updateCastBtn();
+        } else if(ev.sessionState === s.SESSION_ENDED){
+          castSession = null;
+          castActive  = false;
+          _updateCastBtn();
+        }
+      }
+    );
+
+    // Show the cast button now that the SDK is ready
+    _updateCastBtn();
+  }catch(e){
+    // SDK failed (non-Chrome browser) — fail silently, AirPlay path still works
+  }
+}
+
+// Load the current playing track on the Cast receiver
+function _castLoadCurrent(){
+  if(!castSession || !playingShow) return;
+  const track = playingShow.tracks && playingShow.tracks[playingTrackIdx];
+  if(!track) return;
+  const url = track.url || track.mp3 || '';
+  if(!url) return;
+
+  const mediaInfo = new chrome.cast.media.MediaInfo(url, 'audio/mpeg');
+  mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+  mediaInfo.metadata.title   = track.title || ('Track ' + (playingTrackIdx + 1));
+  mediaInfo.metadata.artist  = 'Grateful Dead';
+  mediaInfo.metadata.albumName = playingShow.date + ' · ' + playingShow.venue;
+
+  const req = new chrome.cast.media.LoadRequest(mediaInfo);
+  req.currentTime = (audio && !isNaN(audio.currentTime)) ? audio.currentTime : 0;
+  req.autoplay    = true;
+
+  castSession.loadMedia(req).then(function(){
+    // Pause local audio — Cast device is now playing
+    if(audio){ audio.pause(); }
+  }).catch(function(e){
+    setHdrSt('Cast error: ' + e,'err');
+    setTimeout(function(){setHdrSt('','');}, 3000);
+  });
+}
+
+// Toggle cast button appearance based on state
+function _updateCastBtn(){
+  const btns = document.querySelectorAll('.cast-btn');
+  btns.forEach(function(btn){
+    if(castActive){
+      btn.style.color   = 'var(--gold)';
+      btn.title = 'Casting — tap to stop';
+    } else {
+      btn.style.color   = '';
+      btn.title = 'Cast / AirPlay';
+    }
+  });
+}
+
 function tryCast(){
-  if(!audio)return;
-  // Try AirPlay (iOS Safari / macOS)
-  if(typeof audio.webkitShowPlaybackTargetPicker==='function'){
+  // ── Google Cast (Chrome desktop / Android Chrome) ──────────────
+  if(typeof cast !== 'undefined' && cast.framework){
+    try{
+      const ctx = cast.framework.CastContext.getInstance();
+      if(castActive){
+        // Already casting — end the session
+        ctx.endCurrentSession(true);
+        return;
+      }
+      // requestSession opens the Cast device picker
+      ctx.requestSession().then(function(){
+        // session events handled in initCastApi listener above
+      }).catch(function(e){
+        // User cancelled picker or no devices found — fall through to AirPlay
+        if(e !== 'cancel'){
+          _tryAirPlay();
+        }
+      });
+      return;
+    }catch(e){ /* fall through */ }
+  }
+  _tryAirPlay();
+}
+
+function _tryAirPlay(){
+  if(!audio) return;
+  // AirPlay (iOS Safari / macOS Safari)
+  if(typeof audio.webkitShowPlaybackTargetPicker === 'function'){
     audio.webkitShowPlaybackTargetPicker();
     return;
   }
-  // Try Remote Playback API (Chrome/Android - Chromecast)
-  if(audio.remote&&typeof audio.remote.prompt==='function'){
+  // Remote Playback API fallback (some Android browsers)
+  if(audio.remote && typeof audio.remote.prompt === 'function'){
     audio.remote.prompt().catch(function(){});
     return;
   }
   setHdrSt('AirPlay/Cast not available in this browser','err');
-  setTimeout(function(){setHdrSt('','');},3000);
+  setTimeout(function(){setHdrSt('','');}, 3000);
 }
 
 // ── TABS ──────────────────────────────────────────────────────────
@@ -2779,10 +2909,22 @@ function openSetlistFromJam(id){
 
 
 async function prefetchRelistenAvailability(){
-  // Build a date->show map for fast lookup
+  // ── Check cache first — skip network if data is less than 7 days old ──
+  const CACHE_KEY = 'gd_relisten_avail';
+  const CACHE_TS  = 'gd_relisten_avail_ts';
+  const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+  try{
+    const ts = parseInt(localStorage.getItem(CACHE_TS)||'0', 10);
+    if(ts && (Date.now() - ts) < CACHE_TTL){
+      // Cache is fresh — flags already restored in onLoaded, just re-render
+      renderList();
+      return;
+    }
+  }catch(e){}
+
+  // ── Cache stale or missing — fetch from Relisten ───────────────
   const byDate={};
   shows.forEach(function(s){byDate[s.date]=s;});
-  // Fetch all 31 years in parallel
   const years=[];for(let y=1965;y<=1995;y++)years.push(y);
   try{
     const results=await Promise.all(years.map(function(y){
@@ -2792,32 +2934,44 @@ async function prefetchRelistenAvailability(){
         .catch(function(){return null;});
     }));
     let matched=0,available=0;
+    const newCache={};
     results.forEach(function(data){
       if(!data||!data.shows)return;
       data.shows.forEach(function(rs){
-        // Relisten dates are like "1978-05-07T00:00:00Z"
         const date=rs.date?rs.date.substring(0,10):null;
         if(!date)return;
         const show=byDate[date];
         if(!show)return;
         matched++;
-        if(rs.source_count>0){
+        const avail = rs.source_count>0;
+        if(avail){
           available++;
-          // Mark as available with lightweight metadata
-          show.relistenAvail=true;
-          show.relistenSources=rs.source_count;
-          show.relistenSbd=rs.has_soundboard_source||false;
-          show.relistenRating=rs.avg_rating||0;
-          show.relistenDur=rs.avg_duration||0;
-          // If not already fully loaded, mark notAvail=false so green shows
+          show.relistenAvail   = true;
+          show.relistenSources = rs.source_count;
+          show.relistenSbd     = rs.has_soundboard_source||false;
+          show.relistenRating  = rs.avg_rating||0;
+          show.relistenDur     = rs.avg_duration||0;
           if(!show.metaLoaded)show.notAvail=false;
         }else{
           show.relistenAvail=false;
         }
+        // Save compact record to cache
+        newCache[date]={
+          avail:   avail,
+          sources: rs.source_count,
+          sbd:     rs.has_soundboard_source||false,
+          rating:  rs.avg_rating||0,
+          dur:     rs.avg_duration||0
+        };
       });
     });
-    console.log('[GD] Relisten prefetch: '+matched+' matched, '+available+' available');
-    renderList(); // Refresh to show green arrows
+    // Persist cache so next launch skips this fetch
+    try{
+      localStorage.setItem(CACHE_KEY, JSON.stringify(newCache));
+      localStorage.setItem(CACHE_TS,  String(Date.now()));
+    }catch(e){}
+    console.log('[GD] Relisten prefetch: '+matched+' matched, '+available+' available — cached for 7 days');
+    renderList();
   }catch(e){
     console.warn('[GD] Relisten prefetch failed:',e.message);
   }
@@ -3668,7 +3822,7 @@ function retryShowMeta(id){
         <button class="cbtn skip" onclick="skipTrack(-1)" title="Previous track">⏮</button>
         <button class="cbtn main" id="sp-play" onclick="togglePlay()">▶</button>
         <button class="cbtn skip" onclick="skipTrack(1)" title="Next track">⏭</button>
-        <button class="cbtn" onclick="tryCast()" title="Cast / AirPlay" style="border-radius:50%;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center">
+        <button class="cbtn cast-btn" onclick="tryCast()" title="Cast / AirPlay" style="border-radius:50%;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/>
             <circle cx="2" cy="20" r="1" fill="currentColor"/>
