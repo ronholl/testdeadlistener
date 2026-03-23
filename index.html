@@ -107,9 +107,10 @@ body{display:flex;justify-content:center}
 .nu-submit{background:var(--gold);color:#000;border:none;border-radius:12px;padding:16px;font-family:var(--serif);font-size:16px;font-weight:700;cursor:pointer;width:100%;transition:all .15s}
 .nu-submit:active{background:var(--gold2)}
 .nu-submit:disabled{opacity:.4;cursor:default}
-.nu-msg{font-size:11px;text-align:center;min-height:16px}
+.nu-msg{font-size:11px;text-align:center;min-height:16px;color:var(--fg)}
 .nu-msg.err{color:var(--red)}
 .nu-msg.ok{color:var(--green)}
+.nu-limit-msg{font-size:14px;line-height:1.7;text-align:center;color:var(--fg);padding:32px 24px;max-width:420px}
 
 /* ── MAIN APP ── */
 .hdr{background:#130a0a;padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:120}
@@ -572,6 +573,7 @@ const USER_COLORS=['#c44040','#4a7fc1','#c8a84b','#52b788','#9b6dbd','#e87d3e','
 
 // ── STATE ─────────────────────────────────────────────────────────
 let shows=[], filtered=[], users=[], userCols={}, userPins={};
+let userLimit=0; // 0 = no limit; set from B4 in sheet
 let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
 function rebuildAttCache(){
   attCache={};
@@ -786,7 +788,10 @@ function parseGviz(table){
     if(v)userPins[u]=v;
   });
 
-  // Row 1 = totals (sheet row 3) — skip
+  // Row 1 = totals (sheet row 3) — read B4 as user limit
+  const totalsRow=(rows[1]||{}).c||[];
+  const limitCell=totalsRow[1];
+  userLimit=(limitCell&&limitCell.v!=null&&Number(limitCell.v)>0)?Number(limitCell.v):0;
   // Rows 2+ = shows (sheet row 4+)
   const list=[];
   for(let r=2;r<rows.length;r++){
@@ -824,6 +829,10 @@ function parseCSV(csv){
       if(v)userPins[u]=v;
     });
   }
+  // Row 3 = totals — read B4 (col index 1) as user limit
+  const totalsCSV=parseRow(lines[3]||'');
+  const limitValCSV=parseInt((totalsCSV[1]||'').trim(),10);
+  userLimit=(limitValCSV>0)?limitValCSV:0;
   const list=[];
   for(let r=4;r<lines.length;r++){
     const c=parseRow(lines[r]);
@@ -1106,16 +1115,24 @@ function showNewUser(){
   document.getElementById('nuMsg').textContent='';
   document.getElementById('nuSubmit').disabled=true;
   document.getElementById('nuName').focus();
-  // Pre-check user count via GET (CORS-friendly) so we can warn immediately if bus is full
-  fetch(SCRIPT_URL+'?action=getUserCount').then(r=>r.json()).then(d=>{
-    if(d.spotsLeft===0){
-      const msg=document.getElementById('nuMsg');
-      msg.innerHTML='The bus is full right now 🚌'
-        +'<br><br>You can <span style="color:var(--gold);cursor:pointer;text-decoration:underline" onclick="enterGuestMode()">browse as a Guest</span>'
-        +' or email <a href="mailto:ronsdeadheadlistener@gmail.com" style="color:var(--gold)">ronsdeadheadlistener@gmail.com</a> to request a spot.';
-      msg.className='nu-msg err';
-    }
-  }).catch(()=>{});// silently ignore if count check fails
+  // Check if we're at the user limit (read from B4 in sheet)
+  if(userLimit>0 && users.length>=userLimit){
+    // Hide the form fields and submit button
+    document.getElementById('nuName').closest('div').style.display='none';
+    document.getElementById('nup0').closest('div').parentElement.style.display='none';
+    document.getElementById('nuSubmit').style.display='none';
+    document.getElementById('nuSubmit').nextElementSibling.style.display='none';
+    // Show a prominent limit message
+    const msg=document.getElementById('nuMsg');
+    msg.className='nu-limit-msg';
+    msg.innerHTML='<b style="font-size:16px;color:var(--gold)">The bus is currently full \uD83D\uDE8C</b>'
+      +'<br><br>Ron\'s Deadhead Listener is currently limited to <b>'+userLimit+'</b> listeners while we get the bus rolling.'
+      +'<br><br>You\'re welcome to <span style="color:var(--gold);cursor:pointer;text-decoration:underline" onclick="enterGuestMode()">explore as a Guest</span>'
+      +' \u2014 browse shows, search songs, and listen to recordings.'
+      +'<br><span style="font-size:12px;color:var(--muted)">Note: guests can\'t save a personal show list or suggest favorites.</span>'
+      +'<br><br>To request access, email<br><a href="mailto:ronsdeadheadlistener@gmail.com" style="color:var(--gold)">ronsdeadheadlistener@gmail.com</a>'
+      +'<br><span style="font-size:12px;color:var(--muted)">We\'ll let you know when a spot opens up!</span>';
+  }
 }
 
 function nuPinInput(idx){
