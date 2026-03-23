@@ -118,7 +118,7 @@ body{display:flex;justify-content:center}
 .hdr-title{font-family:var(--serif);font-size:15px;color:var(--gold);letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hdr-sub{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:1px}
 .hdr-st{font-size:9px;margin-top:1px;min-height:11px}
-.hdr-st.ok{color:var(--green)}.hdr-st.err{color:var(--red)}.hdr-st.busy{color:var(--gold)}
+.hdr-st.ok{color:var(--green)}.hdr-st.err{color:var(--red)}.hdr-st.busy{color:var(--gold)}.hdr-st.warn{color:var(--gold2,#c8a84b)}
 .hdr-user{display:flex;align-items:center;gap:6px;flex-shrink:0;cursor:pointer;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.2);border-radius:50%;width:32px;height:32px;padding:0;justify-content:center}
 .hdr-user:active{background:rgba(200,168,75,.15)}
 .hdr-user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--serif)}
@@ -589,6 +589,39 @@ let myOnly=false, sortDesc=true;
 let positions={}, songIndex={}, metaCache={};
 let preloadAudio=null; // preloaded next track for seamless playback
 let playIntent=false;
+let _bufferTimer=null; // tracks elapsed seconds while buffering/stalled
+let _autoRetried=false;  // true if we've already auto-retried once this track
+// When connection comes back, nudge the user to retry if audio stalled offline
+window.addEventListener('online',function(){
+  // If login screen is showing an error, auto-retry sheet load
+  const loginScreen=document.getElementById('loginScreen');
+  const loginUsers=document.getElementById('loginUsers');
+  if(loginScreen&&loginScreen.style.display!=='none'&&loginUsers&&loginUsers.innerHTML.includes('Retry')){
+    setHdrSt('Reconnected — loading…','ok');
+    _fetchSheetFresh();
+    return;
+  }
+  // If current show failed due to being offline, auto-retry it
+  if(curShow&&curShow._offlineFail){
+    curShow._offlineFail=false;
+    _setMpStatus(null);
+    const errEl=document.getElementById('sp-audio-err');
+    if(errEl){errEl.style.display='none';errEl.innerHTML='';}
+    document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Reconnected — loading…';
+    loadShowMeta(curShow,true).then(function(){renderSetlistBody(curShow);});
+    return;
+  }
+  // If audio stalled offline, show retry prompt
+  _setMpStatus('✓ Reconnected — <span onclick="retryPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--gold)">↺ tap to retry</span>');
+});
+window.addEventListener('offline',function(){
+  if(!playIntent&&!_bufferTimer)return;
+  _setMpStatus('📶 No internet — <span onclick="retryPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--gold)">↺ retry when reconnected</span>');
+  _stopBufferTimer();
+  playing=false;playIntent=false;updateSpPlayer();
+});
+let _bufferSecs=0;     // elapsed seconds shown in loading indicator
+let _bufferShow=null,_bufferIdx=0; // show/idx being buffered (for retry)
 
 // ── iOS BACKGROUND AUDIO KEEPALIVE ──────────────────────────────────────
 // iOS suspends the audio hardware when a PWA backgrounds, even if audio is
@@ -638,12 +671,34 @@ function userColor(name){const i=users.indexOf(name);return USER_COLORS[i>=0?i%U
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
   debugLines=[];
+  // Always fetch fresh first — data changes (attendance, new shows etc.)
+  // Cache is only used as a fallback if all network sources fail.
+  await _fetchSheetFresh();
+}
+
+function _readCache(){
+  // Returns {shows, users, pins} or null. Handles both old and new cache format.
+  try{
+    const raw=localStorage.getItem('gd_sheet_cache');
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    if(parsed&&Array.isArray(parsed.shows)&&parsed.users&&parsed.users.length)
+      return parsed; // new format
+    if(Array.isArray(parsed)&&parsed.length>5)
+      return {shows:parsed,users:null,pins:{}}; // old format — shows only
+  }catch(e){}
+  return null;
+}
+
+function _writeCache(){
+  try{localStorage.setItem('gd_sheet_cache',JSON.stringify({shows:shows,users:users,pins:userPins}));}catch(e){}
+}
+
+async function _fetchSheetFresh(){
+  // 1. Try JSONP (fastest, direct from Google)
   const r=await tryJSONP();
-  if(r){
-    // Cache for file:// testing
-    try{localStorage.setItem('gd_sheet_cache',JSON.stringify(r));}catch(e){}
-    onLoaded(r);return;
-  }
+  if(r&&r.length>5){_writeCache();onLoaded(r);return;}
+  // 2. Try CORS proxies in sequence
   for(const url of [
     'https://api.allorigins.win/raw?url='+encodeURIComponent(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`),
     'https://corsproxy.io/?'+encodeURIComponent(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`),
@@ -651,11 +706,20 @@ async function loadData(){
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`
   ]){
     const t=await tryFetch(url,12000);
-    if(t){const r2=parseCSV(t);if(r2?.length>5){try{localStorage.setItem('gd_sheet_cache',JSON.stringify(r2));}catch(e){}onLoaded(r2);return;}}
+    if(t){const r2=parseCSV(t);if(r2&&r2.length>5){_writeCache();onLoaded(r2);return;}}
   }
-  clearTimeout(slowTimer);
+  // 3. All network sources failed — use cache as last resort
+  const cached=_readCache();
+  if(cached&&cached.shows&&cached.shows.length>5){
+    if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
+    onLoaded(cached.shows);
+    setTimeout(function(){setHdrSt('Using cached data — sheet unavailable','warn');},1500);
+    return;
+  }
+  // 4. Nothing worked
   showErr();
 }
+
 
 function tryJSONP(){
   return new Promise(res=>{
@@ -855,7 +919,7 @@ function onLoaded(list){
   }
 
   renderOthers();applyFilters();
-  bgLoadBatch(0);
+  bgLoadBatch();
   // Restore last playback position after a short delay
   setTimeout(restoreLastPosition, 1500);
   loadFavorites(); // Load immediately - uses cache for instant display
@@ -863,7 +927,7 @@ function onLoaded(list){
 }
 
 function showErr(){
-  setHdrSt('Load failed','err');
+  setHdrSt('Could not connect','err');
   // Show welcome on first visit even if data fails (file:// mode)
   if(!localStorage.getItem('gd_welcomed')){
     showHelp();
@@ -871,7 +935,13 @@ function showErr(){
   }
   const isLocal=window.location.protocol==='file:';
   const localTip=isLocal?'<div style="background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.3);border-radius:10px;padding:14px;margin:0 0 12px;font-size:11px;color:var(--gold);line-height:1.8"><b>Running as a local file</b><br>Chrome blocks sheet loading from file:// pages.<br><br><b>Fix: Open Terminal and run:</b><br><code style="background:#000;padding:5px 8px;border-radius:5px;display:inline-block;margin:6px 0;color:#e8e0d0">cd ~/Downloads &amp;&amp; python3 -m http.server 8080</code><br>Then open <b>http://localhost:8080/RonsDeadhead.html</b><br><br>Or deploy to Netlify (works perfectly).</div>':'';
-  document.getElementById('loginUsers').innerHTML='<div style="padding:16px">'+localTip+'<div style="color:var(--red);font-size:10px;line-height:1.8;word-break:break-all">'+debugLines.map(l=>'→ '+esc(l)).join('<br>')+'</div></div>';
+  const offline=!navigator.onLine;
+  const networkMsg=offline
+    ? '<div style="color:var(--gold);font-size:13px;margin-bottom:10px">📶 No internet connection.<br><small style="opacity:.7">Reconnect and tap Retry below.</small></div>'
+    : '<div style="color:var(--muted);font-size:12px;margin-bottom:10px">Could not reach Google Sheets.<br><small style="opacity:.7">This is usually temporary — try again in a moment.</small></div>';
+  const retryBtn='<button onclick="_fetchSheetFresh()" style="margin-top:14px;background:transparent;border:1px solid rgba(200,168,75,.5);border-radius:8px;padding:8px 24px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer;display:block;width:100%">↺ Retry</button>';
+  const debugDiv=debugLines.length?'<div style="color:var(--red);font-size:10px;line-height:1.8;word-break:break-all;margin-top:10px">'+debugLines.map(l=>'→ '+esc(l)).join('<br>')+'</div>':'';
+  document.getElementById('loginUsers').innerHTML='<div style="padding:16px">'+localTip+networkMsg+retryBtn+debugDiv+'</div>';
 }
 
 // ── LOGIN / PIN FLOW ──────────────────────────────────────────────
@@ -1358,20 +1428,64 @@ function openSetlistForCurrent(){
 }
 
 // ── META LOADING ──────────────────────────────────────────────────
-const BG_BATCH=20,BG_DELAY=200;
-function bgLoadBatch(start){
-  // Only background-load shows from 1972+ (earlier shows rarely on archive.org)
-  const candidates=shows.filter(s=>!s.metaLoaded&&!s.notAvail&&s.year>='1972');
-  const batch=candidates.slice(start,start+BG_BATCH);
-  if(!batch.length)return;
-  batch.forEach((s,i)=>setTimeout(()=>{if(!s.metaLoaded)loadShowMeta(s,false);},i*BG_DELAY));
-  setTimeout(()=>bgLoadBatch(start+BG_BATCH),BG_BATCH*BG_DELAY+8000);
+const BG_BATCH=20,BG_DELAY=100;
+let bgRunning=false;
+function bgLoadBatch(){
+  if(bgRunning)return;
+  if(!shows||!shows.length)return;
+  bgRunning=true;
+  const candidates=shows.filter(s=>!s.metaLoaded&&!s.notAvail);
+  const batch=candidates.slice(0,BG_BATCH);
+  if(!batch.length){bgRunning=false;updateSongCntProgress();return;}
+  const promises=batch.map((s,i)=>new Promise(res=>
+    setTimeout(function(){
+      var p;
+      try{p=loadShowMeta(s,false);}catch(e){res();return;}
+      // loadShowMeta may return undefined (early guard exit) or a Promise
+      if(p&&typeof p.then==='function'){p.then(res,res);}else{res();}
+    },i*BG_DELAY)
+  ));
+  Promise.allSettled(promises).then(function(){
+    updateSongCntProgress();
+    bgRunning=false;
+    setTimeout(bgLoadBatch,300);
+  });
+}
+// Update the Songs tab counter with bg-load progress (only when not searching)
+function updateSongCntProgress(){
+  const el=document.getElementById('songCnt');
+  if(!el||!shows||!shows.length)return;
+  const qEl=document.getElementById('songQ');
+  if(qEl&&qEl.value.trim().length>=2)return; // user is searching, don't overwrite
+  const loaded=shows.filter(s=>s.metaLoaded).length;
+  const total=shows.length;
+  const pct=Math.round(loaded/total*100);
+  if(loaded>=total){
+    const withAudio=shows.filter(s=>s.metaLoaded&&!s.notAvail&&s.tracks&&s.tracks.length).length;
+    el.textContent='Search any song · all '+total.toLocaleString()+' shows indexed ('+withAudio.toLocaleString()+' with audio)';
+  }else{
+    el.textContent='Search any song · '+loaded.toLocaleString()+'/'+total.toLocaleString()+' shows loaded ('+pct+'%)';
+  }
 }
 
-const activeLoads=new Set();
+// activeLoads maps show.id -> resolve fn of the in-flight promise.
+// Priority callers (openSetlist/openSetlistAndPlay) that arrive while a bg
+// load is running wait on the same promise instead of returning immediately,
+// which was causing the "Fetching setlist" spinner to persist.
+const activeLoads=new Map();
 async function loadShowMeta(show,priority){
-  if(show.metaLoaded||activeLoads.has(show.id))return;
-  activeLoads.add(show.id);
+  if(show.metaLoaded)return;
+  if(activeLoads.has(show.id)){
+    if(priority){
+      // Await the in-flight load so renderSetlistBody fires promptly after
+      await new Promise(r=>{
+        const prev=activeLoads.get(show.id);
+        activeLoads.set(show.id,function(){if(prev)prev();r();});
+      });
+    }
+    return;
+  }
+  activeLoads.set(show.id,null);
   try{
     const tOut=priority?14000:10000;
     // ── PRIMARY: Relisten API ─────────────────────────────────────
@@ -1540,37 +1654,42 @@ async function loadShowMeta(show,priority){
     if(priority){renderSetlistBody(show);renderList();}
     else renderList();
   }catch(e){
-    show.metaLoaded=true;show.notAvail=true;
+    // If offline, mark as failed-but-retryable rather than permanently unavailable
+    if(!navigator.onLine){
+      show.metaLoaded=false;show.notAvail=false;show._offlineFail=true;
+    } else {
+      show.metaLoaded=true;show.notAvail=true;
+    }
     if(priority)renderSetlistBody(show);
-  }finally{activeLoads.delete(show.id);}
+  }finally{
+    const _fn=activeLoads.get(show.id);
+    activeLoads.delete(show.id);
+    if(_fn)_fn(); // wake any priority waiters
+  }
 }
 
 
 function renderSetlistBody(show){
+  _setMpStatus(null);
+  const _err=document.getElementById('sp-audio-err');
+  if(_err){_err.style.display='none';_err.innerHTML='';}
   const mt=document.getElementById('sp-meta-txt');
   if(!mt)return;
-  if(show.notAvail){
+  if(show._offlineFail){
+    mt.innerHTML='<span style="color:var(--muted)">📶 Could not load — offline</span>';
+  }else if(show.notAvail){
     mt.innerHTML='<span style="color:var(--muted)">Not found on Relisten or archive.org</span>';
   }else if(show.allRestricted){
     mt.innerHTML='<span style="color:var(--red)">Access restricted</span>';
   }else{
-    const stars=show.rating?'★'.repeat(Math.min(5,Math.round(show.rating)))+'☆'.repeat(Math.max(0,5-Math.round(show.rating))):'';
-    const sbdBadge=show.isSoundboard?'<span style="background:rgba(200,168,75,.15);color:var(--gold);border:1px solid rgba(200,168,75,.3);border-radius:4px;font-size:9px;padding:1px 5px;margin-left:4px">SBD</span>':'';
-    const reviewTxt=show.numReviews?' · '+show.numReviews+' reviews':'';
-    const recs=show.recordings||[];
-    let picker='';
-    if(recs.length>1){
-      const opts=recs.map(function(r){
-        const label=(r.sbd?'[SBD] ':'')+r.id.substring(0,35)+(r.rating?' ★'+r.rating.toFixed(1):'')+(r.reviews?' ('+r.reviews+'r)':'');
-        return '<option value='+JSON.stringify(r.id)+(r.id===show.archiveId?' selected':'')+'>'+label+'</option>';
-      }).join('');
-      picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';
-    }
-    const recCountTxt=recs.length>1?' · <span style="color:var(--muted)">'+recs.length+' recordings</span>':'';
-    mt.innerHTML='<b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+picker;
-  }
+    const stars=show.rating?'★'.repeat(Math.min(5,Math.round(show.rating)))+'☆'.repeat(Math.max(0,5-Math.round(show.rating))):'';    const sbdBadge=show.isSoundboard?'<span style="background:rgba(200,168,75,.15);color:var(--gold);border:1px solid rgba(200,168,75,.3);border-radius:4px;font-size:9px;padding:1px 5px;margin-left:4px">SBD</span>':'';    const reviewTxt=show.numReviews?' · '+show.numReviews+' reviews':'';    const recs=show.recordings||[];    let picker='';    if(recs.length>1){      const opts=recs.map(function(r){        const label=(r.sbd?'[SBD] ':'')+r.id.substring(0,35)+(r.rating?' ★'+r.rating.toFixed(1):'')+(r.reviews?' ('+r.reviews+'r)':'');        return '<option value='+JSON.stringify(r.id)+(r.id===show.archiveId?' selected':'')+'>'+label+'</option>';      }).join('');      picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';    }    const recCountTxt=recs.length>1?' · <span style="color:var(--muted)">'+recs.length+' recordings</span>':'';    mt.innerHTML='<b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+picker;  }
   const body=document.getElementById('sp-body');if(!body)return;
 
+  if(show._offlineFail){
+    body.innerHTML='<div class="sp-unavail">📶 Could not load — no internet connection.<br><br>'+
+      '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry when connected</button></div>';
+    return;
+  }
   if(show.allRestricted){
     const recLinks=(show.recordings||[]).map(function(r){
       return '<div style="padding:2px 0"><a href="https://archive.org/details/'+r.id+'" target="_blank" style="color:var(--gold);font-size:11px">'+r.id+'</a>'+(r.rating?' ★'+r.rating.toFixed(1):'')+'</div>';
@@ -1589,11 +1708,10 @@ function renderSetlistBody(show){
     return;
   }
 
-  // ── Track list: clean 3-column grid ─────────────────────────
+  // ── Track list ─────────────────────────────────────────────────
   let html='';
   show.tracks.forEach(function(t,i){
     const dur=t.length?fmtT(parseFloat(t.length)):'';
-    // Strip trailing "->" from display, show "→" as a subtle connector
     const hasTransition=t.name&&t.name.trim().endsWith('->');
     const songName=t.name?t.name.replace(/\s*->$/,'').trim():'Track '+(i+1);
     html+=
@@ -1604,7 +1722,6 @@ function renderSetlistBody(show){
       '</div>';
   });
   body.innerHTML=html;
-  // After DOM is written, apply highlight via the single source of truth
   updateSpPlayer();
 }
 
@@ -1657,6 +1774,103 @@ function quickPlay(id){
   if(show.tracks&&show.tracks.length)startPlayback(show,0);
 }
 
+// ── BUFFER / STALL TRACKING ──────────────────────────────────────
+function _startBufferTimer(show,idx){
+  _stopBufferTimer();
+  _bufferSecs=0; _bufferShow=show; _bufferIdx=idx;
+  _bufferTimer=setInterval(function(){
+    _bufferSecs++;
+    _updateBufferUI();
+    if(_bufferSecs>=30) _onBufferTimeout();
+  },1000);
+  _updateBufferUI();
+}
+function _stopBufferTimer(){
+  if(_bufferTimer){clearInterval(_bufferTimer);_bufferTimer=null;}
+  _bufferSecs=0;
+}
+function _setMpStatus(msg){
+  // Update status in setlist panel player (always visible when panel open)
+  const sp=document.getElementById('sp-status');
+  if(sp){if(msg){sp.innerHTML=msg;sp.style.display='block';}else{sp.innerHTML='';sp.style.display='none';}}
+  // Update/inject status row in mini player (visible when panel is closed)
+  const mpEl=document.getElementById('mp-status-row');
+  if(msg){
+    if(mpEl){mpEl.innerHTML=msg;}
+    else{
+      const mp=document.getElementById('miniPlayer');
+      if(mp){
+        const row=document.createElement('div');
+        row.id='mp-status-row';
+        row.style.cssText='padding:5px 0 3px;font-size:11px;font-family:var(--mono);line-height:1.4;border-bottom:1px solid rgba(180,140,40,.2);margin-bottom:6px;';
+        row.innerHTML=msg;
+        mp.insertBefore(row,mp.firstChild);
+      }
+    }
+  } else {
+    if(mpEl)mpEl.remove();
+  }
+}
+function _updateBufferUI(){
+  if(_bufferSecs>0){
+    _setMpStatus('<span style="color:var(--gold)">⏳ Buffering… '+_bufferSecs+'s</span>'
+      +' <span onclick="retryPlayback()" style="cursor:pointer;color:var(--gold);margin-left:10px;text-decoration:underline">↺ retry</span>'
+      +' <span onclick="cancelPlayback()" style="cursor:pointer;color:var(--muted);margin-left:8px;text-decoration:underline">cancel</span>');
+  } else {
+    _setMpStatus(null);
+  }
+  // Also keep sp-now-sub in sync (visible when setlist panel is open)
+  const sub=document.getElementById('sp-now-sub');
+  if(sub) sub.textContent=(_bufferSecs>0)?'':(playing?'▶ ':'')+(playingShow?playingShow.date+' · '+playingShow.venue:'');
+}
+function _onBufferTimeout(){
+  _stopBufferTimer();
+  playing=false; playIntent=false;
+  if(!navigator.onLine){
+    _setMpStatus('📶 No internet connection — reconnect and tap <b>↺ retry</b> to resume.');
+    updateSpPlayer();
+    return;
+  }
+  // Auto-retry once silently on timeout — handles brief archive.org hiccups
+  if(!_autoRetried){
+    _autoRetried=true;
+    _setMpStatus('<span style="color:var(--gold)">⏱ Slow load — retrying…</span>');
+    const s=_bufferShow||playingShow; const i=_bufferShow?_bufferIdx:playingTrackIdx;
+    if(s&&s.tracks){
+      if(audio){audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;audio.pause();audio=null;}
+      startPlayback(s,i);
+      return;
+    }
+  }
+  // Second timeout — show error with manual retry option
+  _setMpStatus('⏱ Still loading after 60s — archive.org may be slow.'
+    +' <span onclick="retryPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--gold);margin-left:6px">↺ retry</span>'
+    +' <span onclick="cancelPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--muted);margin-left:6px">cancel</span>');
+  const ms=document.querySelector('.mp-song');
+  if(ms)ms.innerHTML='<span style="color:var(--gold)">⏱ Still loading…</span>';
+  updateSpPlayer();
+}
+function retryPlayback(){
+  const s=_bufferShow||playingShow; const i=_bufferShow?_bufferIdx:playingTrackIdx;
+  if(!s||!s.tracks)return;
+  _stopBufferTimer();
+  if(audio){audio.onerror=null;audio.oncanplay=null;audio.pause();audio=null;}
+  playing=false; playIntent=false;
+  const errEl=document.getElementById('sp-audio-err');
+  if(errEl){errEl.style.display='none';errEl.innerHTML='';}
+  startPlayback(s,i);
+}
+function cancelPlayback(){
+  _stopBufferTimer();
+  if(audio){audio.onerror=null;audio.oncanplay=null;audio.src='';audio.pause();audio=null;}
+  playing=false; playIntent=false;
+  const sub=document.getElementById('sp-now-sub');
+  if(sub)sub.textContent='';
+  const ms=document.querySelector('.mp-song');
+  if(ms)ms.textContent='— stopped —';
+  updateSpPlayer(); renderMiniPlayer();
+}
+
 function startPlayback(show,idx){
   // Use preloaded audio if available for this exact track (seamless transition)
   // Relisten tracks have direct mp3 URL; archive tracks need base URL + filename
@@ -1666,8 +1880,10 @@ function startPlayback(show,idx){
   if(preloadAudio&&preloadAudio._url===url){
     newAudio=preloadAudio;preloadAudio=null;
   }
-  // Stop current audio
-  if(audio){audio.onended=null;audio.ontimeupdate=null;audio.onerror=null;audio.pause();audio=null;}
+  // Stop current audio and any buffering timer
+  _stopBufferTimer();
+  _autoRetried=false;
+  if(audio){audio.onended=null;audio.ontimeupdate=null;audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;audio.pause();audio=null;}
   playing=false;playIntent=false;
   if(!show.tracks||!show.tracks[idx])return;
   curShow=show;curTrackIdx=idx;
@@ -1677,6 +1893,9 @@ function startPlayback(show,idx){
   audio=newAudio;
   const saved=positions[show.id];
   if(saved&&idx===0&&!newAudio._preloaded)audio.currentTime=saved;
+  audio.oncanplay=function(){ _stopBufferTimer(); _updateBufferUI(); };
+  audio.onwaiting=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); };
+  audio.onstalled=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); };
   audio.ontimeupdate=function(){
     savePos(show.id,audio.currentTime);
     updateProgress();
@@ -1692,12 +1911,46 @@ function startPlayback(show,idx){
     if(show.tracks&&next<show.tracks.length)startPlayback(show,next);
     else{playing=false;playIntent=false;renderList();renderMiniPlayer();updateSpPlayer();renderSetlistBody(show);}
   };
-  audio.onerror=function(){playing=false;playIntent=false;updateSpPlayer();};
+  audio.onerror=function(e){
+    _stopBufferTimer();
+    playing=false;playIntent=false;
+    const code=audio&&audio.error?audio.error.code:0;
+    // MediaError codes: 1=ABORTED, 2=NETWORK, 3=DECODE, 4=SRC_NOT_SUPPORTED
+    const offline=!navigator.onLine;
+    let errMsg,miniMsg;
+    if(offline){
+      errMsg='📶 No internet connection — reconnect and tap <b>↺ retry</b> to resume.';
+      miniMsg='📶 Offline';
+    } else {
+      // Codes 2, 3, 4 can all be transient network errors — treat them the same.
+      // Code 4 (SRC_NOT_SUPPORTED) often fires on a brief connection drop, not a real format issue.
+      errMsg='⚠ archive.org could not load this track — may be temporarily unavailable.'
+        +'<br><small style="opacity:.6"><span onclick="retryPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--gold)">↺ Retry</span>'
+        +' · Try again in a moment.</small>';
+      miniMsg='⚠ Load failed';
+    }
+    // Show error in setlist panel track row
+    const tRow=document.getElementById('track-'+idx);
+    if(tRow)tRow.style.color='var(--red,#c0392b)';
+    // Show status above mini player (always visible)
+    _setMpStatus(errMsg+' <span onclick="retryPlayback()" style="cursor:pointer;color:var(--gold);margin-left:8px;text-decoration:underline">↺ retry</span>');
+    const ms=document.querySelector('.mp-song');
+    if(ms)ms.innerHTML='<span style="color:var(--red,#c0392b)">'+miniMsg+'</span>';
+    updateSpPlayer();
+  };
   playIntent=true;
   if(!newAudio._preloaded)audio.src=url;
+  _startBufferTimer(show,idx); // start timer only after src is set and play initiated
   audio.play().then(function(){
     playing=true;
+    _stopBufferTimer();
     _startAudioKeepAlive(); // keep iOS audio session alive in background
+    // Clear status and error banner on successful play
+    _setMpStatus(null);
+    const _err=document.getElementById('sp-audio-err');
+    if(_err){_err.style.display='none';_err.innerHTML='';}
+    // Reset any error-coloured track rows
+    document.querySelectorAll('.tl-row').forEach(function(r){r.style.color='';});
     renderList();renderMiniPlayer();updateSpPlayer();
     const el=document.getElementById('track-'+idx);
     if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -1724,7 +1977,17 @@ function startPlayback(show,idx){
       try{navigator.mediaSession.setActionHandler('seekto',function(d){if(audio&&d.seekTime!=null)audio.currentTime=d.seekTime;});}catch(e){}
       try{navigator.mediaSession.setActionHandler('stop',function(){pauseAudio();});}catch(e){}
     }
-  }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
+  }).catch(function(e){
+    if(e.name==='AbortError')return; // normal: src changed before play() resolved
+    playing=false;playIntent=false;
+    // NotAllowedError = autoplay blocked (should not happen after unlock, but handle gracefully)
+    const msg=e.name==='NotAllowedError'
+      ? '⚠ Browser blocked autoplay — tap ▶ to start.'
+      : '⚠ Could not start playback';
+    const ms=document.querySelector('.mp-song');
+    if(ms)ms.innerHTML='<span style="color:var(--red,#c0392b)">'+msg+'</span>';
+    updateSpPlayer();
+  });
 }
 
 function preloadNextTrack(show,nextIdx){
@@ -1760,7 +2023,21 @@ function resumeAudio(){
     doPlay();
   }
 }
-function togglePlay(){if(!audio&&curShow){const ti=curTrackIdx>=0?curTrackIdx:0;startPlayback(curShow,ti);}else if(playing)pauseAudio();else resumeAudio();}
+function togglePlay(){
+  if(!audio&&curShow){
+    const ti=curTrackIdx>=0?curTrackIdx:0;
+    startPlayback(curShow,ti);
+  } else if(playing){
+    pauseAudio();
+  } else if(audio){
+    // If audio src failed or stalled (no duration loaded), retry from scratch
+    if(!audio.duration||isNaN(audio.duration)||audio.error||_bufferTimer){
+      retryPlayback();
+    } else {
+      resumeAudio();
+    }
+  }
+}
 function skipTrack(dir){
   if(!curShow?.tracks)return;
   if(dir===-1){
@@ -1909,22 +2186,16 @@ let songTimer=null;
 function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
 function showSongIndexStats(matchCount,q){
-  // Count indexed songs (from cache OR network - anything with songs loaded)
-  const indexed=Object.keys(songIndex).length>0
-    ? shows.filter(s=>s.songs&&s.songs.length).length
-    : shows.filter(s=>s.metaLoaded).length;
+  const loaded=shows.filter(s=>s.metaLoaded).length;
   const withAudio=shows.filter(s=>s.metaLoaded&&!s.notAvail&&s.tracks&&s.tracks.length).length;
-  const noAudio=shows.filter(s=>s.metaLoaded&&(s.notAvail||!(s.tracks&&s.tracks.length))).length;
-  const totalFetched=withAudio+noAudio;
-  const allDone=totalFetched>=shows.length;
-  const pct=Math.round(totalFetched/shows.length*100);
-  const prog=allDone?'':' · '+pct+'% audio loaded';
-  if(matchCount>0&&q){
-    return matchCount+' songs matching "'+q+'"'+prog;
-  }
+  const total=shows.length;
+  const allDone=loaded>=total;
+  const pct=Math.round(loaded/total*100);
+  const prog=allDone?'':' · '+pct+'% loaded';
+  if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
   return allDone
-    ? 'Search any song · all '+shows.length.toLocaleString()+' shows loaded ('+withAudio.toLocaleString()+' with audio)'
-    : 'Search any song · '+indexed.toLocaleString()+' setlists indexed · '+pct+'% audio loaded';
+    ? 'Search any song · all '+total.toLocaleString()+' shows indexed ('+withAudio.toLocaleString()+' with audio)'
+    : 'Search any song · '+loaded.toLocaleString()+'/'+total.toLocaleString()+' shows loaded ('+pct+'%)';
 }
 
 // Featured songs for pre-loaded Songs tab display
@@ -1949,7 +2220,7 @@ function renderFeaturedSongs(){
   if(!resEl)return;
   // Show clickable song name chips - tap fills search box
   const shuffled=FEATURED_SONGS.slice().sort(()=>Math.random()-0.5).slice(0,20);
-  cntEl.textContent='Tap a song to search, or type below';
+  updateSongCntProgress(); // show load progress, falls back gracefully if not started yet
   resEl.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">'
     +shuffled.map(function(song){
       return '<div onclick="fillSongSearch(\''+song.replace(/'/g,"\\'")+'\')" style="background:var(--surf);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;color:var(--text);cursor:pointer;user-select:none" onmousedown="event.preventDefault()">'+esc(song)+'</div>';
@@ -2028,6 +2299,15 @@ async function openSetlistAndPlay(id,song){
     } else {
       renderSetlistBody(show);
     }
+    // Unlock audio context NOW while still inside the user gesture,
+    // before the async loadShowMeta breaks the gesture chain.
+    // Fire-and-forget: do NOT assign to global `audio` — that causes
+    // the mini player to show 0:00 duration while the silent WAV is "playing".
+    (function(){
+      var _unlock=new Audio();
+      _unlock.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      _unlock.play().catch(function(){});
+    })();
     // Load then play
     await loadShowMeta(show,true);
     if(show.tracks&&show.tracks.length){
@@ -3132,7 +3412,7 @@ function updateSpFavBtn(){
 function retryShowMeta(id){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
-  show.metaLoaded=false;show.notAvail=false;show.tracks=null;show.archiveId=null;
+  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying archive.org…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Retrying…';
   loadShowMeta(show,true).then(()=>renderSetlistBody(show));
@@ -3332,12 +3612,14 @@ function retryShowMeta(id){
       <div class="sp-meta-txt" id="sp-meta-txt"><span class="spinner"></span></div>
       <button class="sp-arc" onclick="openArchive()">archive ↗</button>
     </div>
+    <div id="sp-audio-err" style="display:none;padding:10px 16px;background:rgba(180,140,40,.1);border-bottom:1px solid rgba(180,140,40,.25);font-size:12px;color:var(--text);font-family:var(--mono);line-height:1.6"></div>
     <div class="sp-body" id="sp-body">
       <div class="loading"><span class="spinner"></span>Fetching tracks…</div>
     </div>
     <div class="sp-player">
-      <div class="sp-now" id="sp-now" onclick="openSetlistForCurrent()" style="cursor:pointer">—</div>
+      <div id="sp-status" style="display:none;padding:4px 0 6px;font-size:11px;font-family:var(--mono);line-height:1.4"></div>
       <div class="sp-now-sub" id="sp-now-sub" onclick="openSetlistForCurrent()" style="cursor:pointer"></div>
+      <div class="sp-now" id="sp-now" onclick="openSetlistForCurrent()" style="cursor:pointer">—</div>
       <div class="prog-wrap">
         <span class="ptime" id="sp-tc">0:00</span>
         <div class="pbar" onclick="seekClick(event)">
