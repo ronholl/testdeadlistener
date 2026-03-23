@@ -27,9 +27,7 @@
 
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Ron's Deadhead Listener">
-<!-- Google Cast SDK — loads only in Chrome; ignored by Safari/Firefox -->
-<script>window['__onGCastApiAvailable'] = function(isAvailable){if(isAvailable)initCastApi();};</script>
-<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async></script>
+
 <meta name="theme-color" content="#0d0d0d">
 
 
@@ -874,10 +872,11 @@ function onLoaded(list){
     // Restore Relisten availability cache (avoids re-fetching 31 years every launch)
     const relistenCache=JSON.parse(localStorage.getItem('gd_relisten_avail')||'{}');
     shows.forEach(function(s){
-      // Restore setlist + mark metaLoaded so bg loop skips this show
+      // Restore setlist songs into the search index only — do NOT mark
+      // metaLoaded=true here because the songs cache doesn't include tracks/
+      // audio URLs. metaLoaded is set only after a full loadShowMeta() fetch.
       if(cached[s.id]&&!s.songs){
         s.songs=cached[s.id];
-        s.metaLoaded=true;
         cached[s.id].forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
@@ -950,6 +949,18 @@ function onLoaded(list){
   setTimeout(restoreLastPosition, 1500);
   loadFavorites(); // Load immediately - uses cache for instant display
   if(curUser)updateViewStats();
+  // Load Cast SDK lazily — must not block show rendering
+  // Sets up window callback first so SDK fires initCastApi when ready
+  setTimeout(function(){
+    try{
+      window['__onGCastApiAvailable']=function(isAvailable){if(isAvailable)initCastApi();};
+      const s=document.createElement('script');
+      s.src='https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+      s.async=true;
+      s.onerror=function(){}; // fail silently if blocked or unavailable
+      document.head.appendChild(s);
+    }catch(e){}
+  }, 3000); // 3s after app loaded — well clear of any render critical path
 }
 
 function showErr(){
