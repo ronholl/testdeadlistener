@@ -869,12 +869,17 @@ function onLoaded(list){
   shows=list;
   try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
+    const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
     // Restore Relisten availability cache (avoids re-fetching 31 years every launch)
     const relistenCache=JSON.parse(localStorage.getItem('gd_relisten_avail')||'{}');
     shows.forEach(function(s){
-      // Restore setlist songs into the search index only — do NOT mark
-      // metaLoaded=true here because the songs cache doesn't include tracks/
-      // audio URLs. metaLoaded is set only after a full loadShowMeta() fetch.
+      // Restore metaLoaded + notAvail so bg loop skips already-fetched shows
+      if(s.id in metaLoaded){
+        s.metaLoaded=true;
+        s.notAvail=metaLoaded[s.id];
+      }
+      // Restore setlist songs into the search index only
       if(cached[s.id]&&!s.songs){
         s.songs=cached[s.id];
         cached[s.id].forEach(function(song){
@@ -1540,6 +1545,15 @@ function updateSongCntProgress(){
 // load is running wait on the same promise instead of returning immediately,
 // which was causing the "Fetching setlist" spinner to persist.
 const activeLoads=new Map();
+// Persist metaLoaded state so bg-loop progress survives app restarts
+function saveMetaLoaded(show){
+  try{
+    const m=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
+    m[show.id]=show.notAvail;
+    localStorage.setItem('gd_meta_loaded',JSON.stringify(m));
+  }catch(e){}
+}
+
 async function loadShowMeta(show,priority){
   if(show.metaLoaded)return;
   if(activeLoads.has(show.id)){
@@ -1642,6 +1656,7 @@ async function loadShowMeta(show,priority){
           }
           show.metaLoaded=true;
           show.notAvail=tracks.length===0;
+          saveMetaLoaded(show);
           relistenOk=true;
         }
       }
@@ -1667,7 +1682,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){const d=await r.json();docs=(d.response&&d.response.docs)||[];}
         }catch(e){}
       }
-      if(!docs.length){show.metaLoaded=true;show.notAvail=true;if(priority)renderSetlistBody(show);return;}
+      if(!docs.length){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
       docs.sort(function(a,b){
         const aR=a['access-restricted-item']?1:0,bR=b['access-restricted-item']?1:0;
         if(aR!==bR)return aR-bR;
@@ -1676,6 +1691,7 @@ async function loadShowMeta(show,priority){
       show.recordings=docs.map(function(d){return {id:d.identifier,rating:d.avg_rating||0,restricted:!!d['access-restricted-item']};});
       if(docs.every(function(d){return d['access-restricted-item'];})){
         show.metaLoaded=true;show.notAvail=false;show.allRestricted=true;
+        saveMetaLoaded(show);
         show.archiveId=docs[0].identifier;show.rating=docs[0].avg_rating||0;
         show.tracks=[];show.totalDur=0;
         if(priority)renderSetlistBody(show);return;
@@ -1692,7 +1708,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
         }catch(e){}
       }
-      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority)renderSetlistBody(show);return;}
+      if(!meta){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
@@ -1715,6 +1731,7 @@ async function loadShowMeta(show,priority){
       show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       show.metaLoaded=true;show.notAvail=show.tracks.length===0;
+      saveMetaLoaded(show);
     }
 
     stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
@@ -1726,6 +1743,7 @@ async function loadShowMeta(show,priority){
       show.metaLoaded=false;show.notAvail=false;show._offlineFail=true;
     } else {
       show.metaLoaded=true;show.notAvail=true;
+      saveMetaLoaded(show); // persist so bg loop skips on next launch
     }
     if(priority)renderSetlistBody(show);
   }finally{
