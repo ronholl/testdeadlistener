@@ -869,15 +869,28 @@ function onLoaded(list){
   shows=list;
   try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
+    // that cached temporary archive.org failures as permanent. Version stamp prevents
+    // wiping on every launch.
+    if(localStorage.getItem('gd_meta_loaded_v')!=='3'){
+      localStorage.removeItem('gd_meta_loaded');
+      localStorage.setItem('gd_meta_loaded_v','3');
+    }
     // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
     const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
     // Restore Relisten availability cache (avoids re-fetching 31 years every launch)
     const relistenCache=JSON.parse(localStorage.getItem('gd_relisten_avail')||'{}');
     shows.forEach(function(s){
-      // Restore metaLoaded + notAvail so bg loop skips already-fetched shows
+      // Restore metaLoaded + notAvail so bg loop skips already-fetched shows.
+      // Only mark metaLoaded=true for shows confirmed to have audio (notAvail===false).
+      // Shows cached as notAvail=true are left unloaded so the bg loop re-fetches them
+      // fresh — a prior archive.org outage may have caused a false notAvail entry.
       if(s.id in metaLoaded){
-        s.metaLoaded=true;
-        s.notAvail=metaLoaded[s.id];
+        if(metaLoaded[s.id]===false){
+          s.metaLoaded=true;
+          s.notAvail=false;
+        }
+        // notAvail=true: leave metaLoaded=false so the bg loop retries this show
       }
       // Restore setlist songs into the search index only
       if(cached[s.id]&&!s.songs){
@@ -1553,6 +1566,13 @@ function saveMetaLoaded(show){
     localStorage.setItem('gd_meta_loaded',JSON.stringify(m));
   }catch(e){}
 }
+function clearMetaLoaded(show){
+  try{
+    const m=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
+    delete m[show.id];
+    localStorage.setItem('gd_meta_loaded',JSON.stringify(m));
+  }catch(e){}
+}
 
 async function loadShowMeta(show,priority){
   if(show.metaLoaded)return;
@@ -1656,6 +1676,7 @@ async function loadShowMeta(show,priority){
           }
           show.metaLoaded=true;
           show.notAvail=tracks.length===0;
+          if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
           saveMetaLoaded(show);
           relistenOk=true;
         }
@@ -1708,7 +1729,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
         }catch(e){}
       }
-      if(!meta){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
+      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority)renderSetlistBody(show);return;}
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
@@ -1731,6 +1752,7 @@ async function loadShowMeta(show,priority){
       show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       show.metaLoaded=true;show.notAvail=show.tracks.length===0;
+      if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
       saveMetaLoaded(show);
     }
 
@@ -1743,7 +1765,8 @@ async function loadShowMeta(show,priority){
       show.metaLoaded=false;show.notAvail=false;show._offlineFail=true;
     } else {
       show.metaLoaded=true;show.notAvail=true;
-      saveMetaLoaded(show); // persist so bg loop skips on next launch
+      // Don't saveMetaLoaded here — error could be temporary (archive.org outage)
+      // so we want to retry on next launch rather than permanently marking as unavailable
     }
     if(priority)renderSetlistBody(show);
   }finally{
