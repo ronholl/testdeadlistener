@@ -2914,21 +2914,18 @@ function showHelp(){
 async function fetchVisitorStats(){
   const el=document.getElementById('visitor-stats');
   if(!el)return;
-  el.innerHTML='<span style="opacity:.5">Loading…</span>';
-  try{
-    const r=await fetch(SCRIPT_URL+'?action=getStats',{signal:AbortSignal.timeout(5000)});
-    if(r.ok){
-      const d=JSON.parse(await r.text());
-      if(d.named!==undefined){
-        const total=d.named.length+d.guests;
-        el.innerHTML=total>0
-          ?'<b style="color:var(--gold)">'+total+'</b> '+(total===1?'person has':'people have')+' connected'
-          :'No visits recorded yet';
-        return;
-      }
-    }
-  }catch(e){}
-  el.innerHTML='';
+  const count=users.length;
+  let html;
+  if(userLimit>0){
+    const remaining=userLimit-count;
+    html='<b style="color:var(--gold)">'+count+' / '+userLimit+'</b> listeners &mdash; '
+      +(remaining>0
+        ?'<span style="color:var(--muted)">'+remaining+' spot'+(remaining!==1?'s':'')+' open</span>'
+        :'<span style="color:var(--gold)">bus is full</span>');
+  } else {
+    html='<b style="color:var(--gold)">'+count+'</b> registered Deadhead'+(count!==1?'s':'');
+  }
+  el.innerHTML=html;
 }
 function closeHelp(){
   const screen=document.getElementById('welcomeScreen');
@@ -3544,7 +3541,7 @@ function retryShowMeta(id){
 
         <!-- Visitor stats -->
         <div id="visitor-stats" style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:16px;padding:8px;background:rgba(255,255,255,.03);border-radius:8px">
-          Loading stats…
+          &nbsp;
         </div>
 
         <!-- Get in Touch -->
