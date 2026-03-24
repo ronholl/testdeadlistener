@@ -865,6 +865,12 @@ function mkShow(d,v,c,att,r){
     songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
+function logVisit(){
+  try{
+    fetch(SCRIPT_URL+'?action=logVisit',{signal:AbortSignal.timeout(8000)}).catch(function(){});
+  }catch(e){}
+}
+
 function onLoaded(list){
   shows=list;
   try{
@@ -892,9 +898,14 @@ function onLoaded(list){
         }
         // notAvail=true: leave metaLoaded=false so the bg loop retries this show
       }
-      // Restore setlist songs into the search index only
+      // Restore setlist songs into the search index
+      // Also mark metaLoaded=true so progress and song search reflect cached data
       if(cached[s.id]&&!s.songs){
         s.songs=cached[s.id];
+        if(!s.metaLoaded){
+          s.metaLoaded=true;  // songs are cached — treat as loaded for search/progress
+          s.notAvail=false;   // will still be re-fetched by bg loader for audio
+        }
         cached[s.id].forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
@@ -964,7 +975,7 @@ function onLoaded(list){
   renderOthers();applyFilters();
   bgLoadBatch();
   // Restore last playback position after a short delay
-  setTimeout(restoreLastPosition, 1500);
+  setTimeout(restoreLastPosition, 3000);
   loadFavorites(); // Load immediately - uses cache for instant display
   if(curUser)updateViewStats();
   // Load Cast SDK lazily — must not block show rendering
@@ -2155,7 +2166,23 @@ function preloadNextTrack(show,nextIdx){
   // Don't call play() - just let browser buffer it
 }
 
-function pauseAudio(){if(!audio)return;playIntent=false;audio.pause();playing=false;if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';updateSpPlayer();renderMiniPlayer();renderList();}
+function pauseAudio(){
+  if(!audio)return;
+  playIntent=false;audio.pause();playing=false;
+  // Save restore state on pause so restart picks up paused position
+  if(playingShow&&audio){
+    try{
+      localStorage.setItem('gd_restore',JSON.stringify({
+        showId:playingShow.id,
+        trackIdx:playingTrackIdx,
+        pos:Math.floor(audio.currentTime||0),
+        ts:Date.now()
+      }));
+    }catch(e){}
+  }
+  if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';
+  updateSpPlayer();renderMiniPlayer();renderList();
+}
 function resumeAudio(){
   if(!audio)return;
   playIntent=true;
@@ -2615,6 +2642,7 @@ function switchTab(name){
 }
 
 loadData();
+logVisit();
 // Set poster button visible once DOM is ready (element is below the script tag)
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
@@ -3549,7 +3577,6 @@ function restoreLastPosition(){
     const afterRestore=function(){
       if(show.tracks&&show.tracks.length>saved.trackIdx){
         pauseAtPosition(show,saved.trackIdx,saved.pos);
-        // Scroll the list to the restored show after a brief render delay
         setTimeout(function(){
           const idx=filtered.findIndex(s=>s.id===show.id);
           if(idx<0)return;
@@ -3560,7 +3587,10 @@ function restoreLastPosition(){
         },200);
       }
     };
-    if(!show.metaLoaded){
+    // Always fetch tracks if missing — songs cached ≠ tracks available
+    // Must clear metaLoaded first or loadShowMeta returns early without fetching
+    if(!show.tracks||!show.tracks.length){
+      show.metaLoaded=false;
       loadShowMeta(show,true).then(afterRestore);
     } else {
       afterRestore();
