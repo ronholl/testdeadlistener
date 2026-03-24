@@ -2879,6 +2879,7 @@ function initJamTab(){
   loadFavorites(); // Always refresh when Jam tab opens
   loadTodayShows();
   loadRandomShow();
+  renderJamRecent(); // Restore history from localStorage on every visit
 }
 
 // ── ON THIS DAY ───────────────────────────────────────────────────
