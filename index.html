@@ -871,6 +871,33 @@ function logVisit(){
   }catch(e){}
 }
 
+
+function bestCachedSetlistForShow(cached, show){
+  try{
+    if(!cached || !show || !show.date) return [];
+    let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
+    Object.keys(cached).forEach(function(k){
+      if(k.indexOf(show.date + '-') === 0 && Array.isArray(cached[k]) && cached[k].length > best.length){
+        best = cached[k];
+      }
+    });
+    return Array.isArray(best) ? best.slice() : [];
+  }catch(e){
+    return [];
+  }
+}
+
+function applyBestCachedSetlist(show, incomingSongs, cached){
+  const inc = Array.isArray(incomingSongs) ? incomingSongs.slice() : [];
+  const bestCached = bestCachedSetlistForShow(
+    cached || JSON.parse(localStorage.getItem('gd_setlists')||'{}'),
+    show
+  );
+  const best = (bestCached.length > inc.length) ? bestCached : inc;
+  if(best.length) show.songs = best.slice();
+  return best;
+}
+
 function onLoaded(list){
   shows=list;
   try{
@@ -898,15 +925,16 @@ function onLoaded(list){
         }
         // notAvail=true: leave metaLoaded=false so the bg loop retries this show
       }
-      // Restore setlist songs into the search index
-      // Also mark metaLoaded=true so progress and song search reflect cached data
-      if(cached[s.id]&&!s.songs){
-        s.songs=cached[s.id];
+      // Restore the best cached setlist for this date into the search index.
+      // Some dates exist under multiple show IDs; prefer the longest cached setlist.
+      const bestCachedSongs = bestCachedSetlistForShow(cached, s);
+      if(bestCachedSongs.length && !s.songs){
+        s.songs = bestCachedSongs;
         if(!s.metaLoaded){
           s.metaLoaded=true;  // songs are cached — treat as loaded for search/progress
           s.notAvail=false;   // will still be re-fetched by bg loader for audio
         }
-        cached[s.id].forEach(function(song){
+        bestCachedSongs.forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
           if(!songIndex[key].some(function(e){return e.id===s.id;}))
@@ -1598,19 +1626,44 @@ function stripLeadingNonSongTracks(tracks){
   return tracks||[];
 }
 
+function cleanTrackLabel(s){
+  return (s || '')
+    .replace(/\.(mp3|ogg|flac|m4a|shn|wav)$/i,'')
+    .replace(/\s*->$/,'')
+    .replace(/_/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function looksLikeTapeId(s){
+  const x=(s||'').trim();
+  if(!x) return true;
+  return (
+    /^gd\d{2,4}[\-_. ]/i.test(x) ||
+    /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||
+    /s\d+t\d+/i.test(x) ||
+    /^track\s*\d+$/i.test(x)
+  );
+}
+
+function getUsableArchiveLabel(t){
+  const raw=cleanTrackLabel((((t&&t.title)||'') || ((t&&t.name)||'')).toString());
+  return raw && !looksLikeTapeId(raw) ? raw : '';
+}
+
 function getDisplayOffset(show){
   if(!show||!show.tracks||!show.songs) return 0;
   if(show._displayOffset!=null) return show._displayOffset;
-  const diff=(show.tracks.length||0)-(show.songs.length||0);
-  if(diff<=0){ show._displayOffset=0; return 0; }
 
   const first=show.tracks[0]||{};
   const firstDur=parseFloat(first.length)||0;
-  const firstLabel=(((first&&first.title)||'').toString().trim())||(((first&&first.name)?cleanName(first.name):'').toString().trim());
+  const firstLabel=cleanTrackLabel((((first&&first.title)||'') || ((first&&first.name)||'')).toString());
+  const firstLooksLikeJunk = !firstLabel || looksLikeTapeId(firstLabel) || isLikelyNonSongTrack(first);
 
-  // Safe display-only heuristic: if there is exactly one extra archive track and
-  // the opener looks like a short non-song/intro/crowd track, shift labels by one.
-  if(diff===1 && (isLikelyNonSongTrack(first) || (firstDur>0 && firstDur<=150))){
+  // Display-only rule:
+  // If the opener is a short unlabeled/junk/non-song tape fragment, keep playback intact
+  // but shift visible song names by one so track 2 maps to song 1.
+  if(firstLooksLikeJunk && firstDur>0 && firstDur<=150){
     show._displayOffset=1;
     return 1;
   }
@@ -1620,14 +1673,16 @@ function getDisplayOffset(show){
 }
 
 function displayTrackName(show,t,i){
-  const archiveLabel=((t&&t.title)||'').toString().replace(/\s*->$/,'').trim()||((t&&t.name)?cleanName(t.name):'');
+  const archiveLabel=getUsableArchiveLabel(t);
   const offset=getDisplayOffset(show);
+
   if(offset>0){
-    if(i<offset) return archiveLabel||'[intro/crowd]';
+    if(i<offset) return archiveLabel||'[crowd / intro]';
     return (show&&show.songs&&show.songs[i-offset])||archiveLabel||('Track '+(i+1));
   }
-  if(isLikelyNonSongTrack(t)) return archiveLabel||('Track '+(i+1));
-  return (show&&show.songs&&show.songs[i])||archiveLabel||('Track '+(i+1));
+
+  if(isLikelyNonSongTrack(t)) return archiveLabel||'[crowd / intro]';
+  return archiveLabel||(show&&show.songs&&show.songs[i])||('Track '+(i+1));
 }
 
 async function loadShowMeta(show,priority){
@@ -1715,12 +1770,12 @@ async function loadShowMeta(show,priority){
           // Song names come directly from track titles
           const songs=tracks.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
           if(songs.length){
-            show.songs=songs;
+            const chosenSongs=applyBestCachedSetlist(show,songs);
             if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
-              var _ms=show.songs[curTrackIdx]||'Track '+(curTrackIdx+1);
+              var _ms=(show.songs&&show.songs[curTrackIdx])||'Track '+(curTrackIdx+1);
               navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:'Grateful Dead',album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
             }
-            songs.forEach(function(song){
+            chosenSongs.forEach(function(song){
               const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
               if(!songIndex[key])songIndex[key]=[];
               if(!songIndex[key].some(function(e){return e.id===show.id;}))
@@ -1728,7 +1783,7 @@ async function loadShowMeta(show,priority){
             });
             try{
               const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
-              c[show.id]=songs;
+              if(!Array.isArray(c[show.id]) || songs.length > c[show.id].length) c[show.id]=songs;
               localStorage.setItem('gd_setlists',JSON.stringify(c));
             }catch(e){}
           }
@@ -1801,14 +1856,14 @@ async function loadShowMeta(show,priority){
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
-        show.songs=songs;
-        songs.forEach(function(song){
+        const chosenSongs=applyBestCachedSetlist(show,songs);
+        chosenSongs.forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
           if(!songIndex[key])songIndex[key]=[];
           if(!songIndex[key].some(function(e){return e.id===show.id;}))
             songIndex[key].push({id:show.id,date:show.date,venue:show.venue,city:show.city,song:song});
         });
-        try{const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');c[show.id]=songs;localStorage.setItem('gd_setlists',JSON.stringify(c));}catch(e){}
+        try{const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');if(!Array.isArray(c[show.id]) || songs.length > c[show.id].length) c[show.id]=songs;localStorage.setItem('gd_setlists',JSON.stringify(c));}catch(e){}
       }
       const byBase={};
       const fmtScore=function(n){return n.endsWith('.ogg')?5:n.includes('128')?4:n.endsWith('.mp3')&&!n.includes('64kb')?3:1;};
@@ -3366,7 +3421,8 @@ async function switchRecording(showId,newId){
             });
             show.tracks=dd;
             show.totalDur=dd.reduce(function(s,t){return s+(parseFloat(t.length)||0);},0);
-            show.songs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
+            const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
+            applyBestCachedSetlist(show,trackSongs);
             if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
               var _ms=show.songs[curTrackIdx]||'Track '+(curTrackIdx+1);
               navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:'Grateful Dead',album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
