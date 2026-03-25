@@ -895,6 +895,10 @@ function applyBestCachedSetlist(show, incomingSongs, cached){
   );
   const best = (bestCached.length > inc.length) ? bestCached : inc;
   if(best.length) show.songs = best.slice();
+  // invalidate any stale display/visible-track caches whenever we improve songs
+  show._displayNameMap = null;
+  show._visibleTrackMap = null;
+  show._visibleTrackLabels = null;
   return best;
 }
 
@@ -930,6 +934,7 @@ function onLoaded(list){
       const bestCachedSongs = bestCachedSetlistForShow(cached, s);
       if(bestCachedSongs.length && !s.songs){
         s.songs = bestCachedSongs;
+        s._displayNameMap = null; s._visibleTrackMap = null; s._visibleTrackLabels = null;
         if(!s.metaLoaded){
           s.metaLoaded=true;  // songs are cached — treat as loaded for search/progress
           s.notAvail=false;   // will still be re-fetched by bg loader for audio
@@ -1651,38 +1656,178 @@ function getUsableArchiveLabel(t){
   return raw && !looksLikeTapeId(raw) ? raw : '';
 }
 
-function getDisplayOffset(show){
-  if(!show||!show.tracks||!show.songs) return 0;
-  if(show._displayOffset!=null) return show._displayOffset;
 
-  const first=show.tracks[0]||{};
-  const firstDur=parseFloat(first.length)||0;
-  const firstLabel=cleanTrackLabel((((first&&first.title)||'') || ((first&&first.name)||'')).toString());
-  const firstLooksLikeJunk = !firstLabel || looksLikeTapeId(firstLabel) || isLikelyNonSongTrack(first);
+function normalizeSongForMatch(s){
+  return cleanTrackLabel((s||'').toString())
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .replace(/[’']/g,"'")
+    .replace(/\s*>\s*$/,'')
+    .replace(/^\[(.*)\]$/,'$1')
+    .trim();
+}
 
-  // Display-only rule:
-  // If the opener is a short unlabeled/junk/non-song tape fragment, keep playback intact
-  // but shift visible song names by one so track 2 maps to song 1.
-  if(firstLooksLikeJunk && firstDur>0 && firstDur<=150){
-    show._displayOffset=1;
-    return 1;
+
+function buildDisplayNameMap(show){
+  if(!show || !show.tracks) return [];
+  if(show._displayNameMap) return show._displayNameMap;
+
+  const songs = Array.isArray(show.songs) ? show.songs.slice() : [];
+  const normSongs = songs.map(normalizeSongForMatch);
+  const tracks = show.tracks.slice();
+  const out = new Array(tracks.length);
+
+  if(!songs.length){
+    show._displayNameMap = tracks.map(function(t,i){
+      const archiveLabel = getUsableArchiveLabel(t);
+      return archiveLabel || ('Track ' + (i+1));
+    });
+    return show._displayNameMap;
   }
 
-  show._displayOffset=0;
-  return 0;
+  const extraRealIdx = new Set();
+  const genericIdx = [];
+  let tapeLikeCount = 0;
+
+  tracks.forEach(function(t,i){
+    const archiveLabel = getUsableArchiveLabel(t);
+    const normArchive = normalizeSongForMatch(archiveLabel);
+    const raw = cleanTrackLabel((((t&&t.title)||'') || ((t&&t.name)||'')).toString());
+    if(looksLikeTapeId(raw)) tapeLikeCount++;
+
+    if(archiveLabel && normArchive && normSongs.indexOf(normArchive) === -1){
+      extraRealIdx.add(i);
+      out[i] = archiveLabel;
+    } else {
+      genericIdx.push(i); // matched labels and junk both consume setlist slots unless preserved as extras
+    }
+  });
+
+  const surplus = Math.max(0, tracks.length - songs.length - extraRealIdx.size);
+  const tapeHeavy = (
+    songs.length > 0 &&
+    surplus >= 3 &&
+    tapeLikeCount >= Math.max(5, Math.floor(tracks.length * 0.45))
+  );
+
+  let extrasNeeded = surplus;
+
+  // On tape-id heavy early recordings, the loaded/cached setlist is the source of truth
+  // for visible song names. Do not preserve lots of raw tape-id slots. At most keep a
+  // very short opener so playback can still start on the actual first tape segment.
+  if(tapeHeavy){
+    show._tapeHeavyDisplay = true;
+    extrasNeeded = 0;
+    if(genericIdx.length){
+      const t0 = tracks[0] || {};
+      const dur0 = parseFloat(t0.length) || 9999;
+      const raw0 = cleanTrackLabel((((t0&&t0.title)||'') || ((t0&&t0.name)||'')).toString());
+      if(looksLikeTapeId(raw0) && dur0 > 0 && dur0 <= 180){
+        extrasNeeded = 1;
+      }
+    }
+  } else {
+    show._tapeHeavyDisplay = false;
+  }
+
+  const genericRank = genericIdx.map(function(i){
+    const t = tracks[i] || {};
+    const dur = parseFloat(t.length) || 9999;
+    const raw = cleanTrackLabel((((t&&t.title)||'') || ((t&&t.name)||'')).toString());
+    const tapeLike = looksLikeTapeId(raw);
+    const openerBonus = (i===0 && dur>0 && dur<=180) ? -10000 : 0;
+    const shortBonus = dur<=180 ? -1000 : 0;
+    const tapeBonus = tapeLike ? -500 : 0;
+    return {i:i, score: openerBonus + shortBonus + tapeBonus + dur};
+  }).sort(function(a,b){ return a.score - b.score; });
+
+  const genericExtraIdx = new Set();
+  for(let k=0; k<extrasNeeded && k<genericRank.length; k++){
+    genericExtraIdx.add(genericRank[k].i);
+  }
+
+  let sIdx = 0;
+  tracks.forEach(function(t,i){
+    if(extraRealIdx.has(i)) return;
+    if(genericExtraIdx.has(i)){
+      const archiveLabel = getUsableArchiveLabel(t);
+      if(i===0 && !archiveLabel) out[i] = '[crowd / intro]';
+      else out[i] = archiveLabel || ('Track ' + (i+1));
+      return;
+    }
+
+    // For tape-heavy recordings, the setlist rules the visible names.
+    // Raw tape-id labels like acid5t01 should never win if songs are loaded.
+    if(show._tapeHeavyDisplay){
+      if(sIdx < songs.length){
+        out[i] = songs[sIdx];
+        sIdx++;
+      } else {
+        out[i] = 'Track ' + (i+1);
+      }
+      return;
+    }
+
+    if(sIdx < songs.length){
+      out[i] = songs[sIdx];
+      sIdx++;
+    } else {
+      const archiveLabel = getUsableArchiveLabel(t);
+      out[i] = archiveLabel || ('Track ' + (i+1));
+    }
+  });
+
+  show._displayNameMap = out;
+  return out;
 }
 
 function displayTrackName(show,t,i){
-  const archiveLabel=getUsableArchiveLabel(t);
-  const offset=getDisplayOffset(show);
+  const map = buildDisplayNameMap(show);
+  return map[i] || ('Track ' + (i+1));
+}
 
-  if(offset>0){
-    if(i<offset) return archiveLabel||'[crowd / intro]';
-    return (show&&show.songs&&show.songs[i-offset])||archiveLabel||('Track '+(i+1));
+function buildVisibleTrackIndexMap(show){
+  if(!show || !show.tracks) return [];
+  if(show._visibleTrackMap) return show._visibleTrackMap;
+
+  const rawMap = show.tracks.map(function(_,i){ return i; });
+  const rawLabels = rawMap.map(function(i){ return displayTrackName(show, show.tracks[i], i); });
+
+  // Clean-list view: hide generic extras/non-song placeholders when we have a setlist.
+  // This keeps playback aligned through the visible->raw index map.
+  const hasSetlist = Array.isArray(show.songs) && show.songs.length;
+  if(hasSetlist){
+    const keep = [];
+    const keepLabels = [];
+    rawMap.forEach(function(rawIdx, visibleIdx){
+      const label = rawLabels[visibleIdx] || '';
+      if(/^\[crowd \/ intro\]$/i.test(label)) return;
+      if(/^Track\s+\d+$/i.test(label)) return;
+      keep.push(rawIdx);
+      keepLabels.push(label);
+    });
+    show._visibleTrackMap = keep;
+    show._visibleTrackLabels = keepLabels;
+  } else {
+    show._visibleTrackMap = rawMap;
+    show._visibleTrackLabels = rawLabels;
   }
+  return show._visibleTrackMap;
+}
 
-  if(isLikelyNonSongTrack(t)) return archiveLabel||'[crowd / intro]';
-  return archiveLabel||(show&&show.songs&&show.songs[i])||('Track '+(i+1));
+function visibleTrackLabel(show, visibleIdx){
+  buildVisibleTrackIndexMap(show);
+  return (show && show._visibleTrackLabels && show._visibleTrackLabels[visibleIdx]) || ('Track ' + (visibleIdx+1));
+}
+
+function visiblePosForRaw(show, rawIdx){
+  const map = buildVisibleTrackIndexMap(show);
+  return map.indexOf(rawIdx);
+}
+
+function firstPlayableRawIdx(show){
+  const map = buildVisibleTrackIndexMap(show);
+  return map.length ? map[0] : 0;
 }
 
 async function loadShowMeta(show,priority){
@@ -1698,6 +1843,7 @@ async function loadShowMeta(show,priority){
     return;
   }
   activeLoads.set(show.id,null);
+  show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   try{
     const tOut=priority?14000:10000;
     // ── PRIMARY: Relisten API ─────────────────────────────────────
@@ -1971,14 +2117,16 @@ function renderSetlistBody(show){
 
   // ── Track list ─────────────────────────────────────────────────
   let html='';
-  show.tracks.forEach(function(t,i){
+  const visibleMap = buildVisibleTrackIndexMap(show);
+  visibleMap.forEach(function(rawIdx,vi){
+    const t=show.tracks[rawIdx];
     const dur=t.length?fmtT(parseFloat(t.length)):'';
     const rawLabel=((t&&t.title)||'').toString()||((t&&t.name)||'').toString();
     const hasTransition=rawLabel&&rawLabel.trim().endsWith('->');
-    const songName=displayTrackName(show,t,i);
+    const songName=visibleTrackLabel(show,vi);
     html+=
-      '<div class="tl-row" id="track-'+i+'" onclick="playTrack('+i+')">'+
-        '<span class="tl-num">'+(i+1)+'</span>'+
+      '<div class="tl-row" id="track-v-'+vi+'" onclick="playTrack('+vi+')">'+
+        '<span class="tl-num">'+(vi+1)+'</span>'+
         '<span class="tl-title">'+esc(songName)+(hasTransition?' <span class="tl-arrow">→</span>':'')+'</span>'+
         '<span class="tl-dur">'+dur+'</span>'+
       '</div>';
@@ -2012,7 +2160,9 @@ function fmtSize(b){const mb=b/1048576;return(mb>100?Math.round(mb):mb.toFixed(1
 // ── PLAYBACK ─────────────────────────────────────────────────────
 function playTrack(idx){
   if(!curShow?.tracks)return;
-  const target=Math.max(0,Math.min(idx,curShow.tracks.length-1));
+  const map = buildVisibleTrackIndexMap(curShow);
+  const target = map[Math.max(0,Math.min(idx,map.length-1))];
+  if(target==null) return;
   curTrackIdx=target;
   startPlayback(curShow,target);
 }
@@ -2029,11 +2179,11 @@ function quickPlay(id){
   if(!show.metaLoaded){
     if(ms)ms.textContent='⏳ Loading '+show.date+'...';
     loadShowMeta(show,true).then(function(){
-      if(show.tracks&&show.tracks.length)startPlayback(show,0);
+      if(show.tracks&&show.tracks.length)startPlayback(show, firstPlayableRawIdx(show));
     });
     return;
   }
-  if(show.tracks&&show.tracks.length)startPlayback(show,0);
+  if(show.tracks&&show.tracks.length)startPlayback(show, firstPlayableRawIdx(show));
 }
 
 // ── BUFFER / STALL TRACKING ──────────────────────────────────────
@@ -2305,7 +2455,7 @@ function resumeAudio(){
 }
 function togglePlay(){
   if(!audio&&curShow){
-    const ti=curTrackIdx>=0?curTrackIdx:0;
+    const ti=curTrackIdx>=0?curTrackIdx:firstPlayableRawIdx(curShow);
     startPlayback(curShow,ti);
   } else if(playing){
     pauseAudio();
@@ -2320,14 +2470,18 @@ function togglePlay(){
 }
 function skipTrack(dir){
   if(!curShow?.tracks)return;
+  const map = buildVisibleTrackIndexMap(curShow);
+  if(!map.length) return;
+  const pos = visiblePosForRaw(curShow, curTrackIdx);
+  const curPos = pos >= 0 ? pos : 0;
   if(dir===-1){
     // Restart if >3s in, else go to previous
     if(audio&&audio.currentTime>3){audio.currentTime=0;return;}
-    const n=curTrackIdx-1;
-    if(n>=0)startPlayback(curShow,n);
+    const n=curPos-1;
+    if(n>=0)startPlayback(curShow,map[n]);
   } else {
-    const n=curTrackIdx+1;
-    if(n<curShow.tracks.length)startPlayback(curShow,n);
+    const n=curPos+1;
+    if(n<map.length)startPlayback(curShow,map[n]);
   }
 }
 
@@ -2353,7 +2507,8 @@ function updateSpPlayer(){
   const pi=playingShow?playingTrackIdx:curTrackIdx;
   if(now&&ps&&ps.tracks&&ps.tracks[pi]){
     const t=ps.tracks[pi];
-    const songName=displayTrackName(ps,t,pi);
+    const vp = visiblePosForRaw(ps, pi);
+    const songName=(vp>=0)?visibleTrackLabel(ps,vp):displayTrackName(ps,t,pi);
     now.textContent=songName||(t.mp3?t.name:cleanName(t.name));
     if(sub)sub.textContent=(playing?'▶ ':audio?'⏸ ':'')+ps.date+' · '+ps.venue;
   } else if(now){
@@ -2364,7 +2519,7 @@ function updateSpPlayer(){
   document.querySelectorAll('.tl-cur').forEach(function(el){el.classList.remove('tl-cur');});
   // Then highlight only the currently playing track — but only if the browsed show IS the playing show
   if(playingShow&&curShow&&playingShow.id===curShow.id&&audio){
-    const curEl=document.getElementById('track-'+playingTrackIdx);
+    const _vp=visiblePosForRaw(playingShow, playingTrackIdx); const curEl=document.getElementById('track-v-'+_vp);
     if(curEl){
       curEl.classList.add('tl-cur');
       curEl.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -2382,7 +2537,8 @@ function renderMiniPlayer(){
   }
   const pct=audio&&audio.duration?(audio.currentTime/audio.duration*100):0;
   // Use song name if available, fall back to cleaned filename
-  const songName=(curShow.tracks&&curShow.tracks[curTrackIdx])?displayTrackName(curShow,curShow.tracks[curTrackIdx],curTrackIdx):null;
+  const _vp=visiblePosForRaw(curShow, curTrackIdx);
+  const songName=(curShow.tracks&&curShow.tracks[curTrackIdx])?((_vp>=0)?visibleTrackLabel(curShow,_vp):displayTrackName(curShow,curShow.tracks[curTrackIdx],curTrackIdx)):null;
   const name=songName||(curShow.tracks&&curShow.tracks[curTrackIdx]?cleanName(curShow.tracks[curTrackIdx].name):'Loading…');
   el.innerHTML=`
     <div class="mp-row">
@@ -3388,7 +3544,7 @@ async function switchRecording(showId,newId){
   if(!show||show.archiveId===newId)return;
   if(audio){audio.pause();audio=null;playing=false;renderMiniPlayer();}
   if(preloadAudio){preloadAudio.src='';preloadAudio=null;}
-  show.archiveId=newId;show.tracks=null;show.totalDur=0;
+  show.archiveId=newId;show.tracks=null;show.totalDur=0;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   const rec=(show.recordings||[]).find(function(r){return r.id===newId;});
   show.rating=rec?rec.rating:0;
   show.isSoundboard=rec?rec.sbd:false;
@@ -3890,7 +4046,7 @@ function updateSpFavBtn(){
 function retryShowMeta(id){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
-  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;
+  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Retrying…';
   loadShowMeta(show,true).then(()=>renderSetlistBody(show));
