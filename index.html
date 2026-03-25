@@ -1588,6 +1588,48 @@ function clearMetaLoaded(show){
   }catch(e){}
 }
 
+
+function isLikelyNonSongTrack(t){
+  const s=((((t&&t.name)||'')+' '+((t&&t.title)||'')).toLowerCase()).trim();
+  return /(crowd|tuning|intro|banter|announcement|stage|walk ?on|walk-on|encore break|radio spot)/.test(s);
+}
+
+function stripLeadingNonSongTracks(tracks){
+  return tracks||[];
+}
+
+function getDisplayOffset(show){
+  if(!show||!show.tracks||!show.songs) return 0;
+  if(show._displayOffset!=null) return show._displayOffset;
+  const diff=(show.tracks.length||0)-(show.songs.length||0);
+  if(diff<=0){ show._displayOffset=0; return 0; }
+
+  const first=show.tracks[0]||{};
+  const firstDur=parseFloat(first.length)||0;
+  const firstLabel=(((first&&first.title)||'').toString().trim())||(((first&&first.name)?cleanName(first.name):'').toString().trim());
+
+  // Safe display-only heuristic: if there is exactly one extra archive track and
+  // the opener looks like a short non-song/intro/crowd track, shift labels by one.
+  if(diff===1 && (isLikelyNonSongTrack(first) || (firstDur>0 && firstDur<=150))){
+    show._displayOffset=1;
+    return 1;
+  }
+
+  show._displayOffset=0;
+  return 0;
+}
+
+function displayTrackName(show,t,i){
+  const archiveLabel=((t&&t.title)||'').toString().replace(/\s*->$/,'').trim()||((t&&t.name)?cleanName(t.name):'');
+  const offset=getDisplayOffset(show);
+  if(offset>0){
+    if(i<offset) return archiveLabel||'[intro/crowd]';
+    return (show&&show.songs&&show.songs[i-offset])||archiveLabel||('Track '+(i+1));
+  }
+  if(isLikelyNonSongTrack(t)) return archiveLabel||('Track '+(i+1));
+  return (show&&show.songs&&show.songs[i])||archiveLabel||('Track '+(i+1));
+}
+
 async function loadShowMeta(show,priority){
   if(show.metaLoaded)return;
   if(activeLoads.has(show.id)){
@@ -1606,9 +1648,11 @@ async function loadShowMeta(show,priority){
     // ── PRIMARY: Relisten API ─────────────────────────────────────
     // One call returns song titles, direct MP3 URLs, ratings, all sources
     let relistenOk=false;
+    show._relistenBlocked=false;
     try{
       const r=await fetch('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,
         {signal:AbortSignal.timeout(tOut)});
+      if(!r.ok && (r.status===401||r.status===403||r.status===429)) show._relistenBlocked=true;
       if(r.ok){
         const d=await r.json();
         if(d&&d.sources&&d.sources.length){
@@ -1688,6 +1732,7 @@ async function loadShowMeta(show,priority){
               localStorage.setItem('gd_setlists',JSON.stringify(c));
             }catch(e){}
           }
+          show._relistenBlocked=false;
           show.metaLoaded=true;
           show.notAvail=tracks.length===0;
           if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
@@ -1739,18 +1784,13 @@ async function loadShowMeta(show,priority){
       });
       show.recordings=docs.map(function(d){return {id:d.identifier,rating:d.avg_rating||0,restricted:!!d['access-restricted-item']};});
       if(docs.every(function(d){return d['access-restricted-item'];})){
-        show.metaLoaded=true;show.notAvail=false;show.allRestricted=true;
-        saveMetaLoaded(show);
-        show.archiveId=docs[0].identifier;show.rating=docs[0].avg_rating||0;
-        show.tracks=[];show.totalDur=0;
-        if(priority)renderSetlistBody(show);return;
+        show.allRestricted=true;
       }
       const best=docs.find(function(d){return !d['access-restricted-item'];})||docs[0];
       show.archiveId=best.identifier;show.rating=best.avg_rating||0;
       let meta=null;
       for(let i=0;i<docs.length;i++){
         const doc=docs[i];
-        if(doc['access-restricted-item'])continue;
         try{
           if(metaCache[doc.identifier]){meta=metaCache[doc.identifier];show.archiveId=doc.identifier;break;}
           const r=await fetch('https://archive.org/metadata/'+doc.identifier,{signal:AbortSignal.timeout(tOut)});
@@ -1778,7 +1818,9 @@ async function loadShowMeta(show,priority){
       });
       const allT=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
+      show.tracks=stripLeadingNonSongTracks(show.tracks);
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
+      if(show.tracks.length>0) show.allRestricted=false;
       show.metaLoaded=true;show.notAvail=show.tracks.length===0;
       if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
       saveMetaLoaded(show);
@@ -1815,8 +1857,10 @@ function renderSetlistBody(show){
     mt.innerHTML='<span style="color:var(--muted)">📶 Could not load — offline</span>';
   }else if(show.notAvail){
     mt.innerHTML='<span style="color:var(--muted)">Not found on Relisten or archive.org</span>';
-  }else if(show.allRestricted){
-    mt.innerHTML='<span style="color:var(--red)">Access restricted</span>';
+  }else if(show.allRestricted&&(!show.tracks||!show.tracks.length)){
+    mt.innerHTML=show._relistenBlocked
+      ? '<span style="color:var(--red)">Source unavailable</span>'
+      : '<span style="color:var(--red)">Access restricted</span>';
   }else{
     const stars=show.rating?'★'.repeat(Math.min(5,Math.round(show.rating)))+'☆'.repeat(Math.max(0,5-Math.round(show.rating))):'';    const sbdBadge=show.isSoundboard?'<span style="background:rgba(200,168,75,.15);color:var(--gold);border:1px solid rgba(200,168,75,.3);border-radius:4px;font-size:9px;padding:1px 5px;margin-left:4px">SBD</span>':'';    const reviewTxt=show.numReviews?' · '+show.numReviews+' reviews':'';    const recs=show.recordings||[];    let picker='';    if(recs.length>1){      const opts=recs.map(function(r){        const label=(r.sbd?'[SBD] ':'')+r.id.substring(0,35)+(r.rating?' ★'+r.rating.toFixed(1):'')+(r.reviews?' ('+r.reviews+'r)':'');        return '<option value='+JSON.stringify(r.id)+(r.id===show.archiveId?' selected':'')+'>'+label+'</option>';      }).join('');      picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';    }    const recCountTxt=recs.length>1?' · <span style="color:var(--muted)">'+recs.length+' recordings</span>':'';    mt.innerHTML='<b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+picker;  }
   const body=document.getElementById('sp-body');if(!body)return;
@@ -1826,11 +1870,14 @@ function renderSetlistBody(show){
       '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry when connected</button></div>';
     return;
   }
-  if(show.allRestricted){
+  if(show.allRestricted&&(!show.tracks||!show.tracks.length)){
     const recLinks=(show.recordings||[]).map(function(r){
       return '<div style="padding:2px 0"><a href="https://archive.org/details/'+r.id+'" target="_blank" style="color:var(--gold);font-size:11px">'+r.id+'</a>'+(r.rating?' ★'+r.rating.toFixed(1):'')+'</div>';
     }).join('');
-    body.innerHTML='<div class="sp-unavail">Access-restricted (likely on a commercial release).<br><br>'+recLinks+'<br><a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">View on Relisten ↗</a></div>';
+    const msg=show._relistenBlocked
+      ? 'This show is not currently available through the app. The upstream source may be temporarily unavailable or blocking automated requests.'
+      : 'This show appears to be listed, but stream access is currently restricted.';
+    body.innerHTML='<div class="sp-unavail">'+msg+'<br><br>'+recLinks+'<br><a href="https://relisten.net/grateful-dead/'+show.date.substring(0,4)+'/'+show.date.substring(5,7)+'/'+show.date.substring(8,10)+'" target="_blank" style="color:var(--gold)">View on Relisten ↗</a></div>';
     return;
   }
   if(show.notAvail||(!show.tracks||!show.tracks.length)){
@@ -1871,8 +1918,9 @@ function renderSetlistBody(show){
   let html='';
   show.tracks.forEach(function(t,i){
     const dur=t.length?fmtT(parseFloat(t.length)):'';
-    const hasTransition=t.name&&t.name.trim().endsWith('->');
-    const songName=t.name?t.name.replace(/\s*->$/,'').trim():'Track '+(i+1);
+    const rawLabel=((t&&t.title)||'').toString()||((t&&t.name)||'').toString();
+    const hasTransition=rawLabel&&rawLabel.trim().endsWith('->');
+    const songName=displayTrackName(show,t,i);
     html+=
       '<div class="tl-row" id="track-'+i+'" onclick="playTrack('+i+')">'+
         '<span class="tl-num">'+(i+1)+'</span>'+
@@ -2250,7 +2298,7 @@ function updateSpPlayer(){
   const pi=playingShow?playingTrackIdx:curTrackIdx;
   if(now&&ps&&ps.tracks&&ps.tracks[pi]){
     const t=ps.tracks[pi];
-    const songName=ps.songs&&ps.songs[pi]?ps.songs[pi]:null;
+    const songName=displayTrackName(ps,t,pi);
     now.textContent=songName||(t.mp3?t.name:cleanName(t.name));
     if(sub)sub.textContent=(playing?'▶ ':audio?'⏸ ':'')+ps.date+' · '+ps.venue;
   } else if(now){
@@ -2279,7 +2327,7 @@ function renderMiniPlayer(){
   }
   const pct=audio&&audio.duration?(audio.currentTime/audio.duration*100):0;
   // Use song name if available, fall back to cleaned filename
-  const songName=curShow.songs&&curShow.songs[curTrackIdx]?curShow.songs[curTrackIdx]:null;
+  const songName=(curShow.tracks&&curShow.tracks[curTrackIdx])?displayTrackName(curShow,curShow.tracks[curTrackIdx],curTrackIdx):null;
   const name=songName||(curShow.tracks&&curShow.tracks[curTrackIdx]?cleanName(curShow.tracks[curTrackIdx].name):'Loading…');
   el.innerHTML=`
     <div class="mp-row">
@@ -3296,7 +3344,9 @@ async function switchRecording(showId,newId){
     // Try Relisten first (has song names + direct URLs)
     if(rec&&rec.relistenId){
       const r=await fetch('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,{signal:AbortSignal.timeout(12000)});
+      if(!r.ok && (r.status===401||r.status===403||r.status===429)) show._relistenBlocked=true;
       if(r.ok){
+        show._relistenBlocked=false;
         const d=await r.json();
         const src=(d.sources||[]).find(function(s){return s.upstream_identifier===newId;});
         if(src){
