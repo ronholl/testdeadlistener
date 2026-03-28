@@ -546,6 +546,7 @@ let guestMode=false;   // browsing without login
 let viewUser='all';    // which user's shows to browse
 let newUserOriginTab=null; // tab to return to if user backs out of sign-up
 let curShow=null, audio=null, playing=false, curTrackIdx=0;
+let _setlistToken=0; // incremented on every openSetlist(); guards stale async renders
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=true;
 let positions={}, songIndex={}, metaCache={};
@@ -1472,6 +1473,8 @@ function toggleTheir(){
 // ── SETLIST PANEL ─────────────────────────────────────────────────
 async function openSetlist(id){
   const show=shows.find(s=>s.id===id);if(!show)return;
+  // Increment render token — any in-flight async render for a prior show is now stale
+  const _myToken=++_setlistToken;
   // Remember which tab was active so Back returns there
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
   if(!curShow||curShow.id!==show.id) curTrackIdx=-1; // no auto-highlight on open
@@ -1507,7 +1510,7 @@ async function openSetlist(id){
     }
     await loadShowMeta(show,true);
   }else{
-    renderSetlistBody(show);
+    if(_setlistToken===_myToken) renderSetlistBody(show);
   }
 }
 
@@ -1557,6 +1560,7 @@ function bgLoadBatch(){
   ));
   Promise.allSettled(promises).then(function(){
     updateSongCntProgress();
+    renderList(); // refresh Shows screen so newly indexed setlists appear
     bgRunning=false;
     setTimeout(bgLoadBatch,1000);
   });
@@ -1574,7 +1578,7 @@ function updateSongCntProgress(){
     const qEl=document.getElementById('songQ');
     if(!qEl||qEl.value.trim().length<2){
       if(allDone){
-        const withAudio=shows.filter(s=>s.metaLoaded&&!s.notAvail&&s.tracks&&s.tracks.length).length;
+        const withAudio=shows.filter(s=>s.relistenAvail||(s.metaLoaded&&!s.notAvail&&s.tracks&&s.tracks.length)).length;
         el.textContent='Search any song · all '+total.toLocaleString()+' shows indexed ('+withAudio.toLocaleString()+' with audio)';
       }else{
         el.textContent='Search any song · '+loaded.toLocaleString()+'/'+total.toLocaleString()+' shows loaded ('+pct+'%)';
@@ -1585,11 +1589,11 @@ function updateSongCntProgress(){
   const cntbar=document.getElementById('cntbar');
   if(cntbar){
     const prog=allDone
-      ? ''
+      ? ' <span style="color:var(--green);font-size:9px">· 100% indexed</span>'
       : ' <span style="color:var(--muted);font-size:9px">· indexing '+pct+'%</span>';
     // Only update the progress part, preserve the show count
     const current=cntbar.innerHTML;
-    const base=current.replace(/<span style="color:var\(--muted\).*?<\/span>/,'').trimEnd();
+    const base=current.replace(/<span style="color:var\(--(muted|green)\).*?<\/span>/,'').trimEnd();
     cntbar.innerHTML=base+prog;
   }
 }
@@ -1992,7 +1996,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
         }catch(e){}
       }
-      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority)renderSetlistBody(show);return;}
+      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority&&curShow&&curShow.id===show.id)renderSetlistBody(show);return;}
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
@@ -2022,7 +2026,7 @@ async function loadShowMeta(show,priority){
     }
 
     stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
-    if(priority){renderSetlistBody(show);renderList();}
+    if(priority){if(curShow&&curShow.id===show.id)renderSetlistBody(show);renderList();}
     else renderList();
   }catch(e){
     // If offline, mark as failed-but-retryable rather than permanently unavailable
@@ -2033,7 +2037,7 @@ async function loadShowMeta(show,priority){
       // Don't saveMetaLoaded here — error could be temporary (archive.org outage)
       // so we want to retry on next launch rather than permanently marking as unavailable
     }
-    if(priority)renderSetlistBody(show);
+    if(priority&&curShow&&curShow.id===show.id)renderSetlistBody(show);
   }finally{
     const _fn=activeLoads.get(show.id);
     activeLoads.delete(show.id);
@@ -2524,21 +2528,26 @@ function updateSpPlayer(){
 
 function renderMiniPlayer(){
   const el=document.getElementById('miniPlayer');
-  if(!curShow){el.innerHTML='<div class="mp-idle">Tap a show to open its setlist ↑</div>';return;}
+  // Prefer the actively playing/paused show; fall back to the setlist-panel show.
+  // This mirrors the updateSpPlayer pattern so restored state is visible immediately
+  // on startup without requiring the user to open a setlist first.
+  const mpShow=playingShow||curShow;
+  const mpIdx=playingShow?playingTrackIdx:curTrackIdx;
+  if(!mpShow){el.innerHTML='<div class="mp-idle">Tap a show to open its setlist ↑</div>';return;}
   if(!audio){
-    el.innerHTML='<div class="mp-row"><div class="mp-info"><div class="mp-song">⏳ Loading '+esc(curShow.date)+'…</div><div class="mp-show">'+esc(curShow.venue)+'</div></div></div>';
+    el.innerHTML='<div class="mp-row"><div class="mp-info"><div class="mp-song">⏳ Loading '+esc(mpShow.date)+'…</div><div class="mp-show">'+esc(mpShow.venue)+'</div></div></div>';
     return;
   }
   const pct=audio&&audio.duration?(audio.currentTime/audio.duration*100):0;
   // Use song name if available, fall back to cleaned filename
-  const _vp=visiblePosForRaw(curShow, curTrackIdx);
-  const songName=(curShow.tracks&&curShow.tracks[curTrackIdx])?((_vp>=0)?visibleTrackLabel(curShow,_vp):displayTrackName(curShow,curShow.tracks[curTrackIdx],curTrackIdx)):null;
-  const name=songName||(curShow.tracks&&curShow.tracks[curTrackIdx]?cleanName(curShow.tracks[curTrackIdx].name):'Loading…');
+  const _vp=visiblePosForRaw(mpShow, mpIdx);
+  const songName=(mpShow.tracks&&mpShow.tracks[mpIdx])?((_vp>=0)?visibleTrackLabel(mpShow,_vp):displayTrackName(mpShow,mpShow.tracks[mpIdx],mpIdx)):null;
+  const name=songName||(mpShow.tracks&&mpShow.tracks[mpIdx]?cleanName(mpShow.tracks[mpIdx].name):'Loading…');
   el.innerHTML=`
     <div class="mp-row">
       <div class="mp-info" onclick="openSetlistForCurrent()">
         <div class="mp-song">${esc(name)}</div>
-        <div class="mp-show">${esc(curShow.date)} · ${esc(curShow.venue)}</div>
+        <div class="mp-show">${esc(mpShow.date)} · ${esc(mpShow.venue)}</div>
       </div>
       <div class="mp-ctrls">
         <button class="mp-btn" onclick="event.stopPropagation();skipTrack(-1)" title="Previous">⏮</button>
@@ -2618,7 +2627,7 @@ function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,
 
 function showSongIndexStats(matchCount,q){
   const loaded=shows.filter(s=>s.metaLoaded).length;
-  const withAudio=shows.filter(s=>s.metaLoaded&&!s.notAvail&&s.tracks&&s.tracks.length).length;
+  const withAudio=shows.filter(s=>s.relistenAvail||(s.metaLoaded&&!s.notAvail&&s.tracks&&s.tracks.length)).length;
   const total=shows.length;
   const allDone=loaded>=total;
   const pct=Math.round(loaded/total*100);
@@ -3035,6 +3044,14 @@ async function toggleFavorite(id) {
     if (mine.length >= 5) {
       const btn = document.querySelector('.fav-btn[data-id="' + id + '"]');
       if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)');
+      // Also show message in setlist panel status area (when triggered from panel fav button)
+      const spStatus = document.getElementById('sp-status');
+      if (spStatus) {
+        spStatus.textContent = '⭐ Max 5 favorites — remove one first';
+        spStatus.style.display = 'block';
+        spStatus.style.color = 'var(--gold)';
+        setTimeout(function(){ spStatus.style.display = 'none'; spStatus.textContent = ''; }, 3000);
+      }
       return;
     }
     // Add
@@ -3849,7 +3866,8 @@ function restoreLastPosition(){
     // so the user can see what's being restored
     // Restore playback without touching the current filter
     // Load the show meta if needed, then pause at position
-    curShow=show;curTrackIdx=saved.trackIdx||0;
+    // Do NOT touch curShow/curTrackIdx — those belong to the setlist panel (selected show).
+    // restoreLastPosition only restores audio/playingShow state.
     const afterRestore=function(){
       if(show.tracks&&show.tracks.length>saved.trackIdx){
         pauseAtPosition(show,saved.trackIdx,saved.pos);
@@ -3898,6 +3916,11 @@ function pauseAtPosition(show,trackIdx,pos){
     try{audio.currentTime=pos;_seeked=true;}catch(e){}
   }
   audio.onloadedmetadata=function(){_doSeek();};
+  audio.oncanplay=function(){
+    // Re-render mini-player once metadata arrives so song name resolves
+    // and clears any "Loading…" placeholder from the initial render
+    renderMiniPlayer();updateSpPlayer();
+  };
   audio.ontimeupdate=function(){
     if(!_seeked)_doSeek();
     savePos(show.id,audio.currentTime);updateProgress();
