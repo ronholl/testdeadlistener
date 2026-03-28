@@ -427,11 +427,25 @@ body{display:flex;justify-content:center}
       </div>
       <div>
         <div class="nu-label">Choose a 4-digit PIN</div>
-        <div class="nu-pin-row">
-          <input class="nu-pin-digit" id="nup0" type="number" min="0" max="9" maxlength="1" placeholder="·" oninput="nuPinInput(0)" onkeydown="nuPinKey(event,0)">
-          <input class="nu-pin-digit" id="nup1" type="number" min="0" max="9" maxlength="1" placeholder="·" oninput="nuPinInput(1)" onkeydown="nuPinKey(event,1)">
-          <input class="nu-pin-digit" id="nup2" type="number" min="0" max="9" maxlength="1" placeholder="·" oninput="nuPinInput(2)" onkeydown="nuPinKey(event,2)">
-          <input class="nu-pin-digit" id="nup3" type="number" min="0" max="9" maxlength="1" placeholder="·" oninput="nuPinInput(3)" onkeydown="nuPinKey(event,3)">
+        <div class="pin-dots" id="nuPinDots" style="margin:8px 0 4px">
+          <div class="pin-dot" id="nupd0"></div>
+          <div class="pin-dot" id="nupd1"></div>
+          <div class="pin-dot" id="nupd2"></div>
+          <div class="pin-dot" id="nupd3"></div>
+        </div>
+        <div class="pin-keypad">
+          <div class="pin-key" onclick="nuPadKey('1')"><div class="pin-key-num">1</div><div class="pin-key-letters"></div></div>
+          <div class="pin-key" onclick="nuPadKey('2')"><div class="pin-key-num">2</div><div class="pin-key-letters">ABC</div></div>
+          <div class="pin-key" onclick="nuPadKey('3')"><div class="pin-key-num">3</div><div class="pin-key-letters">DEF</div></div>
+          <div class="pin-key" onclick="nuPadKey('4')"><div class="pin-key-num">4</div><div class="pin-key-letters">GHI</div></div>
+          <div class="pin-key" onclick="nuPadKey('5')"><div class="pin-key-num">5</div><div class="pin-key-letters">JKL</div></div>
+          <div class="pin-key" onclick="nuPadKey('6')"><div class="pin-key-num">6</div><div class="pin-key-letters">MNO</div></div>
+          <div class="pin-key" onclick="nuPadKey('7')"><div class="pin-key-num">7</div><div class="pin-key-letters">PQRS</div></div>
+          <div class="pin-key" onclick="nuPadKey('8')"><div class="pin-key-num">8</div><div class="pin-key-letters">TUV</div></div>
+          <div class="pin-key" onclick="nuPadKey('9')"><div class="pin-key-num">9</div><div class="pin-key-letters">WXYZ</div></div>
+          <div class="pin-key empty"></div>
+          <div class="pin-key" onclick="nuPadKey('0')"><div class="pin-key-num">0</div><div class="pin-key-letters"></div></div>
+          <div class="pin-key del" onclick="nuPadDel()">⌫</div>
         </div>
       </div>
       <div class="nu-msg" id="nuMsg"></div>
@@ -1040,7 +1054,7 @@ function renderLoginScreen(){
   }
 
   // Search box + list
-  el.innerHTML='<div style="padding:0 0 8px">'
+  el.innerHTML='<div style="padding:12px 0 8px">'
     +'<input id="loginSearch" type="search" placeholder="Search Deadheads" '
     +'oninput="document.getElementById(\'loginUserList\').innerHTML=buildLoginCards(this.value)" '
     +'style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:8px">'
@@ -1160,7 +1174,7 @@ function showNewUser(originTab){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('newUserScreen').style.display='flex';
   document.getElementById('nuName').value='';
-  for(let i=0;i<4;i++)document.getElementById('nup'+i).value='';
+  _nuPin=[];_nuUpdatePinDots();
   document.getElementById('nuMsg').textContent='';
   document.getElementById('nuSubmit').disabled=true;
   document.getElementById('nuName').focus();
@@ -1168,7 +1182,7 @@ function showNewUser(originTab){
   if(userLimit>0 && users.length>=userLimit){
     // Hide the form fields and submit button
     document.getElementById('nuName').closest('div').style.display='none';
-    document.getElementById('nup0').closest('div').parentElement.style.display='none';
+    document.getElementById('nuPinDots').closest('div').parentElement.style.display='none';
     document.getElementById('nuSubmit').style.display='none';
     document.getElementById('nuSubmit').nextElementSibling.style.display='none';
     // Show a prominent limit message
@@ -1194,25 +1208,36 @@ function backFromNewUser(){
     showLogin();
   }
 }
-function nuPinInput(idx){
-  const el=document.getElementById('nup'+idx);
-  const v=el.value.replace(/[^0-9]/g,'');
-  el.value=v.slice(-1); // keep only last digit
-  if(v&&idx<3)document.getElementById('nup'+(idx+1)).focus();
+// New-user PIN keypad state
+var _nuPin=[];
+function nuPadKey(d){
+  if(_nuPin.length>=4)return;
+  _nuPin.push(d);
+  _nuUpdatePinDots();
   nuValidate();
 }
-function nuPinKey(e,idx){
-  if(e.key==='Backspace'&&!document.getElementById('nup'+idx).value&&idx>0){
-    document.getElementById('nup'+(idx-1)).focus();
+function nuPadDel(){
+  if(!_nuPin.length)return;
+  _nuPin.pop();
+  _nuUpdatePinDots();
+  nuValidate();
+}
+function _nuUpdatePinDots(){
+  for(var i=0;i<4;i++){
+    var dot=document.getElementById('nupd'+i);
+    if(dot)dot.classList.toggle('filled',i<_nuPin.length);
   }
 }
+// Legacy stubs kept in case anything else calls them
+function nuPinInput(idx){}
+function nuPinKey(e,idx){}
 // Names that look too much like Ron's — block them
 const RESERVED_NAMES=/^ron(\s+h)?$/i;  // block 'Ron' and 'Ron H' only
 function isReservedName(n){return RESERVED_NAMES.test(n.trim());}
 
 function nuValidate(){
   const name=document.getElementById('nuName').value.trim();
-  const pin=[0,1,2,3].map(i=>document.getElementById('nup'+i).value).join('');
+  const pin=_nuPin.join('');
   const reserved=isReservedName(name);
   const taken=users.includes(name);
   const valid=name.length>=2&&pin.length===4&&!taken&&!reserved;
@@ -1231,7 +1256,7 @@ function nuValidate(){
 
 async function registerNewUser(){
   const name=document.getElementById('nuName').value.trim();
-  const pin=[0,1,2,3].map(i=>document.getElementById('nup'+i).value).join('');
+  const pin=_nuPin.join('');
   const btn=document.getElementById('nuSubmit');
   const msg=document.getElementById('nuMsg');
   if(isReservedName(name)){
@@ -2541,7 +2566,8 @@ async function markAttended(){
   if(!curShow)return;
   if(guestMode){
     const btn=document.getElementById('sp-att');
-    if(btn){btn.textContent='log in to mark';setTimeout(function(){updateSpAttBtn();},2000);}
+    if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},2000);}
+    setTimeout(function(){showNewUser(document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||null);},1400);
     return;
   }
   const user=curUser||viewUser;
@@ -2976,7 +3002,8 @@ async function toggleFavorite(id) {
     const playerBtn = document.getElementById('sp-fav');
     const btn = rowBtn || playerBtn;
     if (btn) showMineTooltip(btn, guestMode ? 'Sign in to add favorites →' : 'Log in to add favorites →');
-    if (!guestMode) setTimeout(function(){switchUser();}, 1400);
+    if (guestMode) setTimeout(function(){showNewUser(document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||null);}, 1400);
+    else setTimeout(function(){switchUser();}, 1400);
     return;
   }
   const show = shows.find(s => s.id === id);
@@ -3633,7 +3660,8 @@ async function toggleMine(id){
     // Show tooltip right on the button that was tapped
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
     if(btn) showMineTooltip(btn,'Log in to add shows');
-    if(!guestMode) setTimeout(function(){switchUser();},1400);
+    if(guestMode) setTimeout(function(){showNewUser(document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||null);},1400);
+    else setTimeout(function(){switchUser();},1400);
     return;
   }
   const user=curUser||viewUser;
