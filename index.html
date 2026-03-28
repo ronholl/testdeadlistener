@@ -277,8 +277,9 @@ body{display:flex;justify-content:center}
 .orow:active{background:rgba(200,168,75,.05)}
 .oavatar-sm{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:10px;font-weight:700;flex-shrink:0}
 .orow-name{flex:1;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.orow-bar{width:60px;flex-shrink:0;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
-.orow-cnt{font-size:12px;color:var(--gold);min-width:40px;text-align:right}
+.orow-stats{display:flex;gap:10px;flex-shrink:0;align-items:center}
+.orow-cnt{font-size:11px;color:var(--gold);white-space:nowrap}
+.orow-fav{font-size:11px;color:var(--muted);white-space:nowrap}
 .song-view{padding:10px 16px;display:flex;flex-direction:column;gap:8px}
 .song-results{overflow-y:auto;flex:1;min-height:0}
 .smatch{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer}
@@ -337,8 +338,8 @@ body{display:flex;justify-content:center}
     </div>
     
 
-    <!-- Get on the Bus - at top -->
-    <div class="login-new-btn" onclick="showNewUser()" style="margin-bottom:4px;margin-top:8px">
+    <!-- Get on the Bus -->
+    <div class="login-new-btn" onclick="enterGuestMode()" style="margin-bottom:4px;margin-top:8px">
       <div class="login-bus-icon">
         <svg viewBox="0 0 44 44" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -374,61 +375,12 @@ body{display:flex;justify-content:center}
       </div>
       <div>
         <div style="font-size:15px;font-weight:600;background:linear-gradient(90deg,#e63946,#f4a261,#2a9d8f,#9b5de5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Get on the Bus</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">New to the ride? Join here</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Take the Trip · Explore the Archive</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:1px;opacity:.6">Register when you add shows or favorites</div>
       </div>
     </div>
 
-    <!-- Explore as Guest -->
-    <div class="login-new-btn" onclick="enterGuestMode()" style="margin-bottom:4px;margin-top:0;border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.04)">
-      <div class="login-bus-icon" style="opacity:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))"><svg viewBox="0 0 200 200" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="100" r="98" fill="#1e1e1e" stroke="#555" stroke-width="1"/>
-  <rect x="82" y="148" width="36" height="30" rx="4" fill="#5a3e28"/>
-  <ellipse cx="100" cy="178" rx="42" ry="22" fill="#2a2a3a"/>
-  <ellipse cx="100" cy="105" rx="46" ry="52" fill="#c8956a"/>
-  <ellipse cx="100" cy="138" rx="42" ry="28" fill="#8a8a8a"/>
-  <ellipse cx="72" cy="132" rx="18" ry="20" fill="#7a7a7a"/>
-  <ellipse cx="128" cy="132" rx="18" ry="20" fill="#7a7a7a"/>
-  <ellipse cx="100" cy="124" rx="24" ry="10" fill="#888"/>
-  <path d="M 68 130 Q 100 158 132 130" fill="#7a7a7a" opacity="0.6"/>
-  <ellipse cx="100" cy="105" rx="38" ry="38" fill="#c8956a"/>
-  <path d="M 54 80 Q 48 55 58 45 Q 70 32 100 30 Q 130 32 142 45 Q 152 55 146 80" fill="#3a3228"/>
-  <path d="M 54 80 Q 48 95 52 115 Q 54 108 58 100 Q 56 92 58 80" fill="#3a3228"/>
-  <path d="M 146 80 Q 152 95 148 115 Q 146 108 142 100 Q 144 92 142 80" fill="#3a3228"/>
-  <path d="M 62 50 Q 68 40 78 38" fill="none" stroke="#999" stroke-width="2" opacity="0.6"/>
-  <path d="M 138 50 Q 132 40 122 38" fill="none" stroke="#999" stroke-width="2" opacity="0.6"/>
-  <ellipse cx="100" cy="75" rx="36" ry="18" fill="#c8956a"/>
-  <path d="M 70 82 Q 82 78 90 82" fill="none" stroke="#2a1a0a" stroke-width="3.5" stroke-linecap="round"/>
-  <path d="M 110 82 Q 118 78 130 82" fill="none" stroke="#2a1a0a" stroke-width="3.5" stroke-linecap="round"/>
-  <ellipse cx="82" cy="91" rx="11" ry="9" fill="#f5e8d0"/>
-  <ellipse cx="118" cy="91" rx="11" ry="9" fill="#f5e8d0"/>
-  <circle cx="82" cy="92" r="6.5" fill="#5c3d1e"/>
-  <circle cx="118" cy="92" r="6.5" fill="#5c3d1e"/>
-  <circle cx="82" cy="92" r="3.5" fill="#1a0a00"/>
-  <circle cx="118" cy="92" r="3.5" fill="#1a0a00"/>
-  <circle cx="84" cy="90" r="1.2" fill="white" opacity="0.8"/>
-  <circle cx="120" cy="90" r="1.2" fill="white" opacity="0.8"/>
-  <path d="M 71 88 Q 82 84 93 88" fill="none" stroke="#2a1a0a" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 107 88 Q 118 84 129 88" fill="none" stroke="#2a1a0a" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 96 98 Q 94 108 88 113 Q 96 117 112 113 Q 106 108 104 98" fill="#b8835a"/>
-  <circle cx="88" cy="114" r="6" fill="#b8835a"/>
-  <circle cx="112" cy="114" r="6" fill="#b8835a"/>
-  <ellipse cx="100" cy="112" rx="9" ry="5" fill="#b8835a"/>
-  <ellipse cx="90" cy="113" rx="3.5" ry="2" fill="#8a5535" opacity="0.5"/>
-  <ellipse cx="110" cy="113" rx="3.5" ry="2" fill="#8a5535" opacity="0.5"/>
-  <path d="M 82 122 Q 100 134 118 122" fill="none" stroke="#5a2a10" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="82" cy="91" r="13" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <circle cx="118" cy="91" r="13" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <path d="M 95 91 L 105 91" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <path d="M 56 89 L 69 91" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <path d="M 131 91 L 144 89" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-</svg></div>
-      <div>
-        <div style="font-size:15px;font-weight:600;color:rgba(255,255,255,.7)">Explore the Archive</div>
-        <div style="font-size:11px;color:var(--gold);margin-top:2px;opacity:.7">For Guests &mdash; no account needed</div>
-      </div>
-    </div>
-
-    <div class="login-prompt">Who's listening?</div>
+    <div class="login-prompt">Registered Deadheads</div>
     <div id="loginCloseBtn" onclick="cancelLogin()" style="display:none;position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10" title="Close">×</div>
     <div class="login-users" id="loginUsers">
       <div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>
@@ -553,7 +505,12 @@ body{display:flex;justify-content:center}
 
   <div id="tab-others" style="display:none">
     <div class="others-view">
-      <div style="font-size:11px;color:var(--muted)">Tap a Deadhead to browse their shows</div>
+      <div style="padding:8px 12px 6px;border-bottom:1px solid var(--border)">
+        <div style="position:relative;display:flex;align-items:center">
+          <input class="srch" id="othersQ" type="text" autocomplete="off" placeholder="Filter Deadheads…" oninput="renderOthers()" style="width:100%;padding-right:32px"/>
+          <button onclick="document.getElementById('othersQ').value='';renderOthers()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button>
+        </div>
+      </div>
       <div class="ogrid" id="ogrid"></div>
     </div>
   </div>
@@ -1085,7 +1042,7 @@ function renderLoginScreen(){
 
   // Search box + list
   el.innerHTML='<div style="padding:0 0 8px">'
-    +'<input id="loginSearch" type="search" placeholder="Search listeners…" '
+    +'<input id="loginSearch" type="search" placeholder="Search registered Deadheads…" '
     +'oninput="document.getElementById(\'loginUserList\').innerHTML=buildLoginCards(this.value)" '
     +'style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:8px">'
     +'</div>'
@@ -1424,15 +1381,35 @@ function renderList(){
 
 // ── DEADHEADS ────────────────────────────────────────────────────────
 function renderOthers(){
-  const max=Math.max(...users.map(u=>attCount(u)),1);
-  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:attCount(u)};}).sort(function(a,b){return b.cnt-a.cnt;});
+  const q=((document.getElementById('othersQ')||{}).value||'').toLowerCase().trim();
+  const favCounts={};
+  allFavorites.forEach(function(f){if(f.user)favCounts[f.user]=(favCounts[f.user]||0)+1;});
+  const sorted=[...users].map(function(u,i){
+    const shows=attCount(u);
+    const favs=favCounts[u]||0;
+    return{u:u,i:i,shows:shows,favs:favs,combined:shows+favs};
+  })
+  .filter(function(item){
+    if(item.combined===0) return false;
+    if(q && !item.u.toLowerCase().includes(q)) return false;
+    return true;
+  })
+  .sort(function(a,b){ return b.combined-a.combined; });
+  if(!sorted.length){
+    document.getElementById('ogrid').innerHTML='<div style="padding:20px 16px;color:var(--muted);font-size:12px;font-style:italic">'+(q?'No Deadheads match "'+esc(q)+'"':'No Deadheads yet')+'</div>';
+    return;
+  }
   document.getElementById('ogrid').innerHTML=sorted.map(function(item){
-    const u=item.u,c=USER_COLORS[item.i%USER_COLORS.length],cnt=item.cnt;
-    return '<div class="orow" onclick="browseUser(\'' + u + '\')">'
+    const u=item.u,c=USER_COLORS[item.i%USER_COLORS.length];
+    const showsTxt=item.shows?item.shows.toLocaleString()+' show'+(item.shows!==1?'s':''):'';
+    const favsTxt=item.favs?'★ '+item.favs:'';
+    return '<div class="orow" onclick="browseUser(\''+u+'\')">'
       +'<div class="oavatar-sm" style="background:'+c+'22;color:'+c+'">'+u[0].toUpperCase()+'</div>'
       +'<div class="orow-name">'+esc(u)+'</div>'
-      +'<div class="orow-bar"><div style="width:'+Math.round(cnt/max*100)+'%;background:'+c+';height:4px;border-radius:2px"></div></div>'
-      +'<div class="orow-cnt">'+cnt.toLocaleString()+'</div></div>';
+      +'<div class="orow-stats">'
+      +(showsTxt?'<span class="orow-cnt">'+showsTxt+'</span>':'')
+      +(favsTxt?'<span class="orow-fav">'+favsTxt+'</span>':'')
+      +'</div></div>';
   }).join('');
 }
 function browseUser(u){
@@ -1480,7 +1457,8 @@ async function openSetlist(id){
   const show=shows.find(s=>s.id===id);if(!show)return;
   // Remember which tab was active so Back returns there
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
-  if(!curShow||curShow.id!==show.id) curTrackIdx=-1; // no auto-highlight on open
+  const isNewShow=!curShow||curShow.id!==show.id;
+  if(isNewShow) curTrackIdx=-1; // no auto-highlight on open
   curShow=show;renderList();
   addToHistory(show);
   document.getElementById('sp-date').textContent=show.date;
@@ -1501,15 +1479,17 @@ async function openSetlist(id){
   var _list=document.getElementById('list');if(_list)_list.style.visibility='hidden';
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
   updateSpFavBtn();
+  // Clear body immediately when opening a different show so the prior setlist never flashes
+  if(isNewShow){
+    document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Loading setlist…</div>';
+    document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
+  }
   if(!show.metaLoaded){
-    document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading setlist…';
-    startLoadingDots('sp-meta-txt','Loading');
-    // Show cached setlist immediately while audio loads
-    if(show.songs&&show.songs.length){
-      renderSetlistBody(show);
-    }else{
-      document.getElementById('sp-body').innerHTML='<div class="loading" id="sp-body-loading"><span class="spinner"></span><span id="sp-body-msg">Fetching setlist</span><span id="sp-body-dots"></span></div>';
-    startLoadingDots('sp-body-msg','Fetching setlist');
+    if(!isNewShow){
+      // Same show re-opened — safe to show cached songs while reloading
+      document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading setlist…';
+      startLoadingDots('sp-meta-txt','Loading');
+      if(show.songs&&show.songs.length) renderSetlistBody(show);
     }
     await loadShowMeta(show,true);
   }else{
@@ -1644,10 +1624,13 @@ function looksLikeTapeId(s){
   const x=(s||'').trim();
   if(!x) return true;
   return (
-    /^gd\d{2,4}[\-_. ]/i.test(x) ||
-    /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||
-    /s\d+t\d+/i.test(x) ||
-    /^track\s*\d+$/i.test(x)
+    /^gd\d{2,4}[\-_. ]/i.test(x) ||           // gd78-05-07...
+    /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||   // d1t01-, s1t02- etc with separator
+    /s\d+t\d+/i.test(x) ||                      // s1t01 anywhere in string
+    /^track\s*\d+$/i.test(x) ||                 // track 1, track01
+    /^[a-z]{1,6}\d+t\d+$/i.test(x) ||          // acid5t01, d1t01 (no separator needed)
+    /^[a-z]{1,6}\d{2,4}$/i.test(x) ||          // pure codes like "gd66", "side1"
+    /^[a-z]+\d+\s+\d+$/i.test(x)               // "Acid1 07", "Acid1 16" style
   );
 }
 
@@ -1678,8 +1661,14 @@ function buildDisplayNameMap(show){
   const out = new Array(tracks.length);
 
   if(!songs.length){
+    // Even with no setlist, don't show tape-ID junk as track names.
+    // Check if most archive labels are tape IDs; if so use Track N fallback.
+    const archiveLabels = tracks.map(function(t){ return getUsableArchiveLabel(t); });
+    const tapeCount = archiveLabels.filter(function(l){ return !l || looksLikeTapeId(l); }).length;
+    const mostlyTape = tapeCount >= Math.max(2, Math.floor(tracks.length * 0.5));
     show._displayNameMap = tracks.map(function(t,i){
       const archiveLabel = getUsableArchiveLabel(t);
+      if(mostlyTape) return archiveLabel && !looksLikeTapeId(archiveLabel) ? archiveLabel : ('Track ' + (i+1));
       return archiveLabel || ('Track ' + (i+1));
     });
     return show._displayNameMap;
@@ -1706,8 +1695,7 @@ function buildDisplayNameMap(show){
   const surplus = Math.max(0, tracks.length - songs.length - extraRealIdx.size);
   const tapeHeavy = (
     songs.length > 0 &&
-    surplus >= 3 &&
-    tapeLikeCount >= Math.max(5, Math.floor(tracks.length * 0.45))
+    tapeLikeCount >= Math.max(3, Math.floor(tracks.length * 0.35))
   );
 
   let extrasNeeded = surplus;
@@ -1857,9 +1845,23 @@ async function loadShowMeta(show,priority){
       if(r.ok){
         const d=await r.json();
         if(d&&d.sources&&d.sources.length){
-          // Sort sources: highest weighted rating first
+          // Sort sources: score by title quality first, then rating
+          // Penalise supplement/acid-test sources and ones with mostly tape-ID titles
+          function scoreSource(s){
+            const id=(s.upstream_identifier||'').toLowerCase();
+            let penalty=0;
+            if(/supplement|acid.?test|unknown|lecture|interview/.test(id)) penalty+=5;
+            // Sample track titles to detect tape-heavy sources
+            const allTracks=[];
+            (s.sets||[]).forEach(function(set){(set.tracks||[]).forEach(function(t){allTracks.push(t.title||'');});});
+            if(allTracks.length){
+              const tapeCount=allTracks.filter(function(title){return looksLikeTapeId(cleanTrackLabel(title));}).length;
+              if(tapeCount/allTracks.length>0.6) penalty+=8; // >60% tape IDs = bad source
+            }
+            return (s.avg_rating_weighted||0) - penalty;
+          }
           const srcs=d.sources.slice().sort(function(a,b){
-            return (b.avg_rating_weighted||0)-(a.avg_rating_weighted||0);
+            return scoreSource(b)-scoreSource(a);
           });
           // Store all recordings
           show.recordings=srcs.map(function(s){return {
@@ -2989,8 +2991,9 @@ async function toggleFavorite(id) {
     const rowBtn = document.querySelector('.fav-btn[data-id="' + id + '"]');
     const playerBtn = document.getElementById('sp-fav');
     const btn = rowBtn || playerBtn;
-    if (btn) showMineTooltip(btn, guestMode ? 'Sign in to add favorites →' : 'Log in to add favorites →');
-    if (!guestMode) setTimeout(function(){switchUser();}, 1400);
+    if (btn) showMineTooltip(btn, guestMode ? 'Register to add favorites →' : 'Log in to add favorites →');
+    if (guestMode) setTimeout(function(){showNewUser();}, 1400);
+    else setTimeout(function(){switchUser();}, 1400);
     return;
   }
   const show = shows.find(s => s.id === id);
@@ -3008,7 +3011,7 @@ async function toggleFavorite(id) {
     }catch(e){}
     document.querySelectorAll('.fav-btn[data-id="'+id+'"]').forEach(b=>{b.classList.remove('fav-on');b.title='Add favorite';});
     updateSpFavBtn();
-    renderList(); renderJamFavorites();
+    renderList(); renderJamFavorites(); renderOthers();
     setHdrSt('Removed from favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
     fetch(SCRIPT_URL, {
@@ -3032,7 +3035,7 @@ async function toggleFavorite(id) {
       const filtered=removed.filter(r=>!(r.user===curUser&&r.showId===id));
       localStorage.setItem('gd_fav_removed',JSON.stringify(filtered));
     }catch(e){}
-    renderList(); renderJamFavorites();
+    renderList(); renderJamFavorites(); renderOthers();
     setHdrSt('\u2605 Added to favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
     fetch(SCRIPT_URL, {
@@ -3504,7 +3507,7 @@ async function fetchVisitorStats(){
   } else {
     html='<b style="color:var(--gold)">'+count+'</b> registered Deadhead'+(count!==1?'s':'');
   }
-  html+='<br><span style="color:rgba(255,255,255,.3);font-size:10px">Guests welcome — browse &amp; stream without signing up</span>';
+  html+='<br><span style="color:rgba(255,255,255,.3);font-size:10px">Register when you add shows or favorites — or just explore</span>';
   el.innerHTML=html;
   // Fetch live connection count from Apps Script
   try{
@@ -3604,6 +3607,9 @@ async function switchRecording(showId,newId){
     show.tracks=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
     if(!show.tracks.length)show.tracks=Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
     show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
+    // Apply best cached setlist so archive file-name tracks get proper song labels
+    show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
+    applyBestCachedSetlist(show,[]);
     renderSetlistBody(show);
   }catch(e){
     document.getElementById('sp-body').innerHTML='<div class="sp-unavail">Could not load recording: '+e.message+'</div>';
@@ -3646,8 +3652,9 @@ async function toggleMine(id){
   if(guestMode||!curUser||!viewUser||viewUser==='all'){
     // Show tooltip right on the button that was tapped
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
-    if(btn) showMineTooltip(btn,'Log in to add shows');
-    if(!guestMode) setTimeout(function(){switchUser();},1400);
+    if(btn) showMineTooltip(btn,'Register to add shows →');
+    if(guestMode) setTimeout(function(){showNewUser();},1400);
+    else setTimeout(function(){switchUser();},1400);
     return;
   }
   const user=curUser||viewUser;
@@ -3831,22 +3838,25 @@ function restoreLastPosition(){
     if(Date.now()-saved.ts > 86400000){localStorage.removeItem('gd_restore');return;}
     const show=shows.find(s=>s.id===saved.showId);
     if(!show)return;
-    // If the show isn't visible (myOnly filter excludes it), temporarily show all
-    // so the user can see what's being restored
-    // Restore playback without touching the current filter
-    // Load the show meta if needed, then pause at position
-    curShow=show;curTrackIdx=saved.trackIdx||0;
+    // If user already opened a show in the setlist panel, don't disturb it —
+    // only restore playingShow/mini-player silently in the background.
+    const panelOpen=document.getElementById('setlistPanel')&&document.getElementById('setlistPanel').classList.contains('open');
+    if(!panelOpen){
+      curShow=show;curTrackIdx=saved.trackIdx||0;
+    }
     const afterRestore=function(){
       if(show.tracks&&show.tracks.length>saved.trackIdx){
         pauseAtPosition(show,saved.trackIdx,saved.pos);
-        setTimeout(function(){
-          const idx=filtered.findIndex(s=>s.id===show.id);
-          if(idx<0)return;
-          const list=document.getElementById('list');
-          if(!list)return;
-          const rows=list.querySelectorAll('.row');
-          if(rows[idx])rows[idx].scrollIntoView({block:'center',behavior:'smooth'});
-        },200);
+        if(!panelOpen){
+          setTimeout(function(){
+            const idx=filtered.findIndex(s=>s.id===show.id);
+            if(idx<0)return;
+            const list=document.getElementById('list');
+            if(!list)return;
+            const rows=list.querySelectorAll('.row');
+            if(rows[idx])rows[idx].scrollIntoView({block:'center',behavior:'smooth'});
+          },200);
+        }
       }
     };
     // Always fetch tracks if missing — songs cached ≠ tracks available
