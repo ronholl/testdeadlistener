@@ -1644,12 +1644,10 @@ function looksLikeTapeId(s){
   const x=(s||'').trim();
   if(!x) return true;
   return (
-    /^gd\d{2,4}[\-_. ]/i.test(x) ||           // gd78-05-07...
-    /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||   // d1t01-, s1t02- etc with separator
-    /s\d+t\d+/i.test(x) ||                      // s1t01 anywhere in string
-    /^track\s*\d+$/i.test(x) ||                 // track 1, track01
-    /^[a-z]{1,6}\d+t\d+$/i.test(x) ||          // acid5t01, acid5t02, d1t01 (no separator needed)
-    /^[a-z]{1,6}\d{2,4}$/i.test(x)             // pure alphanum codes like "gd66" or "side1"
+    /^gd\d{2,4}[\-_. ]/i.test(x) ||
+    /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||
+    /s\d+t\d+/i.test(x) ||
+    /^track\s*\d+$/i.test(x)
   );
 }
 
@@ -1708,8 +1706,8 @@ function buildDisplayNameMap(show){
   const surplus = Math.max(0, tracks.length - songs.length - extraRealIdx.size);
   const tapeHeavy = (
     songs.length > 0 &&
-    surplus >= 1 &&
-    tapeLikeCount >= Math.max(3, Math.floor(tracks.length * 0.35))
+    surplus >= 3 &&
+    tapeLikeCount >= Math.max(5, Math.floor(tracks.length * 0.45))
   );
 
   let extrasNeeded = surplus;
@@ -1859,23 +1857,9 @@ async function loadShowMeta(show,priority){
       if(r.ok){
         const d=await r.json();
         if(d&&d.sources&&d.sources.length){
-          // Sort sources: score by title quality first, then rating
-          // Penalise supplement/acid-test sources and ones with mostly tape-ID titles
-          function scoreSource(s){
-            const id=(s.upstream_identifier||'').toLowerCase();
-            let penalty=0;
-            if(/supplement|acid.?test|unknown|lecture|interview/.test(id)) penalty+=5;
-            // Sample track titles to detect tape-heavy sources
-            const allTracks=[];
-            (s.sets||[]).forEach(function(set){(set.tracks||[]).forEach(function(t){allTracks.push(t.title||'');});});
-            if(allTracks.length){
-              const tapeCount=allTracks.filter(function(title){return looksLikeTapeId(cleanTrackLabel(title));}).length;
-              if(tapeCount/allTracks.length>0.6) penalty+=8; // >60% tape IDs = bad source
-            }
-            return (s.avg_rating_weighted||0) - penalty;
-          }
+          // Sort sources: highest weighted rating first
           const srcs=d.sources.slice().sort(function(a,b){
-            return scoreSource(b)-scoreSource(a);
+            return (b.avg_rating_weighted||0)-(a.avg_rating_weighted||0);
           });
           // Store all recordings
           show.recordings=srcs.map(function(s){return {
@@ -3620,9 +3604,6 @@ async function switchRecording(showId,newId){
     show.tracks=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
     if(!show.tracks.length)show.tracks=Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
     show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
-    // Apply best cached setlist so archive file-name tracks get proper song labels
-    show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
-    applyBestCachedSetlist(show,[]);
     renderSetlistBody(show);
   }catch(e){
     document.getElementById('sp-body').innerHTML='<div class="sp-unavail">Could not load recording: '+e.message+'</div>';
