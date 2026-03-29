@@ -822,7 +822,7 @@ function parseRow(line){
 }
 function mkShow(d,v,c,att,r){
   return{id:`${d}-${r}`,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
-    songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
+    songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false,songsOnly:false};
 }
 
 function logVisit(){
@@ -904,6 +904,7 @@ function onLoaded(list){
         if(!s.metaLoaded){
           s.metaLoaded=true;  // songs are cached — treat as loaded for search/progress
           s.notAvail=false;   // will still be re-fetched by bg loader for audio
+          s.songsOnly=true;   // audio not yet confirmed — bg loop must still fetch this show
         }
         bestCachedSongs.forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
@@ -1583,9 +1584,9 @@ function bgLoadBatch(){
   if(bgRunning)return;
   if(!shows||!shows.length)return;
   bgRunning=true;
-  // Candidates: unloaded shows. Include notAvail=true ones that aren't metaLoaded —
-  // those were left un-restored by onLoaded (prior outage cache) and need a fresh fetch.
-  const candidates=shows.filter(s=>!s.metaLoaded);
+  // Candidates: unloaded shows AND songsOnly shows (setlist cached but audio not yet confirmed).
+  // Include notAvail=true ones that aren't metaLoaded — those need a fresh fetch.
+  const candidates=shows.filter(s=>!s.metaLoaded||s.songsOnly);
   const batch=candidates.slice(0,BG_BATCH);
   if(!batch.length){bgRunning=false;updateSongCntProgress();return;}
   const promises=batch.map((s,i)=>new Promise(res=>
@@ -1606,7 +1607,7 @@ function bgLoadBatch(){
 // Update the Songs tab counter with bg-load progress (only when not searching)
 function updateSongCntProgress(){
   if(!shows||!shows.length)return;
-  const loaded=shows.filter(s=>s.metaLoaded).length;
+  const loaded=shows.filter(s=>s.metaLoaded&&!s.songsOnly).length;
   const total=shows.length;
   const pct=Math.round(loaded/total*100);
   let allDone=loaded>=total;
@@ -1878,7 +1879,7 @@ function firstPlayableRawIdx(show){
 }
 
 async function loadShowMeta(show,priority){
-  if(show.metaLoaded)return;
+  if(show.metaLoaded&&!show.songsOnly)return;
   if(activeLoads.has(show.id)){
     if(priority){
       // Await the in-flight load so renderSetlistBody fires promptly after
@@ -1996,6 +1997,7 @@ async function loadShowMeta(show,priority){
           }
           show._relistenBlocked=false;
           show.metaLoaded=true;
+          show.songsOnly=false; // audio confirmed via Relisten
           show.notAvail=tracks.length===0;
           if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
           saveMetaLoaded(show);
@@ -2014,7 +2016,7 @@ async function loadShowMeta(show,priority){
       // Relisten has nothing for this show. Mark it loaded so the bg loop
       // doesn't spin on it forever. notAvail=false means it will still show
       // a Retry button when opened — archive.org is tried on-demand then.
-      show.metaLoaded=true;show.notAvail=true;show.tracks=[];show.totalDur=0;
+      show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;show.tracks=[];show.totalDur=0;
       // Do NOT save to localStorage — keep it soft so the next session
       // tries Relisten again (Relisten may add the show later).
       return;
@@ -2038,7 +2040,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){const d=await r.json();docs=(d.response&&d.response.docs)||[];}
         }catch(e){}
       }
-      if(!docs.length){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
+      if(!docs.length){show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
       docs.sort(function(a,b){
         const aR=a['access-restricted-item']?1:0,bR=b['access-restricted-item']?1:0;
         if(aR!==bR)return aR-bR;
@@ -2059,7 +2061,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
         }catch(e){}
       }
-      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority&&curShow&&curShow.id===show.id)renderSetlistBody(show);return;}
+      if(!meta){show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;if(priority&&curShow&&curShow.id===show.id)renderSetlistBody(show);return;}
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
@@ -2083,7 +2085,7 @@ async function loadShowMeta(show,priority){
       show.tracks=stripLeadingNonSongTracks(show.tracks);
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       if(show.tracks.length>0) show.allRestricted=false;
-      show.metaLoaded=true;show.notAvail=show.tracks.length===0;
+      show.metaLoaded=true;show.songsOnly=false;show.notAvail=show.tracks.length===0;
       if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
       saveMetaLoaded(show);
     }
@@ -2094,9 +2096,9 @@ async function loadShowMeta(show,priority){
   }catch(e){
     // If offline, mark as failed-but-retryable rather than permanently unavailable
     if(!navigator.onLine){
-      show.metaLoaded=false;show.notAvail=false;show._offlineFail=true;
+      show.metaLoaded=false;show.songsOnly=false;show.notAvail=false;show._offlineFail=true;
     } else {
-      show.metaLoaded=true;show.notAvail=true;
+      show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;
       // Don't saveMetaLoaded here — error could be temporary (archive.org outage)
       // so we want to retry on next launch rather than permanently marking as unavailable
     }
@@ -2148,7 +2150,7 @@ function renderSetlistBody(show){
     // the first fetch to fail — most of the time a single retry resolves it.
     if(!show._autoRetried){
       show._autoRetried=true;
-      show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;
+      show.metaLoaded=false;show.songsOnly=false;show.notAvail=false;show._offlineFail=false;
       show.tracks=null;show.archiveId=null;
       loadShowMeta(show,true).then(function(){renderSetlistBody(show);});
       return;
@@ -2709,7 +2711,7 @@ let songTimer=null;
 function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
 function showSongIndexStats(matchCount,q){
-  const loaded=shows.filter(s=>s.metaLoaded).length;
+  const loaded=shows.filter(s=>s.metaLoaded&&!s.songsOnly).length;
   const total=shows.length;
   let allDone=loaded>=total;
   if(!allDone&&localStorage.getItem('gd_index_done')==='1'&&relistenReady)allDone=true;
@@ -2811,7 +2813,7 @@ async function openSetlistAndSelect(id,song){
   // but tracks/audio not yet fetched). If tracks is still null/empty despite metaLoaded,
   // clear metaLoaded so loadShowMeta actually fetches instead of returning early.
   if(!show.tracks||!show.tracks.length){
-    show.metaLoaded=false;
+    show.metaLoaded=false;show.songsOnly=false;
     document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
     await loadShowMeta(show,true);
   }
@@ -4104,7 +4106,7 @@ function restoreLastPosition(){
     // Always fetch tracks if missing — songs cached ≠ tracks available
     // Must clear metaLoaded first or loadShowMeta returns early without fetching
     if(!show.tracks||!show.tracks.length){
-      show.metaLoaded=false;
+      show.metaLoaded=false;show.songsOnly=false;
       loadShowMeta(show,true).then(afterRestore);
     } else {
       afterRestore();
@@ -4309,7 +4311,7 @@ function updateSpFavBtn(){
 function retryShowMeta(id){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
-  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
+  show.metaLoaded=false;show.songsOnly=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Retrying…';
   loadShowMeta(show,true).then(()=>renderSetlistBody(show));
