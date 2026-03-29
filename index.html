@@ -3613,6 +3613,8 @@ async function prefetchRelistenAvailability(){
       // Cache is fresh — flags already restored in onLoaded, just re-render
       relistenReady=true;
       renderList();
+      // Also re-render Songs tab so streamable count updates (play arrows, withAudio)
+      if(typeof renderFeaturedSongs==='function'){const sq=document.getElementById('songQ');if(!sq||sq.value.trim().length<2)renderFeaturedSongs();}
       // Fix 3: defer updateSongCntProgress so bgLoadBatch() has a chance to process
       // any songsOnly candidates before we paint the final count.
       setTimeout(updateSongCntProgress, 0);
@@ -3671,6 +3673,8 @@ async function prefetchRelistenAvailability(){
     console.log('[GD] Relisten prefetch: '+matched+' matched, '+available+' available — cached for 7 days');
     relistenReady=true;
     renderList();
+    // Re-render Songs tab so streamable count and play arrows update
+    if(typeof renderFeaturedSongs==='function'){const sq=document.getElementById('songQ');if(!sq||sq.value.trim().length<2)renderFeaturedSongs();}
     updateSongCntProgress(); // sync Songs tab streamable count now that relistenAvail is set
   }catch(e){
     console.warn('[GD] Relisten prefetch failed:',e.message);
@@ -4214,11 +4218,16 @@ async function syncData(){
       }
       // Restart background loader if indexing is incomplete OR if songsOnly shows
       // exist that still need audio confirmation — do not rely solely on gd_index_done.
-      if(localStorage.getItem('gd_index_done')!=='1'||shows.some(s=>s.songsOnly)){
+      // Also run if relistenReady is still false: even a "fully indexed" session needs
+      // relistenAvail flags applied before Shows tab can show play arrows and Songs tab
+      // can show a non-zero streamable count. bgLoadBatch is harmless here (candidates
+      // will be empty so it exits after one tick) but updateSongCntProgress+renderList
+      // will fire once relistenReady flips true inside prefetchRelistenAvailability.
+      if(localStorage.getItem('gd_index_done')!=='1'||shows.some(s=>s.songsOnly)||!relistenReady){
         bgRunning=false;
         bgLoadBatch();
       } else {
-        // Already fully indexed — just refresh the progress display
+        // Already fully indexed and relisten flags already applied — just refresh display
         updateSongCntProgress();
       }
       setHdrSt('✓ Synced','ok');
