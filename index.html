@@ -869,9 +869,15 @@ function onLoaded(list){
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
     // wiping on every launch.
-    if(localStorage.getItem('gd_meta_loaded_v')!=='6'){
-      localStorage.removeItem('gd_meta_loaded');
-      localStorage.setItem('gd_meta_loaded_v','6');
+    // GUARD: never wipe if indexing has already completed (gd_index_done='1') —
+    // that would force a full re-index on every cold start (the phone regression).
+    const _indexDone=localStorage.getItem('gd_index_done')==='1';
+    if(localStorage.getItem('gd_meta_loaded_v')!=='7'){
+      if(!_indexDone){
+        // Only wipe progress when we haven't fully indexed yet
+        localStorage.removeItem('gd_meta_loaded');
+      }
+      localStorage.setItem('gd_meta_loaded_v','7');
     }
     // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
     const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
@@ -1356,14 +1362,9 @@ function applyFilters(){
   });
   if(!sortDesc)list=[...list].reverse();
   filtered=list;
-  const _loaded=shows.filter(s=>s.metaLoaded).length;
-  const _total=shows.length;
-  const _pct=Math.round(_loaded/_total*100);
-  const _allDone=_loaded>=_total||(localStorage.getItem('gd_index_done')==='1');
-  const _prog=_allDone
-    ? ` <span style="color:var(--green);font-size:9px">· 100% indexed</span>`
-    : ` <span style="color:var(--gold);font-size:9px">· indexing ${_pct}%</span>`;
-  document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
+  // Write only the show count here; updateSongCntProgress() is the sole writer of the progress span
+  document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`;
+  updateSongCntProgress();
   updateAttCount();renderList();
   // Scroll to the first show of the selected year (or top for All Years)
   if(yr){
@@ -1634,9 +1635,11 @@ function updateSongCntProgress(){
     const prog=allDone
       ? ' <span style="color:var(--green);font-size:9px">· 100% indexed</span>'
       : ' <span style="color:var(--muted);font-size:9px">· indexing '+pct+'%</span>';
-    // Only update the progress part, preserve the show count
-    const current=cntbar.innerHTML;
-    const base=current.replace(/<span style="color:var\(--(muted|green)\).*?<\/span>/,'').trimEnd();
+    // Strip any existing progress span, then append the updated one.
+    // applyFilters() writes only the show count, so this is the sole progress writer.
+    const rawHTML=cntbar.innerHTML;
+    const spanIdx=rawHTML.search(/<span[^>]*style="color:var\(--(?:muted|green)\)/);
+    const base=(spanIdx>=0?rawHTML.slice(0,spanIdx):rawHTML).trimEnd();
     cntbar.innerHTML=base+prog;
   }
 }
@@ -4192,9 +4195,15 @@ async function syncData(){
         myOnly=true;
         applyFilters();updateAttCount();updateViewStats();
       }
-      // Restart background loader so any shows missing audio/setlists get a fresh attempt
-      bgRunning=false;
-      bgLoadBatch();
+      // Restart background loader ONLY if indexing is not yet complete.
+      // Unconditional restart was causing a full re-index on every sheet sync.
+      if(localStorage.getItem('gd_index_done')!=='1'){
+        bgRunning=false;
+        bgLoadBatch();
+      } else {
+        // Already fully indexed — just refresh the progress display
+        updateSongCntProgress();
+      }
       setHdrSt('✓ Synced','ok');
     } else {
       setHdrSt('⚠ Sync failed','err');
