@@ -1610,14 +1610,15 @@ function updateSongCntProgress(){
   const loaded=shows.filter(s=>s.metaLoaded&&!s.songsOnly).length;
   const total=shows.length;
   const pct=Math.round(loaded/total*100);
-  let allDone=loaded>=total;
-  // Once we've genuinely reached 100%, persist it so later refreshes don't show a regression
+  const hasSongsOnly=shows.some(s=>s.songsOnly);
+  let allDone=loaded>=total&&!hasSongsOnly;
+  // Once we've genuinely reached 100% with no songsOnly pending, persist it
   if(allDone){
     try{localStorage.setItem('gd_index_done','1');}catch(e){}
-  } else if(localStorage.getItem('gd_index_done')==='1'&&relistenReady){
-    // Prior session completed 100% AND relisten enrichment is ready — treat as done.
-    // Requiring relistenReady prevents iPhone restores from showing "100% indexed" before
-    // the streamable/audio enrichment state (relistenAvail flags) has been applied.
+  } else if(localStorage.getItem('gd_index_done')==='1'&&relistenReady&&!hasSongsOnly){
+    // Prior session completed 100% AND relisten enrichment is ready AND no songsOnly shows
+    // remain in this session — treat as done. Requiring !hasSongsOnly prevents declaring
+    // completion while shows still need audio confirmation on this launch.
     allDone=true;
   }
   // Update Songs tab counter
@@ -1625,7 +1626,8 @@ function updateSongCntProgress(){
   if(el){
     const qEl=document.getElementById('songQ');
     if(!qEl||qEl.value.trim().length<2){
-      if(allDone){
+      if(allDone&&relistenReady){
+        // Fix 4: only paint withAudio count when relistenReady AND no songsOnly remain
         const withAudio=shows.filter(s=>s.relistenAvail||(s.metaLoaded&&!s.notAvail)).length;
         el.textContent='Search any song · all '+total.toLocaleString()+' shows indexed · '+withAudio.toLocaleString()+' streamable';
       }else{
@@ -2713,12 +2715,13 @@ function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,
 function showSongIndexStats(matchCount,q){
   const loaded=shows.filter(s=>s.metaLoaded&&!s.songsOnly).length;
   const total=shows.length;
-  let allDone=loaded>=total;
-  if(!allDone&&localStorage.getItem('gd_index_done')==='1'&&relistenReady)allDone=true;
+  const _hasSongsOnly=shows.some(s=>s.songsOnly);
+  let allDone=loaded>=total&&!_hasSongsOnly;
+  if(!allDone&&localStorage.getItem('gd_index_done')==='1'&&relistenReady&&!_hasSongsOnly)allDone=true;
   const pct=Math.round(loaded/total*100);
   const prog=allDone?'':' · '+pct+'% loaded';
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
-  return allDone
+  return (allDone&&relistenReady)
     ? 'Search any song · all '+total.toLocaleString()+' shows indexed · '+shows.filter(s=>s.relistenAvail||(s.metaLoaded&&!s.notAvail)).length.toLocaleString()+' streamable'
     : 'Indexing shows… '+loaded.toLocaleString()+' of '+total.toLocaleString()+' ('+pct+'%)';
 }
@@ -3610,7 +3613,9 @@ async function prefetchRelistenAvailability(){
       // Cache is fresh — flags already restored in onLoaded, just re-render
       relistenReady=true;
       renderList();
-      updateSongCntProgress(); // sync Songs tab streamable count now that relistenAvail is set
+      // Fix 3: defer updateSongCntProgress so bgLoadBatch() has a chance to process
+      // any songsOnly candidates before we paint the final count.
+      setTimeout(updateSongCntProgress, 0);
       return;
     }
   }catch(e){}
@@ -4207,9 +4212,9 @@ async function syncData(){
         myOnly=true;
         applyFilters();updateAttCount();updateViewStats();
       }
-      // Restart background loader ONLY if indexing is not yet complete.
-      // Unconditional restart was causing a full re-index on every sheet sync.
-      if(localStorage.getItem('gd_index_done')!=='1'){
+      // Restart background loader if indexing is incomplete OR if songsOnly shows
+      // exist that still need audio confirmation — do not rely solely on gd_index_done.
+      if(localStorage.getItem('gd_index_done')!=='1'||shows.some(s=>s.songsOnly)){
         bgRunning=false;
         bgLoadBatch();
       } else {
