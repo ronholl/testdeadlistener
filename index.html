@@ -323,7 +323,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Ron%27s+Deadhead+Listener%22,%22short_name%22:%22RonsDeadhead%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230d0808%22,%22theme_color%22:%22%230d0808%22,%22icons%22:[{%22src%22:%22https://www.ronsdeadlistener.com/icon.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22}]}">
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Ron%27s+Deadhead+Listener%22,%22short_name%22:%22RonsDeadListener%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%230d0808%22,%22theme_color%22:%22%230d0808%22,%22icons%22:[{%22src%22:%22https://www.ronsdeadlistener.com/icon.png%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22}]}">
 </head>
 <body>
 <div id="app">
@@ -919,9 +919,15 @@ function onLoaded(list){
     });
   }catch(e){}
   // ── Bulk prefetch all years from Relisten ────────────────────
-  // Fetches 31 years in parallel (~400ms), marks shows as available
-  // instantly so green ▶ indicators appear without waiting for full loads
-  prefetchRelistenAvailability();
+  // Deferred: wait until the UI has painted and the browser is idle before
+  // firing 31 parallel requests. requestIdleCallback (with a 10s deadline)
+  // keeps the initial render completely free of Relisten traffic.
+  // Falls back to a plain setTimeout on browsers without requestIdleCallback.
+  if(typeof requestIdleCallback === 'function'){
+    requestIdleCallback(function(){ prefetchRelistenAvailability(); }, {timeout: 10000});
+  } else {
+    setTimeout(prefetchRelistenAvailability, 8000);
+  }
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
   users.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;usel.appendChild(o);});
   const yrSel=document.getElementById('yrSel');while(yrSel.options.length>1)yrSel.remove(1);
@@ -972,7 +978,10 @@ function onLoaded(list){
   bgLoadBatch();
   // Restore last playback position after a short delay
   setTimeout(restoreLastPosition, 3000);
-  loadFavorites(); // Load immediately - uses cache for instant display
+  // Load favorites only for known users — guests have no favorites to fetch.
+  // loginAs() calls loadFavorites() for all login paths (auto-login, manual, new user).
+  // Nothing needed here; the call in loginAs covers both the auto-login path
+  // (loginAs was called just above) and later manual logins.
   if(curUser)updateViewStats();
   // Load Cast SDK lazily — must not block show rendering
   // Sets up window callback first so SDK fires initCastApi when ready
@@ -1154,7 +1163,11 @@ function loginAs(name,save){
   const _tb=document.getElementById('theirBtn');if(_tb){_tb.style.display='none';_tb.classList.remove('on');}
   applyFilters();updateAttCount();updateViewStats();
   setHdrSt('Welcome back, '+name+'!','ok');
-  // Check for admin message after list settles — delayed so it doesn't interrupt loading
+  // Load favorites now that we have a real user — cache gives instant display,
+  // network refresh happens in background. Skipped above in onLoaded for guests.
+  loadFavorites();
+  // Check for admin message only for logged-in users, after list settles.
+  // Guests skip this entirely — no point fetching a message for a transient session.
   setTimeout(checkAdminMsg, 3500);
 }
 
@@ -1341,6 +1354,13 @@ function applyFilters(){
     : '';
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
+  // Scroll to the first show of the selected year (or top for All Years)
+  if(yr){
+    setTimeout(function(){
+      const listEl=document.getElementById('list');
+      if(listEl)listEl.scrollTop=0;
+    },30);
+  }
 }
 function updateAttCount(){
   if(viewUser==='all'){document.getElementById('s-att').textContent='—';return;}
@@ -1480,6 +1500,8 @@ async function openSetlist(id){
   if(!curShow||curShow.id!==show.id) curTrackIdx=-1; // no auto-highlight on open
   curShow=show;renderList();
   addToHistory(show);
+  // Clear the setlist body immediately so prior show's setlist never shows under new show name
+  document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Loading setlist…</div>';
   document.getElementById('sp-date').textContent=show.date;
   document.getElementById('sp-venue').textContent=show.venue;
   document.getElementById('sp-city').textContent=show.city;
@@ -1869,6 +1891,20 @@ async function loadShowMeta(show,priority){
             sbd:s.is_soundboard||false,
             restricted:false
           };});
+          // Cache per-source track lists so switchRecording never needs to re-fetch
+          show._relistenSourceTracks={};
+          srcs.forEach(function(s){
+            var st=[];
+            (s.sets||[]).forEach(function(set){
+              (set.tracks||[]).forEach(function(t){
+                if(t.mp3_url)st.push({name:t.title||('Track '+(st.length+1)),mp3:t.mp3_url,length:t.duration?String(t.duration):''});
+              });
+            });
+            // Deduplicate consecutive identical tracks
+            var dd=[];
+            st.forEach(function(t){var p=dd[dd.length-1];if(p&&p.name===t.name&&p.length===t.length&&p.mp3===t.mp3)return;dd.push(t);});
+            show._relistenSourceTracks[s.upstream_identifier]=dd;
+          });
           // Pick best source
           const best=srcs[0];
           show.archiveId=best.upstream_identifier;
@@ -2644,7 +2680,7 @@ const FEATURED_SONGS=['Dark Star','Scarlet Begonias','Fire on the Mountain','Ter
 function renderSongRow(m){
   const showObj=shows.find(s=>s.id===m.id);
   const hasAudio=showObj&&((showObj.metaLoaded&&!showObj.notAvail)||showObj.relistenAvail);
-  return '<div class="srow" onclick="openSetlistAndPlay(\''+m.id+'\',\''+m.song.replace(/'/g,"\\'")+'\')">'+
+  return '<div class="srow" onclick="openSetlistAndSelect(\''+m.id+'\',\''+m.song.replace(/'/g,"\\'")+'\')">'+
     '<span class="srow-song">'+esc(m.song)+'</span>'+
     '<span class="srow-sep"> · </span>'+
     '<span class="srow-date">'+m.date+'</span>'+
@@ -2698,6 +2734,51 @@ function doSongSearch(){
   cntEl.textContent=showSongIndexStats(matches.length,q);
   resEl.innerHTML=matches.slice(0,200).map(renderSongRow).join('');
 }
+// Opens the setlist for a song from the Songs tab:
+// loads the show, highlights the selected song, loads it into the player, but stays PAUSED.
+async function openSetlistAndSelect(id,song){
+  const show=shows.find(s=>s.id===id);
+  if(!show)return;
+  // Open the setlist panel (same panel setup as openSetlist)
+  setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'songs';
+  if(!curShow||curShow.id!==show.id) curTrackIdx=-1;
+  curShow=show;
+  // Clear stale setlist immediately
+  document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Loading setlist…</div>';
+  document.getElementById('sp-date').textContent=show.date;
+  document.getElementById('sp-venue').textContent=show.venue;
+  document.getElementById('sp-city').textContent=show.city;
+  updateSpAttBtn();updateSpFavBtn();
+  const _hdr=document.querySelector('.hdr');
+  const _hdrH=_hdr?_hdr.offsetHeight:65;
+  const _sp=document.getElementById('setlistPanel');
+  var _tabs=document.querySelector('.tabs');
+  var _tabsH=_tabs?_tabs.offsetHeight:0;
+  _sp.style.top=(_hdrH+_tabsH)+'px';
+  _sp.style.height='calc(100vh - '+(_hdrH+_tabsH)+'px)';
+  _sp.classList.add('open');
+  var _listB=document.getElementById('list');if(_listB)_listB.style.visibility='hidden';
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+  renderList();
+  // Ensure tracks are loaded
+  if(!show.tracks||!show.tracks.length){
+    document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
+    await loadShowMeta(show,true);
+  }
+  // Find the track index (do NOT start playback)
+  const i=findTrackIdx(show,song);
+  curTrackIdx=i>=0?i:0;
+  playing=false;
+  playIntent=false;
+  renderSetlistBody(show);
+  updateSpPlayer();
+  // Scroll selected track into view
+  setTimeout(function(){
+    const el=document.getElementById('track-'+curTrackIdx);
+    if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
+  },120);
+}
+
 async function openSetlistAndPlay(id,song){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
@@ -2922,7 +3003,8 @@ loadData();
     document.getElementById('loginScreen').style.display='flex';
   }
 })();
-logVisit();
+// Delay analytics ping until after UI has settled — not needed for first render
+setTimeout(logVisit, 5000);
 // Set poster button visible once DOM is ready (element is below the script tag)
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
@@ -3582,41 +3664,18 @@ async function switchRecording(showId,newId){
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Fetching tracks…</div>';
   try{
-    // Try Relisten first (has song names + direct URLs)
-    if(rec&&rec.relistenId){
-      const r=await fetch('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,{signal:AbortSignal.timeout(12000)});
-      if(!r.ok && (r.status===401||r.status===403||r.status===429)) show._relistenBlocked=true;
-      if(r.ok){
-        show._relistenBlocked=false;
-        const d=await r.json();
-        const src=(d.sources||[]).find(function(s){return s.upstream_identifier===newId;});
-        if(src){
-          const tracks=[];
-          (src.sets||[]).forEach(function(set){
-            (set.tracks||[]).forEach(function(t){
-              if(t.mp3_url)tracks.push({name:t.title||('Track '+(tracks.length+1)),mp3:t.mp3_url,length:t.duration?String(t.duration):''});
-            });
-          });
-          if(tracks.length){
-            // Deduplicate consecutive identical tracks
-            const dd=[];
-            tracks.forEach(function(t){
-              const p=dd[dd.length-1];
-              if(p&&p.name===t.name&&p.length===t.length&&p.mp3===t.mp3)return;
-              dd.push(t);
-            });
-            show.tracks=dd;
-            show.totalDur=dd.reduce(function(s,t){return s+(parseFloat(t.length)||0);},0);
-            const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
-            applyBestCachedSetlist(show,trackSongs);
-            if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
-              var _ms=show.songs[curTrackIdx]||'Track '+(curTrackIdx+1);
-              navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:'Grateful Dead',album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
-            }
-            renderSetlistBody(show);return;
-          }
-        }
+    // Try cached Relisten source tracks first (populated by loadShowMeta — no fetch needed)
+    if(show._relistenSourceTracks&&show._relistenSourceTracks[newId]&&show._relistenSourceTracks[newId].length){
+      const dd=show._relistenSourceTracks[newId];
+      show.tracks=dd;
+      show.totalDur=dd.reduce(function(s,t){return s+(parseFloat(t.length)||0);},0);
+      const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
+      applyBestCachedSetlist(show,trackSongs);
+      if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
+        var _ms=show.songs[curTrackIdx]||'Track '+(curTrackIdx+1);
+        navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:'Grateful Dead',album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
       }
+      renderSetlistBody(show);return;
     }
     // Fallback: archive.org metadata
     let meta=metaCache[newId];
