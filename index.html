@@ -941,14 +941,11 @@ function onLoaded(list){
   }catch(e){}
   // ── Bulk prefetch all years from Relisten ────────────────────
   // Deferred: wait until the UI has painted and the browser is idle before
-  // firing 31 parallel requests. requestIdleCallback (with a 10s deadline)
-  // keeps the initial render completely free of Relisten traffic.
-  // Falls back to a plain setTimeout on browsers without requestIdleCallback.
-  if(typeof requestIdleCallback === 'function'){
-    requestIdleCallback(function(){ prefetchRelistenAvailability(); }, {timeout: 10000});
-  } else {
-    setTimeout(prefetchRelistenAvailability, 8000);
-  }
+  // Use plain setTimeout — requestIdleCallback's timeout is not reliably honored
+  // on iOS Safari when the CPU is busy (bgLoadBatch running concurrent fetches),
+  // causing prefetchRelistenAvailability to never fire on phone.
+  // 500ms is enough for the initial render to paint before the network call starts.
+  setTimeout(prefetchRelistenAvailability, 500);
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
   users.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;usel.appendChild(o);});
   const yrSel=document.getElementById('yrSel');while(yrSel.options.length>1)yrSel.remove(1);
@@ -3682,9 +3679,11 @@ async function prefetchRelistenAvailability(){
   const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
   try{
     const ts = parseInt(localStorage.getItem(CACHE_TS)||'0', 10);
-    if(ts && (Date.now() - ts) < CACHE_TTL){
-      // Cache is fresh — flags already restored in onLoaded, just re-render
-      _dlog("relisten: cache hit, relistenReady=true");
+    const cachedData = JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');
+    const cachedCount = Object.keys(cachedData).length;
+    if(ts && (Date.now() - ts) < CACHE_TTL && cachedCount > 100){
+      // Cache is fresh AND has real data — flags already restored in onLoaded
+      _dlog("relisten: cache hit ("+cachedCount+" entries), relistenReady=true");
       relistenReady=true;
       renderList();
       // Also re-render Songs tab so streamable count updates (play arrows, withAudio)
