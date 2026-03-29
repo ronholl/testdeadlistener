@@ -822,7 +822,7 @@ function parseRow(line){
 }
 function mkShow(d,v,c,att,r){
   return{id:`${d}-${r}`,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
-    songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false,songsOnly:false};
+    songs:null,archiveId:null,tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
 function logVisit(){
@@ -869,15 +869,9 @@ function onLoaded(list){
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
     // wiping on every launch.
-    // GUARD: never wipe if indexing has already completed (gd_index_done='1') —
-    // that would force a full re-index on every cold start (the phone regression).
-    const _indexDone=localStorage.getItem('gd_index_done')==='1';
-    if(localStorage.getItem('gd_meta_loaded_v')!=='7'){
-      if(!_indexDone){
-        // Only wipe progress when we haven't fully indexed yet
-        localStorage.removeItem('gd_meta_loaded');
-      }
-      localStorage.setItem('gd_meta_loaded_v','7');
+    if(localStorage.getItem('gd_meta_loaded_v')!=='6'){
+      localStorage.removeItem('gd_meta_loaded');
+      localStorage.setItem('gd_meta_loaded_v','6');
     }
     // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
     const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
@@ -904,7 +898,6 @@ function onLoaded(list){
         if(!s.metaLoaded){
           s.metaLoaded=true;  // songs are cached — treat as loaded for search/progress
           s.notAvail=false;   // will still be re-fetched by bg loader for audio
-          s.songsOnly=true;   // audio not yet confirmed — bg loop must still fetch this show
         }
         bestCachedSongs.forEach(function(song){
           const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
@@ -1363,9 +1356,14 @@ function applyFilters(){
   });
   if(!sortDesc)list=[...list].reverse();
   filtered=list;
-  // Write only the show count here; updateSongCntProgress() is the sole writer of the progress span
-  document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`;
-  updateSongCntProgress();
+  const _loaded=shows.filter(s=>s.metaLoaded).length;
+  const _total=shows.length;
+  const _pct=Math.round(_loaded/_total*100);
+  const _allDone=_loaded>=_total||(localStorage.getItem('gd_index_done')==='1');
+  const _prog=_allDone
+    ? ` <span style="color:var(--green);font-size:9px">· 100% indexed</span>`
+    : ` <span style="color:var(--gold);font-size:9px">· indexing ${_pct}%</span>`;
+  document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
   // Scroll to the first show of the selected year (or top for All Years)
   if(yr){
@@ -1579,14 +1577,13 @@ function openSetlistForCurrent(){
 // ── META LOADING ──────────────────────────────────────────────────
 const BG_BATCH=10,BG_DELAY=200;
 let bgRunning=false;
-let relistenReady=false; // set true once relistenAvail flags are applied (restored or freshly fetched)
 function bgLoadBatch(){
   if(bgRunning)return;
   if(!shows||!shows.length)return;
   bgRunning=true;
-  // Candidates: unloaded shows AND songsOnly shows (setlist cached but audio not yet confirmed).
-  // Include notAvail=true ones that aren't metaLoaded — those need a fresh fetch.
-  const candidates=shows.filter(s=>!s.metaLoaded||s.songsOnly);
+  // Candidates: unloaded shows. Include notAvail=true ones that aren't metaLoaded —
+  // those were left un-restored by onLoaded (prior outage cache) and need a fresh fetch.
+  const candidates=shows.filter(s=>!s.metaLoaded);
   const batch=candidates.slice(0,BG_BATCH);
   if(!batch.length){bgRunning=false;updateSongCntProgress();return;}
   const promises=batch.map((s,i)=>new Promise(res=>
@@ -1607,18 +1604,15 @@ function bgLoadBatch(){
 // Update the Songs tab counter with bg-load progress (only when not searching)
 function updateSongCntProgress(){
   if(!shows||!shows.length)return;
-  const loaded=shows.filter(s=>s.metaLoaded&&!s.songsOnly).length;
+  const loaded=shows.filter(s=>s.metaLoaded).length;
   const total=shows.length;
   const pct=Math.round(loaded/total*100);
-  const hasSongsOnly=shows.some(s=>s.songsOnly);
-  let allDone=loaded>=total&&!hasSongsOnly;
-  // Once we've genuinely reached 100% with no songsOnly pending, persist it
+  let allDone=loaded>=total;
+  // Once we've genuinely reached 100%, persist it so later refreshes don't show a regression
   if(allDone){
     try{localStorage.setItem('gd_index_done','1');}catch(e){}
-  } else if(localStorage.getItem('gd_index_done')==='1'&&relistenReady&&!hasSongsOnly){
-    // Prior session completed 100% AND relisten enrichment is ready AND no songsOnly shows
-    // remain in this session — treat as done. Requiring !hasSongsOnly prevents declaring
-    // completion while shows still need audio confirmation on this launch.
+  } else if(localStorage.getItem('gd_index_done')==='1'){
+    // Prior session completed 100% — treat as done to avoid misleading regression
     allDone=true;
   }
   // Update Songs tab counter
@@ -1626,8 +1620,7 @@ function updateSongCntProgress(){
   if(el){
     const qEl=document.getElementById('songQ');
     if(!qEl||qEl.value.trim().length<2){
-      if(allDone&&relistenReady){
-        // Fix 4: only paint withAudio count when relistenReady AND no songsOnly remain
+      if(allDone){
         const withAudio=shows.filter(s=>s.relistenAvail||(s.metaLoaded&&!s.notAvail)).length;
         el.textContent='Search any song · all '+total.toLocaleString()+' shows indexed · '+withAudio.toLocaleString()+' streamable';
       }else{
@@ -1641,11 +1634,9 @@ function updateSongCntProgress(){
     const prog=allDone
       ? ' <span style="color:var(--green);font-size:9px">· 100% indexed</span>'
       : ' <span style="color:var(--muted);font-size:9px">· indexing '+pct+'%</span>';
-    // Strip any existing progress span, then append the updated one.
-    // applyFilters() writes only the show count, so this is the sole progress writer.
-    const rawHTML=cntbar.innerHTML;
-    const spanIdx=rawHTML.search(/<span[^>]*style="color:var\(--(?:muted|green)\)/);
-    const base=(spanIdx>=0?rawHTML.slice(0,spanIdx):rawHTML).trimEnd();
+    // Only update the progress part, preserve the show count
+    const current=cntbar.innerHTML;
+    const base=current.replace(/<span style="color:var\(--(muted|green)\).*?<\/span>/,'').trimEnd();
     cntbar.innerHTML=base+prog;
   }
 }
@@ -1881,7 +1872,7 @@ function firstPlayableRawIdx(show){
 }
 
 async function loadShowMeta(show,priority){
-  if(show.metaLoaded&&!show.songsOnly)return;
+  if(show.metaLoaded)return;
   if(activeLoads.has(show.id)){
     if(priority){
       // Await the in-flight load so renderSetlistBody fires promptly after
@@ -1999,7 +1990,6 @@ async function loadShowMeta(show,priority){
           }
           show._relistenBlocked=false;
           show.metaLoaded=true;
-          show.songsOnly=false; // audio confirmed via Relisten
           show.notAvail=tracks.length===0;
           if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
           saveMetaLoaded(show);
@@ -2018,7 +2008,7 @@ async function loadShowMeta(show,priority){
       // Relisten has nothing for this show. Mark it loaded so the bg loop
       // doesn't spin on it forever. notAvail=false means it will still show
       // a Retry button when opened — archive.org is tried on-demand then.
-      show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;show.tracks=[];show.totalDur=0;
+      show.metaLoaded=true;show.notAvail=true;show.tracks=[];show.totalDur=0;
       // Do NOT save to localStorage — keep it soft so the next session
       // tries Relisten again (Relisten may add the show later).
       return;
@@ -2042,7 +2032,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){const d=await r.json();docs=(d.response&&d.response.docs)||[];}
         }catch(e){}
       }
-      if(!docs.length){show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
+      if(!docs.length){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
       docs.sort(function(a,b){
         const aR=a['access-restricted-item']?1:0,bR=b['access-restricted-item']?1:0;
         if(aR!==bR)return aR-bR;
@@ -2063,7 +2053,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
         }catch(e){}
       }
-      if(!meta){show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;if(priority&&curShow&&curShow.id===show.id)renderSetlistBody(show);return;}
+      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority&&curShow&&curShow.id===show.id)renderSetlistBody(show);return;}
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
@@ -2087,7 +2077,7 @@ async function loadShowMeta(show,priority){
       show.tracks=stripLeadingNonSongTracks(show.tracks);
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       if(show.tracks.length>0) show.allRestricted=false;
-      show.metaLoaded=true;show.songsOnly=false;show.notAvail=show.tracks.length===0;
+      show.metaLoaded=true;show.notAvail=show.tracks.length===0;
       if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
       saveMetaLoaded(show);
     }
@@ -2098,9 +2088,9 @@ async function loadShowMeta(show,priority){
   }catch(e){
     // If offline, mark as failed-but-retryable rather than permanently unavailable
     if(!navigator.onLine){
-      show.metaLoaded=false;show.songsOnly=false;show.notAvail=false;show._offlineFail=true;
+      show.metaLoaded=false;show.notAvail=false;show._offlineFail=true;
     } else {
-      show.metaLoaded=true;show.songsOnly=false;show.notAvail=true;
+      show.metaLoaded=true;show.notAvail=true;
       // Don't saveMetaLoaded here — error could be temporary (archive.org outage)
       // so we want to retry on next launch rather than permanently marking as unavailable
     }
@@ -2152,7 +2142,7 @@ function renderSetlistBody(show){
     // the first fetch to fail — most of the time a single retry resolves it.
     if(!show._autoRetried){
       show._autoRetried=true;
-      show.metaLoaded=false;show.songsOnly=false;show.notAvail=false;show._offlineFail=false;
+      show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;
       show.tracks=null;show.archiveId=null;
       loadShowMeta(show,true).then(function(){renderSetlistBody(show);});
       return;
@@ -2713,15 +2703,14 @@ let songTimer=null;
 function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
 function showSongIndexStats(matchCount,q){
-  const loaded=shows.filter(s=>s.metaLoaded&&!s.songsOnly).length;
+  const loaded=shows.filter(s=>s.metaLoaded).length;
   const total=shows.length;
-  const _hasSongsOnly=shows.some(s=>s.songsOnly);
-  let allDone=loaded>=total&&!_hasSongsOnly;
-  if(!allDone&&localStorage.getItem('gd_index_done')==='1'&&relistenReady&&!_hasSongsOnly)allDone=true;
+  let allDone=loaded>=total;
+  if(!allDone&&localStorage.getItem('gd_index_done')==='1')allDone=true;
   const pct=Math.round(loaded/total*100);
   const prog=allDone?'':' · '+pct+'% loaded';
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
-  return (allDone&&relistenReady)
+  return allDone
     ? 'Search any song · all '+total.toLocaleString()+' shows indexed · '+shows.filter(s=>s.relistenAvail||(s.metaLoaded&&!s.notAvail)).length.toLocaleString()+' streamable'
     : 'Indexing shows… '+loaded.toLocaleString()+' of '+total.toLocaleString()+' ('+pct+'%)';
 }
@@ -2816,7 +2805,7 @@ async function openSetlistAndSelect(id,song){
   // but tracks/audio not yet fetched). If tracks is still null/empty despite metaLoaded,
   // clear metaLoaded so loadShowMeta actually fetches instead of returning early.
   if(!show.tracks||!show.tracks.length){
-    show.metaLoaded=false;show.songsOnly=false;
+    show.metaLoaded=false;
     document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
     await loadShowMeta(show,true);
   }
@@ -3611,11 +3600,7 @@ async function prefetchRelistenAvailability(){
     const ts = parseInt(localStorage.getItem(CACHE_TS)||'0', 10);
     if(ts && (Date.now() - ts) < CACHE_TTL){
       // Cache is fresh — flags already restored in onLoaded, just re-render
-      relistenReady=true;
       renderList();
-      // Fix 3: defer updateSongCntProgress so bgLoadBatch() has a chance to process
-      // any songsOnly candidates before we paint the final count.
-      setTimeout(updateSongCntProgress, 0);
       return;
     }
   }catch(e){}
@@ -3669,14 +3654,9 @@ async function prefetchRelistenAvailability(){
       localStorage.setItem(CACHE_TS,  String(Date.now()));
     }catch(e){}
     console.log('[GD] Relisten prefetch: '+matched+' matched, '+available+' available — cached for 7 days');
-    relistenReady=true;
     renderList();
-    updateSongCntProgress(); // sync Songs tab streamable count now that relistenAvail is set
   }catch(e){
     console.warn('[GD] Relisten prefetch failed:',e.message);
-    // Even on failure, unblock the "100% indexed" display so the UI doesn't stay stuck
-    relistenReady=true;
-    updateSongCntProgress();
   }
 }
 
@@ -4111,7 +4091,7 @@ function restoreLastPosition(){
     // Always fetch tracks if missing — songs cached ≠ tracks available
     // Must clear metaLoaded first or loadShowMeta returns early without fetching
     if(!show.tracks||!show.tracks.length){
-      show.metaLoaded=false;show.songsOnly=false;
+      show.metaLoaded=false;
       loadShowMeta(show,true).then(afterRestore);
     } else {
       afterRestore();
@@ -4212,15 +4192,9 @@ async function syncData(){
         myOnly=true;
         applyFilters();updateAttCount();updateViewStats();
       }
-      // Restart background loader if indexing is incomplete OR if songsOnly shows
-      // exist that still need audio confirmation — do not rely solely on gd_index_done.
-      if(localStorage.getItem('gd_index_done')!=='1'||shows.some(s=>s.songsOnly)){
-        bgRunning=false;
-        bgLoadBatch();
-      } else {
-        // Already fully indexed — just refresh the progress display
-        updateSongCntProgress();
-      }
+      // Restart background loader so any shows missing audio/setlists get a fresh attempt
+      bgRunning=false;
+      bgLoadBatch();
       setHdrSt('✓ Synced','ok');
     } else {
       setHdrSt('⚠ Sync failed','err');
@@ -4316,7 +4290,7 @@ function updateSpFavBtn(){
 function retryShowMeta(id){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
-  show.metaLoaded=false;show.songsOnly=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
+  show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show.tracks=null;show.archiveId=null;show._autoRetried=false;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Retrying…';
   loadShowMeta(show,true).then(()=>renderSetlistBody(show));
