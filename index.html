@@ -1578,6 +1578,7 @@ function openSetlistForCurrent(){
 // ── META LOADING ──────────────────────────────────────────────────
 const BG_BATCH=10,BG_DELAY=200;
 let bgRunning=false;
+let relistenReady=false; // set true once relistenAvail flags are applied (restored or freshly fetched)
 function bgLoadBatch(){
   if(bgRunning)return;
   if(!shows||!shows.length)return;
@@ -1612,8 +1613,10 @@ function updateSongCntProgress(){
   // Once we've genuinely reached 100%, persist it so later refreshes don't show a regression
   if(allDone){
     try{localStorage.setItem('gd_index_done','1');}catch(e){}
-  } else if(localStorage.getItem('gd_index_done')==='1'){
-    // Prior session completed 100% — treat as done to avoid misleading regression
+  } else if(localStorage.getItem('gd_index_done')==='1'&&relistenReady){
+    // Prior session completed 100% AND relisten enrichment is ready — treat as done.
+    // Requiring relistenReady prevents iPhone restores from showing "100% indexed" before
+    // the streamable/audio enrichment state (relistenAvail flags) has been applied.
     allDone=true;
   }
   // Update Songs tab counter
@@ -2709,7 +2712,7 @@ function showSongIndexStats(matchCount,q){
   const loaded=shows.filter(s=>s.metaLoaded).length;
   const total=shows.length;
   let allDone=loaded>=total;
-  if(!allDone&&localStorage.getItem('gd_index_done')==='1')allDone=true;
+  if(!allDone&&localStorage.getItem('gd_index_done')==='1'&&relistenReady)allDone=true;
   const pct=Math.round(loaded/total*100);
   const prog=allDone?'':' · '+pct+'% loaded';
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
@@ -3603,7 +3606,9 @@ async function prefetchRelistenAvailability(){
     const ts = parseInt(localStorage.getItem(CACHE_TS)||'0', 10);
     if(ts && (Date.now() - ts) < CACHE_TTL){
       // Cache is fresh — flags already restored in onLoaded, just re-render
+      relistenReady=true;
       renderList();
+      updateSongCntProgress(); // sync Songs tab streamable count now that relistenAvail is set
       return;
     }
   }catch(e){}
@@ -3657,9 +3662,14 @@ async function prefetchRelistenAvailability(){
       localStorage.setItem(CACHE_TS,  String(Date.now()));
     }catch(e){}
     console.log('[GD] Relisten prefetch: '+matched+' matched, '+available+' available — cached for 7 days');
+    relistenReady=true;
     renderList();
+    updateSongCntProgress(); // sync Songs tab streamable count now that relistenAvail is set
   }catch(e){
     console.warn('[GD] Relisten prefetch failed:',e.message);
+    // Even on failure, unblock the "100% indexed" display so the UI doesn't stay stuck
+    relistenReady=true;
+    updateSongCntProgress();
   }
 }
 
