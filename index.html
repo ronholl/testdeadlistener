@@ -611,13 +611,18 @@ function saveHistoryPosition(show, trackIdx, pos){
   if(!show||!show.id)return;
   try{
     let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    const entry=hist.find(h=>h.id===show.id);
-    if(!entry)return; // only update shows already in history
+    const i=hist.findIndex(h=>h.id===show.id);
+    if(i<0)return; // only update shows already in history
+    const entry=hist[i];
     entry.lastTrackIdx=trackIdx;
     entry.lastPos=Math.floor(pos);
     entry.lastPosTs=Date.now();
+    entry.ts=Date.now(); // refresh "last played" timestamp
     const track=show.tracks&&show.tracks[trackIdx];
     entry.lastTrackTitle=(show.songs&&show.songs[trackIdx])||(track&&(track.title||track.name))||null;
+    // Move to top: remove from current position, reinsert at front (no duplicates)
+    hist.splice(i,1);
+    hist.unshift(entry);
     localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
   }catch(e){}
 }
