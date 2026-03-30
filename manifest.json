@@ -1,8 +1,9 @@
 {
-  "name": "Ron's Deadhead Listener",
-  "short_name": "Deadhead",
+  "name": "RonsDeadListener",
+  "short_name": "RonsDeadListener",
   "description": "Grateful Dead live shows 1965–1995",
-  "start_url": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",
