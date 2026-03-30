@@ -605,6 +605,22 @@ let pinTarget=null, pinBuffer='';
 let debugLines=[];
 
 try{const p=localStorage.getItem('gd_pos');if(p)positions=JSON.parse(p);}catch(e){}
+// Update the Recently Played history entry for a show with its current playback position.
+// Defined here (near savePos) so it's available from both savePos and pauseAudio.
+function saveHistoryPosition(show, trackIdx, pos){
+  if(!show||!show.id)return;
+  try{
+    let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+    const entry=hist.find(h=>h.id===show.id);
+    if(!entry)return; // only update shows already in history
+    entry.lastTrackIdx=trackIdx;
+    entry.lastPos=Math.floor(pos);
+    entry.lastPosTs=Date.now();
+    const track=show.tracks&&show.tracks[trackIdx];
+    entry.lastTrackTitle=(show.songs&&show.songs[trackIdx])||(track&&(track.title||track.name))||null;
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+  }catch(e){}
+}
 function savePos(id,t){
   positions[id]=Math.floor(t);
   try{
@@ -613,6 +629,8 @@ function savePos(id,t){
     // curShow is whatever is open in the setlist panel — could be a different show
     if(playingShow&&audio){
       localStorage.setItem('gd_restore',JSON.stringify({showId:playingShow.id,trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()}));
+      // Keep the Recently Played entry in sync (throttled — history write is cheap but runs often)
+      saveHistoryPosition(playingShow, playingTrackIdx, t);
     }
   }catch(e){}
 }
@@ -2278,6 +2296,10 @@ function startPlayback(show,idx){
   if(preloadAudio&&preloadAudio._url===url){
     newAudio=preloadAudio;preloadAudio=null;
   }
+  // Save position for the outgoing show before switching
+  if(playingShow&&playingShow.id!==show.id&&audio&&!isNaN(audio.currentTime)){
+    saveHistoryPosition(playingShow, playingTrackIdx, audio.currentTime);
+  }
   // Stop current audio and any buffering timer
   _stopBufferTimer();
   _autoRetried=false;
@@ -2418,6 +2440,8 @@ function pauseAudio(){
         ts:Date.now()
       }));
     }catch(e){}
+    // Also update the Recently Played history entry
+    saveHistoryPosition(playingShow, playingTrackIdx, audio.currentTime||0);
   }
   if('mediaSession' in navigator)navigator.mediaSession.playbackState='paused';
   updateSpPlayer();renderMiniPlayer();renderList();
@@ -3040,9 +3064,17 @@ function addToHistory(show){
   if(!show||!show.id)return;
   try{
     let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    // Remove if already present (move to front)
+    // Preserve existing position data if present (moving to front on re-open)
+    const existing=hist.find(h=>h.id===show.id)||{};
     hist=hist.filter(h=>h.id!==show.id);
-    hist.unshift({id:show.id,date:show.date,venue:show.venue,city:show.city,ts:Date.now()});
+    hist.unshift({
+      id:show.id,date:show.date,venue:show.venue,city:show.city,ts:Date.now(),
+      // Carry forward any previously saved position fields
+      lastTrackIdx:existing.lastTrackIdx!=null?existing.lastTrackIdx:null,
+      lastTrackTitle:existing.lastTrackTitle||null,
+      lastPos:existing.lastPos||null,
+      lastPosTs:existing.lastPosTs||null
+    });
     if(hist.length>HISTORY_MAX)hist=hist.slice(0,HISTORY_MAX);
     localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
   }catch(e){}
@@ -3071,8 +3103,111 @@ function renderJamRecent(){
     const s=shows.find(x=>x.id===h.id);
     const venue=s?s.venue:h.venue;
     const city=s?s.city:h.city;
-    return '<div class="jam-show" onclick="openSetlistFromJam(\''+h.id+'\')">'      +'<div class="jam-show-date">'+h.date+'</div>'      +'<div class="jam-show-venue">'+(venue||'')+(city?'<span class="jam-show-city"> · '+city+'</span>':'')+'</div>'      +'</div>';
+    const hasPos=h.lastTrackIdx!=null&&h.lastPos!=null&&h.lastPos>0;
+    // Progress line: track title + timestamp
+    let progressLine='';
+    if(hasPos){
+      const title=h.lastTrackTitle?'<span style="color:var(--text);opacity:.8">'+esc(h.lastTrackTitle)+'</span>':'Track '+(h.lastTrackIdx+1);
+      const posStr=fmtT(h.lastPos);
+      progressLine='<div style="font-size:10px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:4px">'
+        +'<span style="color:var(--gold);font-size:9px">⏱</span>'
+        +title
+        +' <span style="opacity:.55">@ '+posStr+'</span>'
+        +'</div>';
+    }
+    return '<div style="display:flex;align-items:center;gap:0;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:0;transition:border-color .15s" class="jam-recent-row">'
+      +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openSetlistFromJam(\''+h.id+'\')">'
+        +'<div class="jam-show-date">'+h.date+'</div>'
+        +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+'</div>'
+        +progressLine
+      +'</div>'
+      +'<button onclick="event.stopPropagation();resumeRecentShow(\''+h.id+'\')" '
+        +'title="'+(hasPos?'Resume from '+fmtT(h.lastPos):'Play from start')+'" '
+        +'style="flex-shrink:0;width:38px;height:38px;border-radius:50%;background:'+(hasPos?'rgba(200,168,75,.13)':'transparent')+';border:1.5px solid '+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+';color:'+(hasPos?'var(--gold)':'var(--muted)')+';font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;transition:all .15s" '
+        +'onmouseenter="this.style.borderColor=\'var(--gold)\';this.style.color=\'var(--gold)\'" '
+        +'onmouseleave="this.style.borderColor=\''+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+'\';this.style.color=\''+(hasPos?'var(--gold)':'var(--muted)')+'\'">▶</button>'
+      +'</div>';
   }).join('');
+}
+
+// Open a recently played show and resume (or start) playback.
+// If saved position exists: open show → seek to saved track/pos → play.
+// If no saved position: open show → play from track 1.
+async function resumeRecentShow(id){
+  const show=shows.find(s=>s.id===id);
+  if(!show)return;
+
+  // Pull saved position from history
+  let hist=[];
+  try{hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch(e){}
+  const entry=hist.find(h=>h.id===id);
+  const hasPos=entry&&entry.lastTrackIdx!=null&&entry.lastPos!=null&&entry.lastPos>0;
+  const savedTrackIdx=hasPos?entry.lastTrackIdx:0;
+  const savedPos=hasPos?entry.lastPos:0;
+
+  // Open the setlist panel (mirrors openSetlistFromJam / openSetlistAndPlay flow)
+  setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'jam';
+  curShow=show;
+  document.getElementById('sp-date').textContent=show.date;
+  document.getElementById('sp-venue').textContent=show.venue;
+  document.getElementById('sp-city').textContent=show.city;
+  updateSpAttBtn();updateSpFavBtn();
+  const _hdr=document.querySelector('.hdr');
+  const _hdrH=_hdr?_hdr.offsetHeight:65;
+  const _sp=document.getElementById('setlistPanel');
+  const _tabs=document.querySelector('.tabs');
+  const _tabsH=_tabs?_tabs.offsetHeight:0;
+  _sp.style.top=(_hdrH+_tabsH)+'px';
+  _sp.style.height='calc(100vh - '+(_hdrH+_tabsH)+'px)';
+  _sp.classList.add('open');
+  const _list=document.getElementById('list');if(_list)_list.style.visibility='hidden';
+
+  // Unlock audio context inside the user gesture before any async work
+  (function(){
+    const _u=new Audio();
+    _u.src='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    _u.play().catch(function(){});
+  })();
+
+  const doPlay=function(){
+    const rawIdx=Math.min(savedTrackIdx,(show.tracks||[]).length-1);
+    curTrackIdx=rawIdx;
+    updateSpPlayer();
+    renderSetlistBody(show);
+    if(savedPos>0){
+      // Start playback then seek once audio is ready
+      startPlayback(show,rawIdx);
+      // Seek after canplay fires — use a one-shot listener on the audio element
+      const _seekOnce=function(){
+        if(audio&&savedPos>0){
+          try{audio.currentTime=savedPos;}catch(e){}
+        }
+        if(audio)audio.removeEventListener('canplay',_seekOnce);
+      };
+      if(audio)audio.addEventListener('canplay',_seekOnce,{once:true});
+    } else {
+      startPlayback(show,rawIdx);
+    }
+    // Scroll setlist to the playing track
+    setTimeout(function(){
+      const vp=visiblePosForRaw(show,rawIdx);
+      const el=document.getElementById('track-v-'+vp);
+      if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
+    },300);
+  };
+
+  if(show.tracks&&show.tracks.length){
+    doPlay();
+  } else {
+    document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
+    if(!show.songs||!show.songs.length){
+      document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Fetching setlist…</div>';
+    } else {
+      renderSetlistBody(show);
+    }
+    await loadShowMeta(show,true);
+    if(show.tracks&&show.tracks.length) doPlay();
+  }
 }
 
 function renderJamFavorites() {
