@@ -338,7 +338,7 @@ body{display:flex;justify-content:center}
     
 
     <!-- Get on the Bus - at top -->
-    <div class="login-new-btn" onclick="showNewUser()" style="margin-bottom:4px;margin-top:8px">
+    <div class="login-new-btn" onclick="enterGuestMode()" style="margin-bottom:4px;margin-top:8px">
       <div class="login-bus-icon">
         <svg viewBox="0 0 44 44" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -373,62 +373,12 @@ body{display:flex;justify-content:center}
         </svg>
       </div>
       <div>
-        <div style="font-size:15px;font-weight:600;background:linear-gradient(90deg,#e63946,#f4a261,#2a9d8f,#9b5de5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Get on the Bus</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px">New to the ride? Join here</div>
+        <div style="font-size:17px;font-weight:600;background:linear-gradient(90deg,#e63946,#f4a261,#2a9d8f,#9b5de5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Get on the Bus</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">Take the Trip, Explore the Archive</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:1px">Add Shows or Favorites to Join</div>
       </div>
     </div>
 
-    <!-- Explore as Guest -->
-    <div class="login-new-btn" onclick="enterGuestMode()" style="margin-bottom:4px;margin-top:0;border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.04)">
-      <div class="login-bus-icon" style="opacity:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))"><svg viewBox="0 0 200 200" width="44" height="44" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="100" r="98" fill="#1e1e1e" stroke="#555" stroke-width="1"/>
-  <rect x="82" y="148" width="36" height="30" rx="4" fill="#5a3e28"/>
-  <ellipse cx="100" cy="178" rx="42" ry="22" fill="#2a2a3a"/>
-  <ellipse cx="100" cy="105" rx="46" ry="52" fill="#c8956a"/>
-  <ellipse cx="100" cy="138" rx="42" ry="28" fill="#8a8a8a"/>
-  <ellipse cx="72" cy="132" rx="18" ry="20" fill="#7a7a7a"/>
-  <ellipse cx="128" cy="132" rx="18" ry="20" fill="#7a7a7a"/>
-  <ellipse cx="100" cy="124" rx="24" ry="10" fill="#888"/>
-  <path d="M 68 130 Q 100 158 132 130" fill="#7a7a7a" opacity="0.6"/>
-  <ellipse cx="100" cy="105" rx="38" ry="38" fill="#c8956a"/>
-  <path d="M 54 80 Q 48 55 58 45 Q 70 32 100 30 Q 130 32 142 45 Q 152 55 146 80" fill="#3a3228"/>
-  <path d="M 54 80 Q 48 95 52 115 Q 54 108 58 100 Q 56 92 58 80" fill="#3a3228"/>
-  <path d="M 146 80 Q 152 95 148 115 Q 146 108 142 100 Q 144 92 142 80" fill="#3a3228"/>
-  <path d="M 62 50 Q 68 40 78 38" fill="none" stroke="#999" stroke-width="2" opacity="0.6"/>
-  <path d="M 138 50 Q 132 40 122 38" fill="none" stroke="#999" stroke-width="2" opacity="0.6"/>
-  <ellipse cx="100" cy="75" rx="36" ry="18" fill="#c8956a"/>
-  <path d="M 70 82 Q 82 78 90 82" fill="none" stroke="#2a1a0a" stroke-width="3.5" stroke-linecap="round"/>
-  <path d="M 110 82 Q 118 78 130 82" fill="none" stroke="#2a1a0a" stroke-width="3.5" stroke-linecap="round"/>
-  <ellipse cx="82" cy="91" rx="11" ry="9" fill="#f5e8d0"/>
-  <ellipse cx="118" cy="91" rx="11" ry="9" fill="#f5e8d0"/>
-  <circle cx="82" cy="92" r="6.5" fill="#5c3d1e"/>
-  <circle cx="118" cy="92" r="6.5" fill="#5c3d1e"/>
-  <circle cx="82" cy="92" r="3.5" fill="#1a0a00"/>
-  <circle cx="118" cy="92" r="3.5" fill="#1a0a00"/>
-  <circle cx="84" cy="90" r="1.2" fill="white" opacity="0.8"/>
-  <circle cx="120" cy="90" r="1.2" fill="white" opacity="0.8"/>
-  <path d="M 71 88 Q 82 84 93 88" fill="none" stroke="#2a1a0a" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 107 88 Q 118 84 129 88" fill="none" stroke="#2a1a0a" stroke-width="2" stroke-linecap="round"/>
-  <path d="M 96 98 Q 94 108 88 113 Q 96 117 112 113 Q 106 108 104 98" fill="#b8835a"/>
-  <circle cx="88" cy="114" r="6" fill="#b8835a"/>
-  <circle cx="112" cy="114" r="6" fill="#b8835a"/>
-  <ellipse cx="100" cy="112" rx="9" ry="5" fill="#b8835a"/>
-  <ellipse cx="90" cy="113" rx="3.5" ry="2" fill="#8a5535" opacity="0.5"/>
-  <ellipse cx="110" cy="113" rx="3.5" ry="2" fill="#8a5535" opacity="0.5"/>
-  <path d="M 82 122 Q 100 134 118 122" fill="none" stroke="#5a2a10" stroke-width="2.5" stroke-linecap="round"/>
-  <circle cx="82" cy="91" r="13" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <circle cx="118" cy="91" r="13" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <path d="M 95 91 L 105 91" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <path d="M 56 89 L 69 91" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-  <path d="M 131 91 L 144 89" fill="none" stroke="#aaa" stroke-width="1.5" opacity="0.8"/>
-</svg></div>
-      <div>
-        <div style="font-size:15px;font-weight:600;color:rgba(255,255,255,.7)">Explore the Archive</div>
-        <div style="font-size:11px;color:var(--gold);margin-top:2px;opacity:.7">For Guests &mdash; no account needed</div>
-      </div>
-    </div>
-
-    <div class="login-prompt">Who's listening?</div>
     <div id="loginCloseBtn" onclick="cancelLogin()" style="display:none;position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10" title="Close">×</div>
     <div class="login-users" id="loginUsers">
       <div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>
@@ -472,8 +422,7 @@ body{display:flex;justify-content:center}
   <!-- ── NEW USER SCREEN ── -->
   <div id="newUserScreen" style="display:none">
     <div class="nu-hdr">
-      <button class="pin-back" onclick="showLogin()">← Back</button>
-      <div style="flex:1;text-align:center;font-family:var(--serif);font-size:15px;color:var(--gold)">Get on the Bus</div>
+      <button class="pin-back" onclick="cancelSignup()">← Back</button>
       <div style="width:60px"></div>
     </div>
     <div class="nu-body">
@@ -531,7 +480,7 @@ body{display:flex;justify-content:center}
       <div class="stat"><span class="stat-n" id="s-yrs">—</span><span class="stat-l">Years</span></div>
     </div>
     <div class="filters">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="text" autocomplete="off" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="text" autocomplete="off" placeholder="Search Deadheads" oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
       <div class="frow">
         <select class="fsel" id="yrSel" onchange="applyFilters()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
@@ -586,6 +535,7 @@ function attCount(u){return attCache[u]||0;}
 let curUser=null;      // logged-in user name
 let guestMode=false;   // browsing without login
 let viewUser='all';    // which user's shows to browse
+let _signupReturnTarget=null; // screen to return to if guest backs out of signup
 let curShow=null, audio=null, playing=false, curTrackIdx=0;
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=true;
@@ -983,22 +933,35 @@ function onLoaded(list){
   // Build login screen with real user data
   // Only show login if not already logged in (user may have entered PIN during load)
   if(!curUser && !guestMode){
-    renderLoginScreen();
-    // Check if already logged in via saved credentials
-    const saved=localStorage.getItem('gd_user');
-    const savedPin=localStorage.getItem('gd_pin');
-    if(saved&&users.includes(saved)&&userPins[saved]&&savedPin===userPins[saved]){
-      loginAs(saved,false);
-    } else if(!localStorage.getItem('gd_welcomed')){
+    // Check if prior session was guest — if so, reopen directly as guest (no login screen)
+    const priorGuest=localStorage.getItem('gd_prior_guest');
+    if(priorGuest==='1'){
+      // Silently re-enter guest mode without showing login screen
+      guestMode=true;
+      renderLoginScreen();
       document.getElementById('loginScreen').style.display='none';
-      // New users: show poster first (once only), then help screen
-      if(POSTER_URL&&!localStorage.getItem('gd_poster_seen')){
-        showPoster();
-      } else {
-        showHelp();
+      const hdr=document.getElementById('hdrUser');
+      if(hdr)hdr.innerHTML='<span style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px">Guest</span>';
+      const av=document.getElementById('hdrAvatar');
+      if(av){av.textContent='?';av.style.background='';av.style.color='';}
+    } else {
+      renderLoginScreen();
+      // Check if already logged in via saved credentials
+      const saved=localStorage.getItem('gd_user');
+      const savedPin=localStorage.getItem('gd_pin');
+      if(saved&&users.includes(saved)&&userPins[saved]&&savedPin===userPins[saved]){
+        loginAs(saved,false);
+      } else if(!localStorage.getItem('gd_welcomed')){
+        document.getElementById('loginScreen').style.display='none';
+        // New users: show poster first (once only), then help screen
+        if(POSTER_URL&&!localStorage.getItem('gd_poster_seen')){
+          showPoster();
+        } else {
+          showHelp();
+        }
       }
+      // else login screen stays visible
     }
-    // else login screen stays visible
   } else if(curUser){
     // Already logged in - just re-render with fresh data
     renderLoginScreen();
@@ -1085,7 +1048,7 @@ function renderLoginScreen(){
 
   // Search box + list
   el.innerHTML='<div style="padding:0 0 8px">'
-    +'<input id="loginSearch" type="search" placeholder="Search listeners…" '
+    +'<input id="loginSearch" type="search" placeholder="Search Deadheads…" '
     +'oninput="document.getElementById(\'loginUserList\').innerHTML=buildLoginCards(this.value)" '
     +'style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:8px">'
     +'</div>'
@@ -1150,6 +1113,8 @@ function checkPin(){
 function loginAs(name,save){
   curUser=name;
   guestMode=false;
+  // Clear guest-session flag so next reload shows login normally
+  try{localStorage.removeItem('gd_prior_guest');}catch(e){}
   // Hide all login screens IMMEDIATELY - before anything else that could throw
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('pinScreen').style.display='none';
@@ -1197,7 +1162,8 @@ function switchUser(){
 }
 
 // ── NEW USER REGISTRATION ─────────────────────────────────────────
-function showNewUser(){
+function showNewUser(returnTo){
+  _signupReturnTarget=returnTo||null;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('newUserScreen').style.display='flex';
   document.getElementById('nuName').value='';
@@ -1223,6 +1189,26 @@ function showNewUser(){
       +'<br><br>To request access, email<br><a href="mailto:ronsdeadheadlistener@gmail.com" style="color:var(--gold)">ronsdeadheadlistener@gmail.com</a>'
       +'<br><span style="font-size:12px;color:var(--muted)">We\'ll let you know when a spot opens up!</span>';
   }
+}
+
+function cancelSignup(){
+  // Hide signup screen and return to where the user was
+  document.getElementById('newUserScreen').style.display='none';
+  if(_signupReturnTarget==='app'){
+    // Return directly to app (stays as guest)
+    document.getElementById('loginScreen').style.display='none';
+  } else {
+    // Default: show login screen
+    showLogin();
+  }
+  _signupReturnTarget=null;
+}
+
+// Show signup directly from a guest action (add show/favorite)
+// Bypasses the login/user-selection screen entirely
+function promptSignup(){
+  _signupReturnTarget='app';
+  showNewUser('app');
 }
 
 function nuPinInput(idx){
@@ -2572,13 +2558,15 @@ async function markAttended(){
   if(!curShow)return;
   if(guestMode){
     const btn=document.getElementById('sp-att');
-    if(btn){btn.textContent='log in to mark';setTimeout(function(){updateSpAttBtn();},2000);}
+    if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
+    setTimeout(function(){promptSignup();},800);
     return;
   }
   const user=curUser||viewUser;
   if(!user||user==='all'){
     const btn=document.getElementById('sp-att');
-    if(btn){btn.textContent='log in first';setTimeout(function(){updateSpAttBtn();},2000);}
+    if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
+    setTimeout(function(){promptSignup();},800);
     return;
   }
   if(curShow.attended[user]){confirmRemove(curShow,user);return;}
@@ -2989,8 +2977,8 @@ async function toggleFavorite(id) {
     const rowBtn = document.querySelector('.fav-btn[data-id="' + id + '"]');
     const playerBtn = document.getElementById('sp-fav');
     const btn = rowBtn || playerBtn;
-    if (btn) showMineTooltip(btn, guestMode ? 'Sign in to add favorites →' : 'Log in to add favorites →');
-    if (!guestMode) setTimeout(function(){switchUser();}, 1400);
+    if (btn) showMineTooltip(btn, 'Join to save favorites →');
+    setTimeout(function(){promptSignup();}, 800);
     return;
   }
   const show = shows.find(s => s.id === id);
@@ -3620,7 +3608,9 @@ function toggleTracksPanel(el){
 
 function enterGuestMode(){
   guestMode=true;curUser=null;
-  // Clear saved login so next reload shows login screen
+  // Save flag so next reload reopens directly as guest (no login screen)
+  try{localStorage.setItem('gd_prior_guest','1');}catch(e){}
+  // Clear saved login so next reload won't try to re-log in
   try{localStorage.removeItem('gd_user');localStorage.removeItem('gd_pin');}catch(e){}
   trackVisit('guest');
   document.getElementById('loginScreen').style.display='none';
@@ -3646,15 +3636,15 @@ async function toggleMine(id){
   if(guestMode||!curUser||!viewUser||viewUser==='all'){
     // Show tooltip right on the button that was tapped
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
-    if(btn) showMineTooltip(btn,'Log in to add shows');
-    if(!guestMode) setTimeout(function(){switchUser();},1400);
+    if(btn) showMineTooltip(btn,'Join to add shows →');
+    setTimeout(function(){promptSignup();},800);
     return;
   }
   const user=curUser||viewUser;
   if(!user||user==='all'){
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
-    if(btn) showMineTooltip(btn,'Log in to add shows');
-    setTimeout(function(){switchUser();},1400);
+    if(btn) showMineTooltip(btn,'Join to add shows →');
+    setTimeout(function(){promptSignup();},800);
     return;
   }
   const show=shows.find(function(s){return s.id===id;});
