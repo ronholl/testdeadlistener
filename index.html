@@ -779,7 +779,7 @@ function parseGviz(table){
     if(!d||!/^\d{4}/.test(d))continue;
     const v=row.c[1]?.v?String(row.c[1].v).trim():'Unknown Venue';
     const c=row.c[2]?.v?String(row.c[2].v).trim():'';
-    const att={};users.forEach(u=>{const cell=row.c[userCols[u]];const v=cell?.v;const f=cell?.f;att[u]=v==='Y'||v==='y'||v===1||v===true||(typeof v==='string'&&v.trim().toUpperCase()==='Y')||(f==='Y'||f==='y');});
+    const att={};users.forEach(u=>{const cell=row.c[userCols[u]];const v=cell?.v;const f=cell?.f;att[u]=isAttended(v)||(f!=null&&isAttended(f));});
     list.push(mkShow(d,v,c,att,r));
   }
   // Cache users+pins for file:// testing and fast reload
@@ -818,7 +818,7 @@ function parseCSV(csv){
       d=parts[2]+'-'+parts[0].padStart(2,'0')+'-'+parts[1].padStart(2,'0');
     }
     if(!/^\d{4}/.test(d))continue;
-    const att={};users.forEach(u=>{const v=(c[userCols[u]]||'').trim().toUpperCase();att[u]=v==='Y'||v==='V'||v==='1';});
+    const att={};users.forEach(u=>{const v=(c[userCols[u]]||'').trim().toUpperCase();att[u]=isAttended(v)||v==='V';});
     list.push(mkShow(d,(c[1]||'').trim()||'Unknown Venue',(c[2]||'').trim(),att,r));
   }
   return list;
@@ -832,6 +832,11 @@ function parseRow(line){
     else cur+=c;
   }
   cells.push(cur);return cells;
+}
+function isAttended(val){
+  if(val === null || val === undefined) return false;
+  const v = String(val).trim().toLowerCase();
+  return v === 'y' || v === '1' || v === 'yes' || v === 'true';
 }
 function mkShow(d,v,c,att,r){
   return{id:`${d}-${r}`,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
@@ -4132,8 +4137,7 @@ async function refreshAttendance(force){
         if(colIdx === undefined) return;
         const cell = row.c[colIdx];
         const v = cell?.v; const f = cell?.f;
-        const att = v==='Y'||v==='y'||v===1||v===true||
-          (typeof v==='string'&&v.trim().toUpperCase()==='Y')||(f==='Y'||f==='y');
+        const att = isAttended(v)||(f!=null&&isAttended(f));
         if(show.attended[u] !== att){
           show.attended[u] = att;
           changed++;
