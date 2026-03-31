@@ -4319,16 +4319,32 @@ function retryShowMeta(id){
   <!-- JAM TAB -->
   <div id="tab-jam" style="display:none">
 
+    <!-- Box of Tapes -->
+    <div class="jam-card" id="jamRecentCard">
+      <div class="jam-card-hdr" onclick="toggleJamSection('jamRecentList','jamRecentChev')" style="cursor:pointer">
+        <span class="jam-icon">&#128252;</span>
+        <div style="flex:1">
+          <div class="jam-title">Box of Tapes</div>
+          <div class="jam-sub">Resume where you left off</div>
+        </div>
+        <span id="jamRecentChev" style="color:var(--muted);font-size:16px;transition:transform .2s">&#8250;</span>
+      </div>
+      <div id="jamRecentList" class="jam-results" style="display:none">
+        <div class="jam-empty">No history yet — start listening!</div>
+      </div>
+    </div>
+
     <!-- Favorites -->
     <div class="jam-card">
-      <div class="jam-card-hdr">
+      <div class="jam-card-hdr" onclick="toggleJamSection('jamFavList','jamFavChev')" style="cursor:pointer">
         <span class="jam-icon">&#11088;</span>
-        <div>
+        <div style="flex:1">
           <div class="jam-title">Favorites</div>
-          <div class="jam-sub">Starred shows from all listeners</div>
+          <div class="jam-sub">Deadhead suggested shows</div>
         </div>
+        <span id="jamFavChev" style="color:var(--muted);font-size:16px;transition:transform .2s">&#8250;</span>
       </div>
-      <div id="jamFavList" class="jam-results">
+      <div id="jamFavList" class="jam-results" style="display:none">
         <div class="jam-empty">Loading&hellip;</div>
       </div>
     </div>
@@ -4359,21 +4375,6 @@ function retryShowMeta(id){
       </div>
       <div id="jamRandom" class="jam-results"></div>
       <button class="jam-btn" onclick="loadRandomShow()">Roll the Dice &#8635;</button>
-    </div>
-
-    <!-- Box of Tapes -->
-    <div class="jam-card" id="jamRecentCard">
-      <div class="jam-card-hdr" onclick="toggleJamSection('jamRecentList','jamRecentChev')" style="cursor:pointer">
-        <span class="jam-icon">&#128252;</span>
-        <div style="flex:1">
-          <div class="jam-title">Box of Tapes</div>
-          <div class="jam-sub">Your last 20 shows</div>
-        </div>
-        <span id="jamRecentChev" style="color:var(--muted);font-size:16px;transition:transform .2s">&#8250;</span>
-      </div>
-      <div id="jamRecentList" class="jam-results" style="display:none">
-        <div class="jam-empty">No history yet — start listening!</div>
-      </div>
     </div>
 
     <!-- Best Versions -->
