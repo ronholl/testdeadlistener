@@ -1843,6 +1843,16 @@ function firstPlayableRawIdx(show){
   return map.length ? map[0] : 0;
 }
 
+
+function refreshShowMetaUI(show){
+  try{
+    if(curShow && curShow.id===show.id) renderSetlistBody(show);
+  }catch(e){}
+  try{
+    renderList();
+  }catch(e){}
+}
+
 async function loadShowMeta(show,priority){
   if(show.metaLoaded)return;
   if(activeLoads.has(show.id)){
@@ -1949,10 +1959,7 @@ async function loadShowMeta(show,priority){
           show._relistenBlocked=false;
           show.metaLoaded=true;
           show.notAvail=tracks.length===0;
-          // refresh UI if this is the currently open show
-          if(curShow && curShow.id===show.id){
-            renderSetlistBody(show);
-          }
+          refreshShowMetaUI(show);
           if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
           saveMetaLoaded(show);
           relistenOk=true;
@@ -1971,6 +1978,7 @@ async function loadShowMeta(show,priority){
       // doesn't spin on it forever. notAvail=false means it will still show
       // a Retry button when opened — archive.org is tried on-demand then.
       show.metaLoaded=true;show.notAvail=true;show.tracks=[];show.totalDur=0;
+      refreshShowMetaUI(show);
       // Do NOT save to localStorage — keep it soft so the next session
       // tries Relisten again (Relisten may add the show later).
       return;
@@ -1994,7 +2002,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){const d=await r.json();docs=(d.response&&d.response.docs)||[];}
         }catch(e){}
       }
-      if(!docs.length){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);if(priority)renderSetlistBody(show);return;}
+      if(!docs.length){show.metaLoaded=true;show.notAvail=true;saveMetaLoaded(show);refreshShowMetaUI(show);return;}
       docs.sort(function(a,b){
         const aR=a['access-restricted-item']?1:0,bR=b['access-restricted-item']?1:0;
         if(aR!==bR)return aR-bR;
@@ -2015,7 +2023,7 @@ async function loadShowMeta(show,priority){
           if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
         }catch(e){}
       }
-      if(!meta){show.metaLoaded=true;show.notAvail=true;if(priority)renderSetlistBody(show);return;}
+      if(!meta){show.metaLoaded=true;show.notAvail=true;refreshShowMetaUI(show);return;}
       const rawDesc=(meta.metadata&&meta.metadata.description)||'';
       const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
       if(songs.length){
@@ -2040,6 +2048,7 @@ async function loadShowMeta(show,priority){
       show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
       if(show.tracks.length>0) show.allRestricted=false;
       show.metaLoaded=true;show.notAvail=show.tracks.length===0;
+      refreshShowMetaUI(show);
       if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
       saveMetaLoaded(show);
     }
@@ -2056,8 +2065,9 @@ async function loadShowMeta(show,priority){
       // Don't saveMetaLoaded here — error could be temporary (archive.org outage)
       // so we want to retry on next launch rather than permanently marking as unavailable
     }
-    if(priority)renderSetlistBody(show);
+    refreshShowMetaUI(show);
   }finally{
+    try{ refreshShowMetaUI(show); }catch(e){}
     const _fn=activeLoads.get(show.id);
     activeLoads.delete(show.id);
     if(_fn)_fn(); // wake any priority waiters
