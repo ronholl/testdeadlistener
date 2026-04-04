@@ -544,6 +544,9 @@ let preloadAudio=null; // preloaded next track for seamless playback
 let playIntent=false;
 let _bufferTimer=null; // tracks elapsed seconds while buffering/stalled
 let _autoRetried=false;  // true if we've already auto-retried once this track
+let _recoverTimer=null;  // short auto-recovery timer for brief stream drops
+let _recoverAttempted=false;
+let _recoverPos=0;
 // When connection comes back, nudge the user to retry if audio stalled offline
 window.addEventListener('online',function(){
   // If login screen is showing an error, auto-retry sheet load
@@ -2295,6 +2298,53 @@ function _stopBufferTimer(){
   if(_bufferTimer){clearInterval(_bufferTimer);_bufferTimer=null;}
   _bufferSecs=0;
 }
+function _clearRecoverTimer(){
+  if(_recoverTimer){clearTimeout(_recoverTimer);_recoverTimer=null;}
+}
+function _scheduleStreamRecovery(){
+  if(!audio||!playIntent) return;
+  if(_recoverTimer) return;
+  _recoverPos=(!isNaN(audio.currentTime)?audio.currentTime:0);
+  _recoverTimer=setTimeout(function(){
+    _recoverTimer=null;
+    if(!audio||!playIntent) return;
+    if(!audio.paused&&audio.readyState>=3) return;
+    if(!_recoverAttempted){
+      _recoverAttempted=true;
+      try{audio.play().catch(function(){_restartCurrentTrackFrom(_recoverPos);});}
+      catch(e){_restartCurrentTrackFrom(_recoverPos);}
+      return;
+    }
+    _restartCurrentTrackFrom(_recoverPos);
+  },2000);
+}
+function _restartCurrentTrackFrom(pos){
+  const s=playingShow||curShow;
+  const i=(playingShow?playingTrackIdx:curTrackIdx);
+  if(!s||!s.tracks||!s.tracks[i]) return;
+  _stopBufferTimer();
+  _clearRecoverTimer();
+  if(audio){
+    try{
+      audio.onended=null;audio.ontimeupdate=null;audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;
+      audio.pause();
+    }catch(e){}
+    audio=null;
+  }
+  playing=false;
+  playIntent=true;
+  startPlayback(s,i);
+  const seekPos=Math.max(0,(pos||0)-1);
+  const waitForCanPlay=setInterval(function(){
+    if(!audio){clearInterval(waitForCanPlay);return;}
+    if(audio.readyState>=2){
+      clearInterval(waitForCanPlay);
+      try{audio.currentTime=seekPos;}catch(e){}
+      audio.play().catch(function(){});
+    }
+  },250);
+  setTimeout(function(){clearInterval(waitForCanPlay);},5000);
+}
 function _setMpStatus(msg){
   // Update status in setlist panel player (always visible when panel open)
   const sp=document.getElementById('sp-status');
@@ -2331,6 +2381,7 @@ function _updateBufferUI(){
 }
 function _onBufferTimeout(){
   _stopBufferTimer();
+  _clearRecoverTimer();
   playing=false; playIntent=false;
   if(!navigator.onLine){
     _setMpStatus('📶 No internet connection — reconnect and tap <b>↺ retry</b> to resume.');
@@ -2360,6 +2411,8 @@ function retryPlayback(){
   const s=_bufferShow||playingShow; const i=_bufferShow?_bufferIdx:playingTrackIdx;
   if(!s||!s.tracks)return;
   _stopBufferTimer();
+  _clearRecoverTimer();
+  _recoverAttempted=false;
   if(audio){audio.onerror=null;audio.oncanplay=null;audio.pause();audio=null;}
   playing=false; playIntent=false;
   const errEl=document.getElementById('sp-audio-err');
@@ -2368,6 +2421,8 @@ function retryPlayback(){
 }
 function cancelPlayback(){
   _stopBufferTimer();
+  _clearRecoverTimer();
+  _recoverAttempted=false;
   if(audio){audio.onerror=null;audio.oncanplay=null;audio.src='';audio.pause();audio=null;}
   playing=false; playIntent=false;
   const sub=document.getElementById('sp-now-sub');
@@ -2392,7 +2447,10 @@ function startPlayback(show,idx){
   }
   // Stop current audio and any buffering timer
   _stopBufferTimer();
+  _clearRecoverTimer();
   _autoRetried=false;
+  _recoverAttempted=false;
+  _recoverPos=0;
   if(audio){audio.onended=null;audio.ontimeupdate=null;audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;audio.pause();audio=null;}
   playing=false;playIntent=false;
   if(!show.tracks||!show.tracks[idx])return;
@@ -2403,9 +2461,9 @@ function startPlayback(show,idx){
   audio=newAudio;
   const saved=positions[show.id];
   if(saved&&idx===0&&!newAudio._preloaded)audio.currentTime=saved;
-  audio.oncanplay=function(){ _stopBufferTimer(); _updateBufferUI(); };
-  audio.onwaiting=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); };
-  audio.onstalled=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); };
+  audio.oncanplay=function(){ _stopBufferTimer(); _clearRecoverTimer(); _recoverAttempted=false; _updateBufferUI(); };
+  audio.onwaiting=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); _scheduleStreamRecovery(); };
+  audio.onstalled=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); _scheduleStreamRecovery(); };
   audio.ontimeupdate=function(){
     savePos(show.id,audio.currentTime);
     updateProgress();
@@ -2416,6 +2474,7 @@ function startPlayback(show,idx){
     }
   };
   audio.onended=function(){
+    _clearRecoverTimer();
     if(!playIntent)return;
     const next=idx+1;
     if(show.tracks&&next<show.tracks.length)startPlayback(show,next);
@@ -2423,6 +2482,7 @@ function startPlayback(show,idx){
   };
   audio.onerror=function(e){
     _stopBufferTimer();
+    _clearRecoverTimer();
     playing=false;playIntent=false;
     const code=audio&&audio.error?audio.error.code:0;
     // MediaError codes: 1=ABORTED, 2=NETWORK, 3=DECODE, 4=SRC_NOT_SUPPORTED
@@ -2454,6 +2514,8 @@ function startPlayback(show,idx){
   audio.play().then(function(){
     playing=true;
     _stopBufferTimer();
+    _clearRecoverTimer();
+    _recoverAttempted=false;
     _startAudioKeepAlive(); // keep iOS audio session alive in background
     // Add/move show to Box of Tapes now that actual playback has started
     const _trackTitle=(show.songs&&show.songs[idx])||(track&&(track.title||track.name))||null;
@@ -2493,6 +2555,7 @@ function startPlayback(show,idx){
       try{navigator.mediaSession.setActionHandler('stop',function(){pauseAudio();});}catch(e){}
     }
   }).catch(function(e){
+    _clearRecoverTimer();
     if(e.name==='AbortError')return; // normal: src changed before play() resolved
     playing=false;playIntent=false;
     // NotAllowedError = autoplay blocked (should not happen after unlock, but handle gracefully)
@@ -2522,6 +2585,7 @@ function preloadNextTrack(show,nextIdx){
 
 function pauseAudio(){
   if(!audio)return;
+  _clearRecoverTimer();
   playIntent=false;audio.pause();playing=false;
   // Save restore state on pause so restart picks up paused position
   if(playingShow&&audio){
@@ -2545,6 +2609,8 @@ function resumeAudio(){
   function doPlay(){
     audio.play().then(function(){
       playing=true;
+      _clearRecoverTimer();
+      _recoverAttempted=false;
       if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
       updateSpPlayer();renderMiniPlayer();renderList();
     }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
