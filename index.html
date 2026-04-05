@@ -4576,5 +4576,54 @@ function retryShowMeta(id){
   </div>
 
 </div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Capacitor Native Bridge
+//
+// Enables Apple Watch / lock-screen play controls when running inside the
+// native iOS wrapper. Has no effect when loaded as a plain web page.
+//
+// How it works:
+//   Watch taps Play
+//     → MPRemoteCommandCenter (Swift) fires
+//       → AVAudioSession re-activated natively (Swift can do this)
+//         → AppDelegate calls evaluateJavaScript("resumeAudio()")
+//           → resumeAudio() runs here and audio.play() succeeds ✅
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Load the Capacitor JS bridge injected by the native shell.
+// Safe no-op when running as a regular web page (script just won't exist).
+(function() {
+  var s = document.createElement('script');
+  s.src = '/capacitor.js';
+  s.async = false;
+  document.head.appendChild(s);
+})();
+
+// resumeAudio, pauseAudio, skipTrack are already top-level globals in this
+// app, so AppDelegate.swift can call them directly via evaluateJavaScript.
+// No re-assignment needed.
+
+// Resume playback when app returns to foreground after a phone call,
+// Siri interruption, etc. Capacitor fires 'resume' on the document.
+document.addEventListener('resume', function() {
+  if (typeof playIntent !== 'undefined' && playIntent &&
+      typeof audio !== 'undefined' && audio && audio.paused) {
+    setTimeout(function() {
+      if (typeof resumeAudio === 'function') resumeAudio();
+    }, 300); // small delay lets AVAudioSession fully reactivate
+  }
+}, false);
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', function() {
+    if (window.Capacitor) {
+      console.log('✅ Capacitor bridge active — watch controls enabled');
+    }
+  });
+}
+</script>
+
 </body>
 </html>
