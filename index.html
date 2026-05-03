@@ -242,12 +242,13 @@ body{display:flex;justify-content:center}
 .pbar{flex:1;height:6px;background:rgba(255,255,255,.12);border-radius:3px;cursor:pointer;padding:12px 0;margin:-12px 0}
 .pbar-inner{height:6px;background:rgba(255,255,255,.12);border-radius:3px;pointer-events:none}
 .pbar-fill{height:100%;background:var(--gold);border-radius:3px;width:0%;transition:width .3s linear}
-.sp-ctrls{display:flex;align-items:center;gap:10px;justify-content:center;padding:4px 0}
+.sp-ctrls{display:flex;align-items:center;gap:8px;justify-content:center;padding:6px 0;flex-wrap:wrap}
 .cbtn{background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);padding:8px 12px;font-family:var(--mono);font-size:12px;cursor:pointer;transition:all .15s;user-select:none;min-height:40px;display:flex;align-items:center;justify-content:center}
 .cbtn:active{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.08)}
-.cbtn.main{background:var(--gold);border-color:var(--gold);color:#000;border-radius:50%;width:58px;height:58px;font-size:24px;padding:0;flex-shrink:0}
+.cbtn.main{background:var(--gold);border-color:var(--gold);color:#000;border-radius:50%;width:64px;height:64px;font-size:26px;padding:0;flex-shrink:0}
 .cbtn.main:active{background:var(--gold2);transform:scale(.95)}
-.cbtn.skip{border-radius:50%;width:44px;height:44px;font-size:18px;padding:0;flex-shrink:0}
+.cbtn.skip{border-radius:50%;width:64px;height:64px;font-size:24px;padding:0;flex-shrink:0}
+#sp-status [onclick*="retryPlayback"],#mp-status-row [onclick*="retryPlayback"]{display:inline-flex;align-items:center;justify-content:center;min-width:64px;min-height:44px;padding:0 14px;margin:4px 4px 0 8px;border:1px solid rgba(200,168,75,.45);border-radius:12px;background:rgba(200,168,75,.08);color:var(--gold)!important;text-decoration:none!important;font-size:13px;font-weight:600}
 #sp-fav{border-radius:12px;min-width:48px;height:44px;font-size:14px;padding:0 12px;flex-shrink:0;border:1px solid rgba(200,168,75,.35);color:rgba(200,168,75,.7);gap:4px}
 #sp-fav.fav-active{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.15)}
 .cbtn.att{border-color:rgba(82,183,136,.35);color:rgba(82,183,136,.7)}
