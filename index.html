@@ -484,7 +484,7 @@ body{display:flex;justify-content:center}
     <div class="filters">
       <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="text" autocomplete="off" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
       <div class="frow">
-        <select class="fsel" id="yrSel" onchange="applyFilters()"><option value="">All years</option></select>
+        <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
         <button class="ftog" id="theirBtn" style="display:none" onclick="toggleTheir()">— shows</button>
         <button class="ftog" id="srtBtn" onclick="toggleSort()">Date ↓</button>
@@ -1396,6 +1396,13 @@ function toggleMy(){
   applyFilters();updateAttCount();updateViewStats();
 }
 function toggleSort(){sortDesc=!sortDesc;document.getElementById('srtBtn').textContent='Date '+(sortDesc?'↓':'↑');applyFilters();}
+function applyYearFilter(){
+  applyFilters();
+  requestAnimationFrame(function(){
+    const el=document.getElementById('list');
+    if(el)el.scrollTop=0;
+  });
+}
 function applyFilters(){
   const q=document.getElementById('q').value.toLowerCase();
   const yr=document.getElementById('yrSel').value;
