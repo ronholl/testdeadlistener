@@ -248,7 +248,8 @@ body{display:flex;justify-content:center}
 .cbtn:active{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.08)}
 .cbtn.main{background:var(--gold);border-color:var(--gold);color:#000;border-radius:50%;width:64px;height:64px;font-size:26px;padding:0;flex-shrink:0}
 .cbtn.main:active{background:var(--gold2);transform:scale(.95)}
-.cbtn.skip{border-radius:50%;width:64px;height:64px;font-size:24px;padding:0;flex-shrink:0}
+.cbtn.skip{border-radius:50%;width:64px;height:64px;font-size:24px;padding:0;flex-shrink:0;background:rgba(200,168,75,.18);border-color:rgba(200,168,75,.65);color:var(--gold)}
+.cbtn.skip:active{background:rgba(200,168,75,.28);border-color:var(--gold);color:var(--gold)}
 #sp-status [onclick*="retryPlayback"],#mp-status-row [onclick*="retryPlayback"]{display:inline-flex;align-items:center;justify-content:center;min-width:64px;min-height:44px;padding:0 14px;margin:4px 4px 0 8px;border:1px solid rgba(200,168,75,.45);border-radius:12px;background:rgba(200,168,75,.08);color:var(--gold)!important;text-decoration:none!important;font-size:13px;font-weight:600}
 #sp-fav{border-radius:12px;width:48px;min-width:48px;height:40px;font-size:12px;padding:0 4px;flex-shrink:0;border:1px solid rgba(200,168,75,.35);color:rgba(200,168,75,.7);gap:2px}
 #sp-fav.fav-active{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.15)}
@@ -441,9 +442,9 @@ body{display:flex;justify-content:center}
           <input class="nu-pin-digit" id="nup3" type="number" min="0" max="9" maxlength="1" placeholder="·" oninput="nuPinInput(3)" onkeydown="nuPinKey(event,3)">
         </div>
       </div>
+      <div style="font-size:12px;color:var(--gold);text-align:center;line-height:1.6;padding:0 8px">Your name and PIN are saved on this device. You'll be added to the shared list only when you add a show or favorite.</div>
       <div class="nu-msg" id="nuMsg"></div>
       <button class="nu-submit" id="nuSubmit" onclick="registerNewUser()" disabled>Join the tour</button>
-      <div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.6;padding:0 8px">A profile lets you save a <span style="color:var(--gold)">My Shows</span> list and track <span style="color:var(--gold)">Favorites</span> — everything else works as a guest. Your name and PIN are saved so you can log in from any device.</div>
     </div>
   </div>
 
@@ -538,6 +539,8 @@ let curUser=null;      // logged-in user name
 let guestMode=false;   // browsing without login
 let viewUser='all';    // which user's shows to browse
 let _signupReturnTarget=null; // screen to return to if guest backs out of signup
+let _pendingSignupAction=null; // {type:'attended'|'favorite', showId:string}
+let _signupUiState=null;
 let curShow=null, audio=null, playing=false, curTrackIdx=0;
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=true;
@@ -913,6 +916,15 @@ function markShowSetlistCached(show){
   }catch(e){}
 }
 
+function restorePendingLocalUser(){
+  try{
+    const name=localStorage.getItem('gd_pending_user');
+    const pin=localStorage.getItem('gd_pending_pin');
+    if(!name||!pin||isReservedName(name))return;
+    userPins[name]=pin;
+  }catch(e){}
+}
+
 function showLooksPlayable(show){
   return !!(show && !show.notAvail && (
     (show.metaLoaded && (!show.tracks || !show.tracks.length || !show.notAvail)) ||
@@ -999,6 +1011,7 @@ function onLoaded(list){
   // Fetches 31 years in parallel (~400ms), marks shows as available
   // instantly so green ▶ indicators appear without waiting for full loads
   prefetchRelistenAvailability();
+  restorePendingLocalUser();
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
   users.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;usel.appendChild(o);});
   const yrSel=document.getElementById('yrSel');while(yrSel.options.length>1)yrSel.remove(1);
@@ -1036,7 +1049,8 @@ function onLoaded(list){
       // Check if already logged in via saved credentials
       const saved=localStorage.getItem('gd_user');
       const savedPin=localStorage.getItem('gd_pin');
-      if(saved&&users.includes(saved)&&userPins[saved]&&savedPin===userPins[saved]){
+      const savedIsPending=saved&&localStorage.getItem('gd_pending_user')===saved;
+      if(saved&&userPins[saved]&&savedPin===userPins[saved]&&(users.includes(saved)||savedIsPending)){
         loginAs(saved,false);
       } else if(!localStorage.getItem('gd_welcomed')){
         document.getElementById('loginScreen').style.display='none';
@@ -1212,7 +1226,7 @@ function loginAs(name,save){
       localStorage.setItem('gd_pin',userPins[name]||'');
     }
   }catch(e){}
-  trackVisit(name);
+  if(localStorage.getItem('gd_pending_user')!==name)trackVisit(name);
   setTimeout(function(){refreshAttendance(true);}, 1000);
   // Restore header avatar structure in case guest mode replaced it with a span
   const hdr=document.getElementById('hdrUser');
@@ -1289,12 +1303,63 @@ function cancelSignup(){
     showLogin();
   }
   _signupReturnTarget=null;
+  _pendingSignupAction=null;
+  _signupUiState=null;
+}
+
+function captureSignupUiState(){
+  const sp=document.getElementById('setlistPanel');
+  const body=document.getElementById('sp-body');
+  return {
+    activeTab:document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||setlistOriginTab||'shows',
+    viewUser:viewUser,
+    myOnly:myOnly,
+    setlistOpen:!!(sp&&sp.classList.contains('open')),
+    showId:curShow&&curShow.id,
+    spScroll:body?body.scrollTop:0,
+    winScroll:window.scrollY||0
+  };
+}
+
+function restoreSignupUiState(state){
+  if(!state)return;
+  viewUser=state.viewUser||'all';
+  const usel=document.getElementById('usel');
+  if(usel&&Array.from(usel.options).some(function(o){return o.value===viewUser;}))usel.value=viewUser;
+  else viewUser='all';
+  myOnly=!!state.myOnly;
+  const myBtn=document.getElementById('myBtn');
+  if(myBtn)myBtn.classList.toggle('on',myOnly);
+  const tb=document.getElementById('theirBtn');
+  if(tb&&viewUser==='all'){tb.style.display='none';tb.classList.remove('on');}
+  applyFilters();updateAttCount();updateViewStats();updateSpAttBtn();updateSpFavBtn();
+  if(state.setlistOpen&&state.showId){
+    const show=shows.find(function(s){return s.id===state.showId;});
+    if(show)curShow=show;
+    const hdr=document.querySelector('.hdr');
+    const tabs=document.querySelector('.tabs');
+    const sp=document.getElementById('setlistPanel');
+    if(sp){
+      const top=((hdr?hdr.offsetHeight:65)+(tabs?tabs.offsetHeight:0));
+      sp.style.top=top+'px';
+      sp.style.height='calc(100vh - '+top+'px)';
+      sp.classList.add('open');
+    }
+    const list=document.getElementById('list');if(list)list.style.visibility='hidden';
+    document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('on');});
+    setTimeout(function(){const body=document.getElementById('sp-body');if(body)body.scrollTop=state.spScroll||0;},0);
+  }else if(state.activeTab){
+    switchTab(state.activeTab);
+    setTimeout(function(){window.scrollTo(0,state.winScroll||0);},0);
+  }
 }
 
 // Show signup directly from a guest action (add show/favorite)
 // Bypasses the login/user-selection screen entirely
-function promptSignup(){
+function promptSignup(action){
   _signupReturnTarget='app';
+  _pendingSignupAction=action||null;
+  _signupUiState=captureSignupUiState();
   showNewUser('app');
 }
 
@@ -1338,32 +1403,64 @@ async function registerNewUser(){
   const pin=[0,1,2,3].map(i=>document.getElementById('nup'+i).value).join('');
   const btn=document.getElementById('nuSubmit');
   const msg=document.getElementById('nuMsg');
+  const pendingAction=_pendingSignupAction;
+  const returnState=_signupUiState;
   if(isReservedName(name)){
     msg.textContent='That name is reserved — Ron is already on the bus 🚌';
     msg.className='nu-msg err';
     return;
   }
   btn.disabled=true;btn.textContent='Saving…';
-  msg.textContent='Adding you to the sheet…';msg.className='nu-msg';
+  msg.textContent=pendingAction?'Saving your ID and selection…':'Saving your ID on this device…';msg.className='nu-msg';
   try{
-    await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
-      body:JSON.stringify({action:'addUser',name,pin}),
-      headers:{'Content-Type':'text/plain;charset=utf-8'}});
-
-    users.push(name);userCols[name]=3+users.length-1;userPins[name]=pin;
-    shows.forEach(s=>{s.attended[name]=false;});
-    rebuildAttCache();
-    renderLoginScreen();
-    renderOthers();
-    prefetchRelistenAvailability();
-    const usel=document.getElementById('usel');
-    const o=document.createElement('option');o.value=name;o.textContent=name;usel.appendChild(o);
-    msg.textContent='Done! Logging you in…';msg.className='nu-msg ok';
-    setTimeout(()=>loginAs(name,true),800);
+    localStorage.setItem('gd_pending_user',name);
+    localStorage.setItem('gd_pending_pin',pin);
+    userPins[name]=pin;
+    if(pendingAction){
+      await ensureUserRowForAction(name);
+      if(pendingAction.type==='favorite'){
+        await addFavoriteForUser(pendingAction.showId,name);
+      }else if(pendingAction.type==='attended'){
+        const show=shows.find(function(s){return s.id===pendingAction.showId;});
+        if(show) await doMarkAttended(show,name,true);
+      }
+      _pendingSignupAction=null;
+    }
+    msg.textContent=pendingAction?'Added. Logging you in…':'Saved on this device. Logging you in…';msg.className='nu-msg ok';
+    setTimeout(function(){
+      loginAs(name,true);
+      restoreSignupUiState(returnState);
+      _signupUiState=null;
+    },500);
   }catch(e){
     msg.textContent='Error saving — try again';msg.className='nu-msg err';
     btn.disabled=false;btn.textContent='Join the tour';
   }
+}
+
+async function ensureUserRowForAction(user){
+  if(!user||user==='all')return false;
+  const pendingName=localStorage.getItem('gd_pending_user');
+  const pendingPin=localStorage.getItem('gd_pending_pin')||userPins[user]||localStorage.getItem('gd_pin')||'';
+  if(pendingName!==user)return true;
+  await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
+    body:JSON.stringify({action:'addUser',name:user,pin:pendingPin}),
+    headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  if(!users.includes(user)){
+    users.push(user);
+    userCols[user]=3+users.length-1;
+    shows.forEach(function(s){if(!s.attended)s.attended={};if(typeof s.attended[user]==='undefined')s.attended[user]=false;});
+    rebuildAttCache();
+    renderLoginScreen();
+    renderOthers();
+    const usel=document.getElementById('usel');
+    if(usel&&!Array.from(usel.options).some(function(o){return o.value===user;})){
+      const o=document.createElement('option');o.value=user;o.textContent=user;usel.appendChild(o);
+    }
+  }
+  localStorage.removeItem('gd_pending_user');
+  localStorage.removeItem('gd_pending_pin');
+  return true;
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────
@@ -2685,14 +2782,14 @@ async function markAttended(){
   if(guestMode){
     const btn=document.getElementById('sp-att');
     if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
-    setTimeout(function(){promptSignup();},800);
+    setTimeout(function(){promptSignup({type:'attended',showId:curShow.id});},800);
     return;
   }
   const user=curUser||viewUser;
   if(!user||user==='all'){
     const btn=document.getElementById('sp-att');
     if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
-    setTimeout(function(){promptSignup();},800);
+    setTimeout(function(){promptSignup(curShow?{type:'attended',showId:curShow.id}:null);},800);
     return;
   }
   if(curShow.attended[user]){confirmRemove(curShow,user);return;}
@@ -3097,6 +3194,27 @@ function isFavorited(showId) {
   return allFavorites.some(f => f.user === curUser && f.showId === showId);
 }
 
+async function addFavoriteForUser(id,user){
+  const show = shows.find(s => s.id === id);
+  if (!show || !user) return false;
+  if(!allFavorites.some(f => f.user === user && f.showId === id)){
+    allFavorites.push({user: user, showId: id, date: show.date, venue: show.venue});
+  }
+  try{
+    const removed=JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
+    const filtered=removed.filter(r=>!(r.user===user&&r.showId===id));
+    localStorage.setItem('gd_fav_removed',JSON.stringify(filtered));
+  }catch(e){}
+  localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
+  renderList(); renderJamFavorites();
+  await fetch(SCRIPT_URL, {
+    method: 'POST', mode: 'no-cors',
+    body: JSON.stringify({action: 'addFavorite', user: user, showId: id, date: show.date, venue: show.venue}),
+    headers: {'Content-Type': 'text/plain;charset=utf-8'}
+  });
+  return true;
+}
+
 async function toggleFavorite(id) {
   if (guestMode || !curUser) {
     // Find whichever button triggered this - row star or player star
@@ -3104,7 +3222,7 @@ async function toggleFavorite(id) {
     const playerBtn = document.getElementById('sp-fav');
     const btn = rowBtn || playerBtn;
     if (btn) showMineTooltip(btn, 'Join to save favorites →');
-    setTimeout(function(){promptSignup();}, 800);
+    setTimeout(function(){promptSignup({type:'favorite',showId:id});}, 800);
     return;
   }
   const show = shows.find(s => s.id === id);
@@ -3138,22 +3256,16 @@ async function toggleFavorite(id) {
       if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)');
       return;
     }
-    // Add
-    allFavorites.push({user: curUser, showId: id, date: show.date, venue: show.venue});
-    // Remove from local-removed list if re-adding
     try{
-      const removed=JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
-      const filtered=removed.filter(r=>!(r.user===curUser&&r.showId===id));
-      localStorage.setItem('gd_fav_removed',JSON.stringify(filtered));
-    }catch(e){}
-    renderList(); renderJamFavorites();
+      setHdrSt('Saving…','busy');
+      await ensureUserRowForAction(curUser);
+    }catch(e){
+      setHdrSt('⚠ Save failed','err');
+      return;
+    }
+    await addFavoriteForUser(id,curUser);
     setHdrSt('\u2605 Added to favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
-    fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      body: JSON.stringify({action: 'addFavorite', user: curUser, showId: id, date: show.date, venue: show.venue}),
-      headers: {'Content-Type': 'text/plain;charset=utf-8'}
-    });
   }
 }
 
@@ -3429,28 +3541,86 @@ function loadTodayShows(){
 }
 
 // ── PLAY A SHOW ───────────────────────────────────────────────────
+const ROLL_HISTORY_KEY='gd_roll_history';
+const ROLL_HISTORY_MAX=20;
+
+function rollDiceHasList(show){
+  const flags=(show&&readShowFlags()[show.id])||{};
+  return !!(show && (
+    (show.tracks && show.tracks.length) ||
+    (show.songs && show.songs.length) ||
+    show.setlistCached ||
+    flags.setlist ||
+    show.relistenAvail ||
+    flags.hasAudio
+  ));
+}
+
+function rollDiceHasAudio(show){
+  if(!show || show.notAvail || show.allRestricted) return false;
+  if(show.tracks && show.tracks.length) return true;
+  if(show.relistenAvail) return true;
+  if(show.recordings && show.recordings.some(function(r){return !r.restricted;})) return true;
+  const flags=readShowFlags()[show.id]||{};
+  return !!(flags.hasAudio || (show.metaLoaded && show.archiveId && !show.notAvail));
+}
+
+function isRollDiceEligible(show){
+  if(!show) return false;
+  const flags=readShowFlags()[show.id]||{};
+  if(flags.notAvail || show.notAvail || show._offlineFail) return false;
+  return rollDiceHasAudio(show) && rollDiceHasList(show);
+}
+
+function readRollHistory(){
+  try{return JSON.parse(localStorage.getItem(ROLL_HISTORY_KEY)||'[]').filter(Boolean);}catch(e){return [];}
+}
+
+function rememberRolledShow(id){
+  try{
+    const hist=readRollHistory().filter(function(x){return x!==id;});
+    hist.unshift(id);
+    localStorage.setItem(ROLL_HISTORY_KEY,JSON.stringify(hist.slice(0,ROLL_HISTORY_MAX)));
+  }catch(e){}
+}
+
 function loadRandomShow(){
   const el = document.getElementById('jamRandom');
   if(!el)return;
 
-  // Pick from shows with audio, weighted toward higher ratings
-  const pool = shows.filter(function(s){
-    return s.relistenAvail||s.metaLoaded;
-  });
+  const recent=readRollHistory();
+  const currentId=el.dataset.currentShowId||'';
+  const eligible=shows.filter(isRollDiceEligible);
+  let pool=eligible.filter(function(s){return s.id!==currentId&&!recent.includes(s.id);});
+  if(!pool.length && eligible.length){
+    pool=eligible.filter(function(s){return s.id!==currentId;});
+  }
+  if(!pool.length && eligible.length){
+    pool=eligible.filter(function(s){return s.id!==recent[0];});
+    if(!pool.length)pool=eligible.slice();
+  }
   if(!pool.length){
     el.innerHTML='<div class="jam-empty">Loading shows...</div>';
     return;
   }
 
-  // Weighted random: prefer shows with ratings, soundboards
+  // Weighted random: prefer ratings, soundboards, and older years without becoming deterministic.
   const weighted = [];
   pool.forEach(function(s){
     const r = s.relistenRating||s.rating||0;
-    const w = Math.max(1, Math.round(r*2)) + (s.relistenSbd?3:0);
+    const year=parseInt(s.year||s.date,10)||1995;
+    const olderBoost=Math.max(0,Math.min(4,Math.floor((1995-year)/8)));
+    const w = Math.max(1, Math.round(r*2)) + (s.relistenSbd?3:0) + olderBoost;
     for(let i=0;i<w;i++) weighted.push(s);
   });
 
-  const pick = weighted[Math.floor(Math.random()*weighted.length)];
+  let pick = weighted[Math.floor(Math.random()*weighted.length)];
+  if(pool.length>1 && pick.id===currentId){
+    const alt=pool.filter(function(s){return s.id!==currentId;});
+    pick=alt[Math.floor(Math.random()*alt.length)]||pick;
+  }
+  rememberRolledShow(pick.id);
+  el.dataset.currentShowId=pick.id;
   el.innerHTML = jamShowCard(pick, true);
 }
 
@@ -3849,7 +4019,7 @@ function enterGuestMode(){
   // Save flag so next reload reopens directly as guest (no login screen)
   try{localStorage.setItem('gd_prior_guest','1');}catch(e){}
   // Clear saved login so next reload won't try to re-log in
-  try{localStorage.removeItem('gd_user');localStorage.removeItem('gd_pin');}catch(e){}
+  try{localStorage.removeItem('gd_user');localStorage.removeItem('gd_pin');localStorage.removeItem('gd_pending_user');localStorage.removeItem('gd_pending_pin');}catch(e){}
   trackVisit('guest');
   document.getElementById('loginScreen').style.display='none';
   setHdrSt('Guest','ok');
@@ -3875,14 +4045,14 @@ async function toggleMine(id){
     // Show tooltip right on the button that was tapped
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
     if(btn) showMineTooltip(btn,'Join to add shows →');
-    setTimeout(function(){promptSignup();},800);
+    setTimeout(function(){promptSignup({type:'attended',showId:id});},800);
     return;
   }
   const user=curUser||viewUser;
   if(!user||user==='all'){
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
     if(btn) showMineTooltip(btn,'Join to add shows →');
-    setTimeout(function(){promptSignup();},800);
+    setTimeout(function(){promptSignup({type:'attended',showId:id});},800);
     return;
   }
   const show=shows.find(function(s){return s.id===id;});
@@ -3923,11 +4093,14 @@ function confirmRemove(show,user){
 
 async function doMarkAttended(show,user,attended){
   if(!show||!user)return;
+  setHdrSt('Saving…','busy');
+  if(attended){
+    try{await ensureUserRowForAction(user);}catch(e){setHdrSt('⚠ Save failed','err');return;}
+  }
   show.attended[user]=attended;
   saveAttendedLocal(show.id,user,attended);
   rebuildAttCache();
   renderList();updateAttCount();renderOthers();updateSpAttBtn();
-  setHdrSt('Saving…','busy');
   try{
     // Use no-cors fetch - works from HTTPS, silent on file://
     const resp=await fetch(SCRIPT_URL,{
@@ -4570,16 +4743,15 @@ function retryShowMeta(id){
       </div>
       <div class="sp-ctrls">
         <button class="cbtn att" id="sp-att" onclick="markAttended()">att</button>
-        <button class="cbtn skip" onclick="skipTrack(-1)" title="Previous track">⏮</button>
-        <button class="cbtn main" id="sp-play" onclick="togglePlay()">▶</button>
-        <button class="cbtn skip" onclick="skipTrack(1)" title="Next track">⏭</button>
+        <button class="cbtn" id="sp-fav" onclick="toggleFavoriteFromPlayer()" title="Add to favorites"><span style="font-size:18px;line-height:1;opacity:.35">☆</span> fav</button>
         <button class="cbtn cast-btn" onclick="tryCast()" title="Cast / AirPlay" style="border-radius:50%;width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/>
             <circle cx="2" cy="20" r="1" fill="currentColor"/>
           </svg>
         </button>
-        <button class="cbtn" id="sp-fav" onclick="toggleFavoriteFromPlayer()" title="Add to favorites"><span style="font-size:18px;line-height:1;opacity:.35">☆</span> fav</button>
+        <button class="cbtn skip" onclick="skipTrack(-1)" title="Previous track">⏮</button>
+        <button class="cbtn main" id="sp-play" onclick="togglePlay()">▶</button>
       </div>
     </div>
   </div>
