@@ -3253,7 +3253,7 @@ async function toggleFavorite(id) {
     const mine = myFavorites();
     if (mine.length >= 5) {
       const btn = document.querySelector('.fav-btn[data-id="' + id + '"]');
-      if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)');
+      if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)', openJamFavorites);
       return;
     }
     try{
@@ -3461,7 +3461,7 @@ function renderJamFavorites() {
       let show = shows.find(function(s){return s.id===f.showId;});
       if (!show) show = shows.find(function(s){return s.id.startsWith(f.showId.substring(0,10))&&s.venue===f.venue;});
       if (!show) return;
-      out += jamShowCard(show, false, null, true);
+      out += jamFavoriteShowRow(show, user);
     });
     out += '</div></div>';
   });
@@ -3488,6 +3488,33 @@ function renderJamFavorites() {
   }
 }
 
+function jamFavoriteShowRow(s,user){
+  const myUser=curUser||viewUser;
+  const myAtt=myUser&&myUser!=='all'&&s.attended&&s.attended[myUser];
+  const canEditFav=!!(curUser&&curUser===user);
+  const hasAudio=showLooksPlayable(s);
+  const hasCachedSetlist=!!(s.songs&&s.songs.length);
+  const dot='<span style="color:var(--green)">▶ </span>';
+  const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
+  const songs=hasCachedSetlist?s.songs.slice(0,5).join(' · '):(hasAudio?'Tap to load show':'');
+  const sub=songs?'<div class="row-songs">'+dot+prefix+esc(songs)+'</div>':'';
+  const safeId=String(s.id).replace(/'/g,"\\'");
+  const favAction=canEditFav
+    ? "toggleFavorite('"+safeId+"')"
+    : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
+  return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openSetlistFromJam(\''+s.id+'\')">'
+    +'<div class="row-date">'+s.date+'</div>'
+    +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(s.city)+'</div>'+sub+'</div>'
+    +'<div class="row-right">'
+      +'<div class="row-btns">'
+        +'<button class="fav-btn fav-on" data-id="'+s.id+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
+        +'<button class="mine-btn'+(myAtt?' mine-on':'')+'" onclick="event.stopPropagation();toggleMine(\''+safeId+'\')" title="'+(myAtt?'Remove':'Add to my shows')+'">'+(myAtt?'✓':'+')+'</button>'
+        +'<button class="pbtn'+(!hasAudio?' na':'')+'" onclick="event.stopPropagation();'+(hasAudio?'quickPlay(\''+safeId+'\')':'')+'">'+(hasAudio?'▶':'—')+'</button>'
+      +'</div>'
+    +'</div>'
+  +'</div>';
+}
+
 function toggleJamFavSection(uid, hdr) {
   const el = document.getElementById(uid);
   if (!el) return;
@@ -3505,6 +3532,23 @@ function initJamTab(){
   loadTodayShows();
   loadRandomShow();
   renderJamRecent(); // Restore history from localStorage on every visit
+}
+
+function openJamFavorites(){
+  const sp=document.getElementById('setlistPanel');
+  if(sp&&sp.classList.contains('open')){
+    sp.classList.remove('open');sp.style.top='';sp.style.height='';
+    const list=document.getElementById('list');if(list)list.style.visibility='';
+  }
+  switchTab('jam');
+  const favList=document.getElementById('jamFavList');
+  const favChev=document.getElementById('jamFavChev');
+  if(favList)favList.style.display='';
+  if(favChev)favChev.style.transform='rotate(90deg)';
+  setTimeout(function(){
+    const card=favList&&favList.closest('.jam-card');
+    if(card)card.scrollIntoView({block:'start',behavior:'smooth'});
+  },0);
 }
 
 // ── ON THIS DAY ───────────────────────────────────────────────────
@@ -3572,6 +3616,17 @@ function isRollDiceEligible(show){
   return rollDiceHasAudio(show) && rollDiceHasList(show);
 }
 
+function isRollDiceInstant(show){
+  if(!isRollDiceEligible(show)) return false;
+  const flags=readShowFlags()[show.id]||{};
+  return !!(
+    (show.tracks && show.tracks.length) ||
+    (show.songs && show.songs.length) ||
+    show.setlistCached ||
+    flags.setlist
+  );
+}
+
 function readRollHistory(){
   try{return JSON.parse(localStorage.getItem(ROLL_HISTORY_KEY)||'[]').filter(Boolean);}catch(e){return [];}
 }
@@ -3590,7 +3645,8 @@ function loadRandomShow(){
 
   const recent=readRollHistory();
   const currentId=el.dataset.currentShowId||'';
-  const eligible=shows.filter(isRollDiceEligible);
+  const instantEligible=shows.filter(isRollDiceInstant);
+  const eligible=(instantEligible.length>=25)?instantEligible:shows.filter(isRollDiceEligible);
   let pool=eligible.filter(function(s){return s.id!==currentId&&!recent.includes(s.id);});
   if(!pool.length && eligible.length){
     pool=eligible.filter(function(s){return s.id!==currentId;});
@@ -4183,7 +4239,7 @@ async function trackVisit(userName){
   }catch(e){}
 }
 
-function showMineTooltip(btn,msg){
+function showMineTooltip(btn,msg,onClick){
   const old=document.getElementById('mineTooltip');
   if(old)old.remove();
   const tip=document.createElement('div');
@@ -4191,7 +4247,7 @@ function showMineTooltip(btn,msg){
   const rect=btn.getBoundingClientRect();
   tip.style.cssText='position:fixed;z-index:400;background:#1a1010;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:7px 12px;font-family:var(--mono);font-size:11px;color:var(--gold);white-space:nowrap;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.5);';
   tip.textContent=msg+' →';
-  tip.onclick=function(){tip.remove();switchUser();};
+  tip.onclick=function(){tip.remove();(onClick||switchUser)();};
   document.body.appendChild(tip);
   // Position above the button
   const tipW=tip.offsetWidth||140;
