@@ -934,7 +934,23 @@ function showLooksPlayable(show){
 }
 
 function showLooksIndexed(show){
-  return !!(show && ((show.songs && show.songs.length) || show.metaLoaded || show.relistenAvail));
+  return !!(show && ((show.songs && show.songs.length) || show.metaLoaded));
+}
+
+function isFullReindexRebuilding(){
+  try{return sessionStorage.getItem('gd_reindex_rebuilding')==='1';}catch(e){return false;}
+}
+function setFullReindexRebuilding(on){
+  try{
+    if(on)sessionStorage.setItem('gd_reindex_rebuilding','1');
+    else sessionStorage.removeItem('gd_reindex_rebuilding');
+  }catch(e){}
+}
+function bgScanLabel(indexed,total,pct){
+  const count = indexed.toLocaleString()+'/'+total.toLocaleString()+' shows indexed';
+  return (isFullReindexRebuilding()
+    ? 'background scan rebuilding '+pct+'%'
+    : 'background scan '+pct+'%')+' · '+count;
 }
 
 function onLoaded(list){
@@ -1004,7 +1020,7 @@ function onLoaded(list){
         s.relistenDur     = rc.dur||0;
         if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
-      if((s.songs&&s.songs.length)||s.relistenAvail||(showFlags[s.id]&&showFlags[s.id].setlist)) s.cachePlayable=true;
+      if((s.songs&&s.songs.length)||(showFlags[s.id]&&showFlags[s.id].setlist)) s.cachePlayable=true;
     });
   }catch(e){}
   // ── Bulk prefetch all years from Relisten ────────────────────
@@ -1519,8 +1535,9 @@ function applyFilters(){
   const _total=shows.length;
   const _pct=Math.round(_loaded/_total*100);
   const _prog=(_loaded<_total)
-    ? ` <span style="color:var(--gold2);font-size:10px">· background scan ${_pct}%</span>`
+    ? ` <span style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
     : '';
+  if(_loaded>=_total)setFullReindexRebuilding(false);
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
 }
@@ -1756,11 +1773,16 @@ function updateSongCntProgress(){
   const total=shows.length;
   const pct=Math.round(indexed/total*100);
   const allDone=indexed>=total;
+  if(allDone)setFullReindexRebuilding(false);
   // Update Songs tab counter
   const el=document.getElementById('songCnt');
   if(el){
     const qEl=document.getElementById('songQ');
-    if(!qEl||qEl.value.trim().length<2){
+    const qActive=qEl&&qEl.value.trim().length>=2;
+    const songsActive=document.getElementById('tab-songs')&&document.getElementById('tab-songs').style.display!=='none';
+    if(qActive&&songsActive){
+      doSongSearch(true);
+    }else if(!qActive){
       if(allDone){
         el.textContent='Search any song · all '+total.toLocaleString()+' shows ready';
       }else{
@@ -1774,14 +1796,14 @@ function updateSongCntProgress(){
   if(cntbar){
     const prog=allDone
       ? ''
-      : ' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· background scan '+pct+'%</span>';
+      : ' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· '+bgScanLabel(indexed,total,pct)+'</span>';
     // Remove any prior injected background-scan fragments before appending a fresh one.
     // The prior build only stripped a couple of old span patterns, which let this message
     // stack repeatedly as render/update paths both touched cntbar.
     const current=cntbar.innerHTML;
     const base=current
       .replace(/\s*<span[^>]*class="bgscan-prog"[^>]*>.*?<\/span>/g,'')
-      .replace(/\s*·\s*background scan\s*\d+%/gi,'')
+      .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows indexed)?/gi,'')
       .trimEnd();
     cntbar.innerHTML=base+prog;
   }
@@ -2833,7 +2855,7 @@ let songTimer=null;
 function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
 function showSongIndexStats(matchCount,q){
-  const indexed=shows.filter(s=>(s.songs&&s.songs.length)||s.metaLoaded).length;
+  const indexed=shows.filter(showLooksIndexed).length;
   const withAudio=shows.filter(s=>s.metaLoaded).length;
   const total=shows.length;
   const allDone=indexed>=total;
@@ -2882,11 +2904,11 @@ function fillSongSearch(song){
   doSongSearch();
 }
 
-function doSongSearch(){
+function doSongSearch(refreshOnly){
   const q=document.getElementById('songQ').value.trim().toLowerCase();
   const cntEl=document.getElementById('songCnt'),resEl=document.getElementById('songResults');
   if(q.length<2){renderFeaturedSongs();return;}
-  shows.filter(s=>!s.songs&&!s.metaLoaded).slice(0,80).forEach((s,i)=>setTimeout(()=>loadShowMeta(s,false),i*100));
+  if(!refreshOnly)shows.filter(s=>!s.songs&&!s.metaLoaded).slice(0,80).forEach((s,i)=>setTimeout(()=>loadShowMeta(s,false),i*100));
   const matches=[],seen=new Set();
   shows.forEach(s=>{
     if(!s.songs)return;
@@ -3102,7 +3124,7 @@ function switchTab(name){
     var _list=document.getElementById('list');if(_list)_list.style.visibility='';
   }
   if(name==='jam')initJamTab();
-  if(name==='songs'){const q=document.getElementById('songQ');if(q&&q.value.length<2)renderFeaturedSongs();}
+  if(name==='songs'){const q=document.getElementById('songQ');if(q&&q.value.trim().length>=2)doSongSearch(true);else renderFeaturedSongs();}
   if(name==='others')refreshAttendance(false);
   prevTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
   ['shows','songs','others','jam'].forEach(t=>{
@@ -3141,6 +3163,7 @@ document.addEventListener('visibilitychange',function(){
 
 let allFavorites = [];
 let favoritesLoaded = false;
+let _jamReturnState = null;
 
 async function loadFavorites() {
   // Show cached favorites instantly while fetching fresh data
@@ -3225,10 +3248,11 @@ async function toggleFavorite(id) {
     setTimeout(function(){promptSignup({type:'favorite',showId:id});}, 800);
     return;
   }
+  const alreadyFav = isFavorited(id);
   const show = shows.find(s => s.id === id);
-  if (!show) return;
+  if (!show && !alreadyFav) return;
 
-  if (isFavorited(id)) {
+  if (alreadyFav) {
     // Remove
     allFavorites = allFavorites.filter(f => !(f.user === curUser && f.showId === id));
     localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
@@ -3249,10 +3273,12 @@ async function toggleFavorite(id) {
       headers: {'Content-Type': 'text/plain;charset=utf-8'}
     });
   } else {
+    if (!show) return;
     // Check limit
     const mine = myFavorites();
     if (mine.length >= 5) {
-      const btn = document.querySelector('.fav-btn[data-id="' + id + '"]');
+      const playerBtn = curShow&&curShow.id===id ? document.getElementById('sp-fav') : null;
+      const btn = document.querySelector('.fav-btn[data-id="' + id + '"]') || playerBtn;
       if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)', openJamFavorites);
       return;
     }
@@ -3264,6 +3290,7 @@ async function toggleFavorite(id) {
       return;
     }
     await addFavoriteForUser(id,curUser);
+    updateSpFavBtn();
     setHdrSt('\u2605 Added to favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
   }
@@ -3434,7 +3461,7 @@ function renderJamFavorites() {
     if(d.style.display!=='none') openSections.add(d.id);
   });
   if (!allFavorites.length) {
-    el.innerHTML = '<div class="jam-empty">No favorites yet — star a show to add it</div>';
+    el.innerHTML = jamReturnButtonHtml()+'<div class="jam-empty">No favorites yet — star a show to add it</div>';
     return;
   }
   const byUser = {};
@@ -3446,7 +3473,7 @@ function renderJamFavorites() {
     if(a===curUser) return -1; if(b===curUser) return 1;
     return a.localeCompare(b);
   });
-  let out = '';
+  let out = jamReturnButtonHtml();
   userOrder.forEach(function(user) {
     const userIdx = users.indexOf(user);
     const col = USER_COLORS[userIdx >= 0 ? userIdx % USER_COLORS.length : 0];
@@ -3461,7 +3488,7 @@ function renderJamFavorites() {
       let show = shows.find(function(s){return s.id===f.showId;});
       if (!show) show = shows.find(function(s){return s.id.startsWith(f.showId.substring(0,10))&&s.venue===f.venue;});
       if (!show) return;
-      out += jamFavoriteShowRow(show, user);
+      out += jamFavoriteShowRow(show, user, f.showId);
     });
     out += '</div></div>';
   });
@@ -3488,7 +3515,7 @@ function renderJamFavorites() {
   }
 }
 
-function jamFavoriteShowRow(s,user){
+function jamFavoriteShowRow(s,user,favShowId){
   const myUser=curUser||viewUser;
   const myAtt=myUser&&myUser!=='all'&&s.attended&&s.attended[myUser];
   const canEditFav=!!(curUser&&curUser===user);
@@ -3499,15 +3526,16 @@ function jamFavoriteShowRow(s,user){
   const songs=hasCachedSetlist?s.songs.slice(0,5).join(' · '):(hasAudio?'Tap to load show':'');
   const sub=songs?'<div class="row-songs">'+dot+prefix+esc(songs)+'</div>':'';
   const safeId=String(s.id).replace(/'/g,"\\'");
+  const safeFavId=String(favShowId||s.id).replace(/'/g,"\\'");
   const favAction=canEditFav
-    ? "toggleFavorite('"+safeId+"')"
+    ? "toggleFavorite('"+safeFavId+"')"
     : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openSetlistFromJam(\''+s.id+'\')">'
     +'<div class="row-date">'+s.date+'</div>'
     +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(s.city)+'</div>'+sub+'</div>'
     +'<div class="row-right">'
       +'<div class="row-btns">'
-        +'<button class="fav-btn fav-on" data-id="'+s.id+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
+        +'<button class="fav-btn fav-on" data-id="'+(favShowId||s.id)+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
         +'<button class="mine-btn'+(myAtt?' mine-on':'')+'" onclick="event.stopPropagation();toggleMine(\''+safeId+'\')" title="'+(myAtt?'Remove':'Add to my shows')+'">'+(myAtt?'✓':'+')+'</button>'
         +'<button class="pbtn'+(!hasAudio?' na':'')+'" onclick="event.stopPropagation();'+(hasAudio?'quickPlay(\''+safeId+'\')':'')+'">'+(hasAudio?'▶':'—')+'</button>'
       +'</div>'
@@ -3524,6 +3552,40 @@ function toggleJamFavSection(uid, hdr) {
   if (arrow) arrow.textContent = open ? '▸' : '▾';
 }
 
+function jamReturnButtonHtml(){
+  if(!_jamReturnState)return '';
+  const label=_jamReturnState.setlistOpen?'Return to show':'Return to previous screen';
+  return '<button onclick="event.stopPropagation();returnFromJamFavorites()" style="width:100%;margin:0 0 10px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.35);border-radius:10px;padding:10px 12px;color:var(--gold);font-family:var(--mono);font-size:12px;text-align:left;cursor:pointer">← '+label+'</button>';
+}
+
+function captureJamReturnState(){
+  const sp=document.getElementById('setlistPanel');
+  return {
+    activeTab:document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||setlistOriginTab||'shows',
+    setlistOpen:!!(sp&&sp.classList.contains('open')&&curShow),
+    showId:curShow&&curShow.id,
+    listScroll:(document.getElementById('list')||{}).scrollTop||0,
+    jamScroll:(document.getElementById('tab-jam')||{}).scrollTop||0
+  };
+}
+
+function returnFromJamFavorites(){
+  const state=_jamReturnState;
+  _jamReturnState=null;
+  renderJamFavorites();
+  if(!state)return;
+  if(state.setlistOpen&&state.showId){
+    switchTab(state.activeTab||'shows');
+    openSetlist(state.showId);
+    return;
+  }
+  switchTab(state.activeTab||'shows');
+  setTimeout(function(){
+    const list=document.getElementById('list');
+    if(list&&state.listScroll)list.scrollTop=state.listScroll;
+  },0);
+}
+
 
 // ── JAM TAB ───────────────────────────────────────────────────────
 
@@ -3535,6 +3597,7 @@ function initJamTab(){
 }
 
 function openJamFavorites(){
+  _jamReturnState=captureJamReturnState();
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open')){
     sp.classList.remove('open');sp.style.top='';sp.style.height='';
@@ -3545,6 +3608,7 @@ function openJamFavorites(){
   const favChev=document.getElementById('jamFavChev');
   if(favList)favList.style.display='';
   if(favChev)favChev.style.transform='rotate(90deg)';
+  renderJamFavorites();
   setTimeout(function(){
     const card=favList&&favList.closest('.jam-card');
     if(card)card.scrollIntoView({block:'start',behavior:'smooth'});
@@ -4387,8 +4451,9 @@ function fullReindexAction(){
   try{
     [
       'gd_setlists','gd_meta_loaded','gd_meta_loaded_v','gd_relisten_avail',
-      'gd_sheet_cache','gd_favorites','gd_fav_removed'
+      'gd_relisten_avail_ts',SHOW_FLAGS_KEY
     ].forEach(function(k){ localStorage.removeItem(k); });
+    setFullReindexRebuilding(true);
   }catch(e){}
   location.reload();
 }
@@ -4507,9 +4572,9 @@ async function refreshAttendance(force){
   }
 }
 
-function toggleFavoriteFromPlayer(){
+async function toggleFavoriteFromPlayer(){
   if(!curShow)return;
-  toggleFavorite(curShow.id);
+  await toggleFavorite(curShow.id);
   updateSpFavBtn();
 }
 
