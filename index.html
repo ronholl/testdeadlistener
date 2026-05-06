@@ -199,8 +199,8 @@ body{display:flex;justify-content:center}
 .pbtn.on{background:var(--gold);border-color:var(--gold);color:#000}
 .pbtn.na{opacity:.25;cursor:default}
 /* SETLIST PANEL */
-.setlist-panel{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:520px;height:100%;background:var(--bg);z-index:115;display:flex;flex-direction:column;transition:transform .28s cubic-bezier(.4,0,.2,1)}
-.setlist-panel.open{transform:translateX(-50%) translateY(0)}
+.setlist-panel{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:520px;height:100%;background:var(--bg);z-index:115;display:flex;flex-direction:column;transition:transform .28s cubic-bezier(.4,0,.2,1);pointer-events:none}
+.setlist-panel.open{transform:translateX(-50%) translateY(0);pointer-events:auto}
 .sp-hdr{background:#130a0a;padding:8px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0}
 .sp-back{background:transparent;border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--muted);cursor:pointer;font-size:11px;font-family:var(--mono)}
 .sp-back:active{border-color:var(--gold);color:var(--gold)}
@@ -259,6 +259,7 @@ body{display:flex;justify-content:center}
 .cbtn.saved{border-color:var(--green)!important;color:var(--green)!important}
 .cbtn.att{width:44px;min-width:44px;height:40px;font-size:11px;padding:0 4px;flex-shrink:0}
 .mini-player{background:linear-gradient(180deg,#1a1208 0%,#110e06 100%);border-top:2px solid var(--gold);padding:8px 12px 10px;position:sticky;bottom:0;z-index:5}
+.mini-player.idle{pointer-events:none}
 .mp-row{display:flex;align-items:center;gap:8px}
 .mp-info{flex:1;min-width:0;cursor:pointer}
 .mp-song{font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
@@ -2762,7 +2763,12 @@ function updateSpPlayer(){
 
 function renderMiniPlayer(){
   const el=document.getElementById('miniPlayer');
-  if(!curShow){el.innerHTML='<div class="mp-idle">Tap a show to open its setlist ↑</div>';return;}
+  if(!curShow){
+    el.classList.add('idle');
+    el.innerHTML='<div class="mp-idle">Tap a show to open its setlist ↑</div>';
+    return;
+  }
+  el.classList.remove('idle');
   if(!audio){
     el.innerHTML='<div class="mp-row"><div class="mp-info"><div class="mp-song">⏳ Loading '+esc(curShow.date)+'…</div><div class="mp-show">'+esc(curShow.venue)+'</div></div></div>';
     return;
@@ -3124,14 +3130,14 @@ function switchTab(name){
     const _mpEl2=document.getElementById('miniPlayer');if(_mpEl2)_mpEl2.style.visibility='';
     var _list=document.getElementById('list');if(_list)_list.style.visibility='';
   }
-  if(name==='jam')initJamTab();
-  if(name==='songs'){const q=document.getElementById('songQ');if(q&&q.value.trim().length>=2)doSongSearch(true);else renderFeaturedSongs();}
-  if(name==='others')refreshAttendance(false);
   prevTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
   ['shows','songs','others','jam'].forEach(t=>{
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
     document.getElementById('tab-btn-'+t).classList.toggle('on',t===name);
   });
+  if(name==='jam')initJamTab();
+  if(name==='songs'){const q=document.getElementById('songQ');if(q&&q.value.trim().length>=2)doSongSearch(true);else renderFeaturedSongs();}
+  if(name==='others')refreshAttendance(false);
 }
 
 loadData();
@@ -3653,8 +3659,9 @@ function loadTodayShows(){
 const ROLL_HISTORY_KEY='gd_roll_history';
 const ROLL_HISTORY_MAX=20;
 
-function rollDiceHasList(show){
-  const flags=(show&&readShowFlags()[show.id])||{};
+function rollDiceHasList(show, flagsMap){
+  flagsMap=flagsMap||readShowFlags();
+  const flags=(show&&flagsMap[show.id])||{};
   return !!(show && (
     (show.tracks && show.tracks.length) ||
     (show.songs && show.songs.length) ||
@@ -3665,25 +3672,28 @@ function rollDiceHasList(show){
   ));
 }
 
-function rollDiceHasAudio(show){
+function rollDiceHasAudio(show, flagsMap){
   if(!show || show.notAvail || show.allRestricted) return false;
   if(show.tracks && show.tracks.length) return true;
   if(show.relistenAvail) return true;
   if(show.recordings && show.recordings.some(function(r){return !r.restricted;})) return true;
-  const flags=readShowFlags()[show.id]||{};
+  flagsMap=flagsMap||readShowFlags();
+  const flags=flagsMap[show.id]||{};
   return !!(flags.hasAudio || (show.metaLoaded && show.archiveId && !show.notAvail));
 }
 
-function isRollDiceEligible(show){
+function isRollDiceEligible(show, flagsMap){
   if(!show) return false;
-  const flags=readShowFlags()[show.id]||{};
+  flagsMap=flagsMap||readShowFlags();
+  const flags=flagsMap[show.id]||{};
   if(flags.notAvail || show.notAvail || show._offlineFail) return false;
-  return rollDiceHasAudio(show) && rollDiceHasList(show);
+  return rollDiceHasAudio(show, flagsMap) && rollDiceHasList(show, flagsMap);
 }
 
-function isRollDiceInstant(show){
-  if(!isRollDiceEligible(show)) return false;
-  const flags=readShowFlags()[show.id]||{};
+function isRollDiceInstant(show, flagsMap){
+  flagsMap=flagsMap||readShowFlags();
+  if(!isRollDiceEligible(show, flagsMap)) return false;
+  const flags=flagsMap[show.id]||{};
   return !!(
     (show.tracks && show.tracks.length) ||
     (show.songs && show.songs.length) ||
@@ -3704,14 +3714,34 @@ function rememberRolledShow(id){
   }catch(e){}
 }
 
+function jamTabIsVisible(){
+  const tab=document.getElementById('tab-jam');
+  return !!(tab&&tab.style.display!=='none');
+}
+
+function refreshRandomShowIfWaiting(){
+  const el=document.getElementById('jamRandom');
+  if(!el||!jamTabIsVisible())return;
+  if(!el.dataset.currentShowId || el.innerHTML.indexOf('Loading shows')>=0){
+    loadRandomShow();
+  }
+}
+
 function loadRandomShow(){
   const el = document.getElementById('jamRandom');
   if(!el)return;
 
   const recent=readRollHistory();
   const currentId=el.dataset.currentShowId||'';
-  const instantEligible=shows.filter(isRollDiceInstant);
-  const eligible=(instantEligible.length>=25)?instantEligible:shows.filter(isRollDiceEligible);
+  const flagsMap=readShowFlags();
+  const instantEligible=shows.filter(function(s){return isRollDiceInstant(s, flagsMap);});
+  let eligible=(instantEligible.length>=25)?instantEligible:shows.filter(function(s){return isRollDiceEligible(s, flagsMap);});
+  if(!eligible.length){
+    eligible=shows.filter(function(s){
+      const flags=flagsMap[s.id]||{};
+      return s&&!s.notAvail&&!s._offlineFail&&(s.relistenAvail||(s.metaLoaded&&!s.notAvail)||flags.hasAudio||flags.setlist||(s.songs&&s.songs.length));
+    });
+  }
   let pool=eligible.filter(function(s){return s.id!==currentId&&!recent.includes(s.id);});
   if(!pool.length && eligible.length){
     pool=eligible.filter(function(s){return s.id!==currentId;});
@@ -3722,20 +3752,29 @@ function loadRandomShow(){
   }
   if(!pool.length){
     el.innerHTML='<div class="jam-empty">Loading shows...</div>';
+    setTimeout(refreshRandomShowIfWaiting,1200);
     return;
   }
 
   // Weighted random: prefer ratings, soundboards, and older years without becoming deterministic.
   const weighted = [];
   pool.forEach(function(s){
-    const r = s.relistenRating||s.rating||0;
+    const r = Number(s.relistenRating||s.rating||0);
     const year=parseInt(s.year||s.date,10)||1995;
     const olderBoost=Math.max(0,Math.min(4,Math.floor((1995-year)/8)));
-    const w = Math.max(1, Math.round(r*2)) + (s.relistenSbd?3:0) + olderBoost;
+    const ratingWeight = Number.isFinite(r) ? Math.round(r*2) : 0;
+    const w = Math.max(1, ratingWeight) + (s.relistenSbd?3:0) + olderBoost;
     for(let i=0;i<w;i++) weighted.push(s);
   });
 
-  let pick = weighted[Math.floor(Math.random()*weighted.length)];
+  let pick = weighted.length
+    ? weighted[Math.floor(Math.random()*weighted.length)]
+    : pool[Math.floor(Math.random()*pool.length)];
+  if(!pick){
+    el.innerHTML='<div class="jam-empty">Loading shows...</div>';
+    setTimeout(refreshRandomShowIfWaiting,1200);
+    return;
+  }
   if(pool.length>1 && pick.id===currentId){
     const alt=pool.filter(function(s){return s.id!==currentId;});
     pick=alt[Math.floor(Math.random()*alt.length)]||pick;
@@ -3858,6 +3897,7 @@ async function prefetchRelistenAvailability(){
     if(ts && (Date.now() - ts) < CACHE_TTL){
       // Cache is fresh — flags already restored in onLoaded, just re-render
       renderList();
+      refreshRandomShowIfWaiting();
       return;
     }
   }catch(e){}
@@ -3912,8 +3952,10 @@ async function prefetchRelistenAvailability(){
     }catch(e){}
     console.log('[GD] Relisten prefetch: '+matched+' matched, '+available+' available — cached for 7 days');
     renderList();
+    refreshRandomShowIfWaiting();
   }catch(e){
     console.warn('[GD] Relisten prefetch failed:',e.message);
+    refreshRandomShowIfWaiting();
   }
 }
 
@@ -4810,7 +4852,7 @@ function retryShowMeta(id){
         </div>
       </div>
       <div id="jamRandom" class="jam-results"></div>
-      <button class="jam-btn" onclick="loadRandomShow()">Roll the Dice &#8635;</button>
+      <button type="button" class="jam-btn" onclick="loadRandomShow()">Roll the Dice &#8635;</button>
     </div>
 
     <!-- Best Versions -->
