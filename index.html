@@ -178,6 +178,8 @@ body{display:flex;justify-content:center}
 .jam-show-rating{color:var(--gold)}
 .jam-show-sbd{background:rgba(200,168,75,.12);color:var(--gold);border:1px solid rgba(200,168,75,.25);border-radius:4px;padding:1px 5px;font-size:9px}
 .jam-loading{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0}
+.jam-roll-control{width:100%;box-sizing:border-box;margin-top:12px;background:transparent;border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--gold);font-family:var(--mono);font-size:13px;cursor:pointer;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(200,168,75,.18);-webkit-user-select:none;user-select:none;position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:8px}
+.jam-roll-control:active,.jam-roll-control.pressed{background:var(--surf);border-color:rgba(200,168,75,.45)}
 .jam-btn{width:100%;margin-top:12px;background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--gold);font-family:var(--mono);font-size:13px;cursor:pointer;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(200,168,75,.18);-webkit-user-select:none;user-select:none;position:relative;z-index:2}
 .jam-btn:active{background:var(--surf)}
 .jam-empty{color:var(--muted);font-size:12px;padding:8px 0;font-style:italic}
@@ -3146,6 +3148,7 @@ logVisit();
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
   if(pb&&POSTER_URL)pb.style.display='block';
+  bindRollDiceControl();
 });
 
 // ── BACKGROUND AUDIO RECOVERY ──────────────────────────────────────────
@@ -3597,6 +3600,7 @@ function returnFromJamFavorites(){
 // ── JAM TAB ───────────────────────────────────────────────────────
 
 function initJamTab(){
+  bindRollDiceControl();
   loadFavorites(); // Always refresh when Jam tab opens
   loadTodayShows();
   loadRandomShow();
@@ -3728,6 +3732,20 @@ function refreshRandomShowIfWaiting(){
 }
 
 let lastRollTapAt=0;
+function bindRollDiceControl(){
+  const btn=document.getElementById('jamRollDice');
+  if(!btn||btn.dataset.bound==='1')return;
+  btn.dataset.bound='1';
+  const fire=function(ev){rollDiceButtonTap(ev);};
+  btn.addEventListener('pointerdown',fire);
+  btn.addEventListener('touchstart',fire,{passive:false});
+  btn.addEventListener('mousedown',fire);
+  btn.addEventListener('click',fire);
+  btn.addEventListener('keydown',function(ev){
+    if(ev.key==='Enter'||ev.key===' '||ev.key==='Spacebar')fire(ev);
+  });
+}
+
 function rollDiceButtonTap(ev){
   if(ev){
     if(ev.cancelable)ev.preventDefault();
@@ -3736,6 +3754,11 @@ function rollDiceButtonTap(ev){
   const now=Date.now();
   if(now-lastRollTapAt<700)return;
   lastRollTapAt=now;
+  const btn=document.getElementById('jamRollDice');
+  if(btn){
+    btn.classList.add('pressed');
+    setTimeout(function(){btn.classList.remove('pressed');},160);
+  }
   loadRandomShow();
 }
 
@@ -4868,7 +4891,9 @@ function retryShowMeta(id){
         </div>
       </div>
       <div id="jamRandom" class="jam-results"></div>
-      <button type="button" class="jam-btn" onpointerdown="rollDiceButtonTap(event)" ontouchstart="rollDiceButtonTap(event)" onmousedown="rollDiceButtonTap(event)" onclick="rollDiceButtonTap(event)">Roll the Dice &#8635;</button>
+      <div id="jamRollDice" class="jam-roll-control" role="button" tabindex="0" aria-label="Roll the Dice">
+        <span>Roll the Dice</span><span aria-hidden="true">&#8635;</span>
+      </div>
     </div>
 
     <!-- Best Versions -->
