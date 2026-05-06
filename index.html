@@ -2752,12 +2752,14 @@ function updateSpPlayer(){
   }
   // Clear ALL tl-cur rows in the DOM first (covers stale rows from previously browsed shows)
   document.querySelectorAll('.tl-cur').forEach(function(el){el.classList.remove('tl-cur');});
-  // Then highlight only the currently playing track — but only if the browsed show IS the playing show
-  if(playingShow&&curShow&&playingShow.id===curShow.id&&audio){
-    const _vp=visiblePosForRaw(playingShow, playingTrackIdx); const curEl=document.getElementById('track-v-'+_vp);
+  // Highlight the current track for this setlist. If audio is playing, prefer the
+  // playing track; otherwise allow paused/cued views such as Box of Tapes.
+  const highlightShow=(playingShow&&curShow&&playingShow.id===curShow.id&&audio)?playingShow:curShow;
+  const highlightIdx=(highlightShow===playingShow&&audio)?playingTrackIdx:curTrackIdx;
+  if(highlightShow&&curShow&&highlightShow.id===curShow.id&&highlightIdx>=0){
+    const _vp=visiblePosForRaw(highlightShow, highlightIdx); const curEl=document.getElementById('track-v-'+_vp);
     if(curEl){
       curEl.classList.add('tl-cur');
-      curEl.scrollIntoView({block:'nearest',behavior:'smooth'});
     }
   }
   updateProgress();
@@ -3352,9 +3354,10 @@ function renderJamRecent(){
     return;
   }
   el.innerHTML=hist.map(function(h){
-    const s=shows.find(x=>x.id===h.id);
+    const s=resolveRecentShow(h);
     const venue=s?s.venue:h.venue;
     const city=s?s.city:h.city;
+    const clickId=escJs(h.id||'');
     const hasPos=h.lastTrackIdx!=null&&h.lastPos!=null&&h.lastPos>0;
     // Progress line: track title + timestamp
     let progressLine='';
@@ -3368,34 +3371,87 @@ function renderJamRecent(){
         +'</div>';
     }
     return '<div style="display:flex;align-items:center;gap:0;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:0;transition:border-color .15s" class="jam-recent-row">'
-      +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openSetlistFromJam(\''+h.id+'\')">'
+      +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openRecentShow(\''+clickId+'\',false)">'
         +'<div class="jam-show-date">'+h.date+'</div>'
         +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+'</div>'
         +progressLine
       +'</div>'
-      +'<button onclick="event.stopPropagation();resumeRecentShow(\''+h.id+'\')" '
+      +'<div role="button" tabindex="0" onclick="event.stopPropagation();openRecentShow(\''+clickId+'\',true)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'||event.key===\'Spacebar\'){event.preventDefault();event.stopPropagation();openRecentShow(\''+clickId+'\',true)}" '
         +'title="'+(hasPos?'Resume from '+fmtT(h.lastPos):'Play from start')+'" '
-        +'style="flex-shrink:0;width:38px;height:38px;border-radius:50%;background:'+(hasPos?'rgba(200,168,75,.13)':'transparent')+';border:1.5px solid '+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+';color:'+(hasPos?'var(--gold)':'var(--muted)')+';font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;transition:all .15s" '
+        +'style="flex-shrink:0;width:38px;height:38px;border-radius:50%;background:'+(hasPos?'rgba(200,168,75,.13)':'transparent')+';border:1.5px solid '+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+';color:'+(hasPos?'var(--gold)':'var(--muted)')+';font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;transition:all .15s;touch-action:manipulation;-webkit-user-select:none;user-select:none" '
         +'onmouseenter="this.style.borderColor=\'var(--gold)\';this.style.color=\'var(--gold)\'" '
-        +'onmouseleave="this.style.borderColor=\''+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+'\';this.style.color=\''+(hasPos?'var(--gold)':'var(--muted)')+'\'">▶</button>'
+        +'onmouseleave="this.style.borderColor=\''+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+'\';this.style.color=\''+(hasPos?'var(--gold)':'var(--muted)')+'\'">▶</div>'
       +'</div>';
   }).join('');
+}
+
+function escJs(s){
+  return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+function resolveRecentShow(entryOrId){
+  const entry=typeof entryOrId==='string'?recentEntryForShow(entryOrId):entryOrId;
+  if(!entry)return null;
+  let show=shows.find(function(s){return s.id===entry.id;});
+  if(show)return show;
+  const sameDate=shows.filter(function(s){return s.date===entry.date;});
+  if(!sameDate.length)return null;
+  const venue=(entry.venue||'').trim().toLowerCase();
+  const city=(entry.city||'').trim().toLowerCase();
+  show=sameDate.find(function(s){
+    return (s.venue||'').trim().toLowerCase()===venue &&
+           (s.city||'').trim().toLowerCase()===city;
+  });
+  show=show||sameDate.find(function(s){return (s.venue||'').trim().toLowerCase()===venue;})||sameDate[0];
+  if(show&&entry.id&&show.id!==entry.id){
+    try{
+      const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+      const idx=hist.findIndex(function(h){return h.id===entry.id;});
+      if(idx>=0){
+        hist[idx].id=show.id;
+        hist[idx].date=show.date;
+        hist[idx].venue=show.venue;
+        hist[idx].city=show.city;
+        localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+      }
+    }catch(e){}
+  }
+  return show;
+}
+
+function recentEntryForShow(id){
+  try{
+    const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+    return hist.find(function(h){return h.id===id;})||hist.find(function(h){
+      return h.id&&String(h.id)===String(id);
+    })||null;
+  }catch(e){return null;}
+}
+
+function savedRecentTrack(entry){
+  const hasPos=entry&&entry.lastTrackIdx!=null&&entry.lastPos!=null&&entry.lastPos>0;
+  return {
+    idx:hasPos?Math.max(0,entry.lastTrackIdx):0,
+    pos:hasPos?Math.max(0,entry.lastPos):0
+  };
 }
 
 // Open a recently played show and resume (or start) playback.
 // If saved position exists: open show → seek to saved track/pos → play.
 // If no saved position: open show → play from track 1.
 async function resumeRecentShow(id){
-  const show=shows.find(s=>s.id===id);
+  return openRecentShow(id,true);
+}
+
+async function openRecentShow(id,shouldPlay){
+  const entry=recentEntryForShow(id);
+  const show=resolveRecentShow(entry||id);
   if(!show)return;
 
   // Pull saved position from history
-  let hist=[];
-  try{hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch(e){}
-  const entry=hist.find(h=>h.id===id);
-  const hasPos=entry&&entry.lastTrackIdx!=null&&entry.lastPos!=null&&entry.lastPos>0;
-  const savedTrackIdx=hasPos?entry.lastTrackIdx:0;
-  const savedPos=hasPos?entry.lastPos:0;
+  const saved=savedRecentTrack(entry||recentEntryForShow(show.id));
+  const savedTrackIdx=saved.idx;
+  const savedPos=saved.pos;
 
   // Open the setlist panel (mirrors openSetlistFromJam / openSetlistAndPlay flow)
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'jam';
@@ -3421,12 +3477,12 @@ async function resumeRecentShow(id){
     _u.play().catch(function(){});
   })();
 
-  const doPlay=function(){
+  const openAtSavedTrack=function(){
     const rawIdx=Math.min(savedTrackIdx,(show.tracks||[]).length-1);
     curTrackIdx=rawIdx;
     updateSpPlayer();
     renderSetlistBody(show);
-    if(savedPos>0){
+    if(shouldPlay&&savedPos>0){
       // Start playback then seek once audio is ready
       startPlayback(show,rawIdx);
       // Seek after canplay fires — use a one-shot listener on the audio element
@@ -3437,8 +3493,15 @@ async function resumeRecentShow(id){
         if(audio)audio.removeEventListener('canplay',_seekOnce);
       };
       if(audio)audio.addEventListener('canplay',_seekOnce,{once:true});
-    } else {
+    } else if(shouldPlay){
       startPlayback(show,rawIdx);
+    } else {
+      if(playingShow&&playingShow.id!==show.id&&audio){
+        try{audio.pause();}catch(e){}
+        audio=null;playing=false;playIntent=false;playingShow=null;playingTrackIdx=0;
+      }
+      updateSpPlayer();
+      renderMiniPlayer();
     }
     // Scroll setlist to the playing track
     setTimeout(function(){
@@ -3449,7 +3512,7 @@ async function resumeRecentShow(id){
   };
 
   if(show.tracks&&show.tracks.length){
-    doPlay();
+    openAtSavedTrack();
   } else {
     document.getElementById('sp-meta-txt').innerHTML='<span class="spinner"></span>Loading…';
     if(!show.songs||!show.songs.length){
@@ -3458,7 +3521,7 @@ async function resumeRecentShow(id){
       renderSetlistBody(show);
     }
     await loadShowMeta(show,true);
-    if(show.tracks&&show.tracks.length) doPlay();
+    if(show.tracks&&show.tracks.length) openAtSavedTrack();
   }
 }
 
@@ -3661,7 +3724,8 @@ function loadTodayShows(){
 
 // ── PLAY A SHOW ───────────────────────────────────────────────────
 const ROLL_HISTORY_KEY='gd_roll_history';
-const ROLL_HISTORY_MAX=20;
+const ROLL_DATE_HISTORY_KEY='gd_roll_date_history';
+const ROLL_HISTORY_MAX=30;
 
 function rollDiceHasList(show, flagsMap){
   flagsMap=flagsMap||readShowFlags();
@@ -3707,15 +3771,72 @@ function isRollDiceInstant(show, flagsMap){
 }
 
 function readRollHistory(){
-  try{return JSON.parse(localStorage.getItem(ROLL_HISTORY_KEY)||'[]').filter(Boolean);}catch(e){return [];}
+  try{return JSON.parse(localStorage.getItem(ROLL_HISTORY_KEY)||'[]').map(function(x){return typeof x==='string'?x:x&&x.id;}).filter(Boolean);}catch(e){return [];}
 }
 
-function rememberRolledShow(id){
+function readRollDateHistory(){
+  try{return JSON.parse(localStorage.getItem(ROLL_DATE_HISTORY_KEY)||'[]').filter(Boolean);}catch(e){return [];}
+}
+
+function rememberRolledShow(show){
   try{
+    const id=show&&show.id;if(!id)return;
     const hist=readRollHistory().filter(function(x){return x!==id;});
     hist.unshift(id);
     localStorage.setItem(ROLL_HISTORY_KEY,JSON.stringify(hist.slice(0,ROLL_HISTORY_MAX)));
+    if(show.date){
+      const dates=readRollDateHistory().filter(function(x){return x!==show.date;});
+      dates.unshift(show.date);
+      localStorage.setItem(ROLL_DATE_HISTORY_KEY,JSON.stringify(dates.slice(0,ROLL_HISTORY_MAX)));
+    }
   }catch(e){}
+}
+
+function rollDiceStrongPlayable(show, flagsMap){
+  if(!show)return false;
+  flagsMap=flagsMap||readShowFlags();
+  const flags=flagsMap[show.id]||{};
+  if(flags.notAvail||show.notAvail||show.allRestricted||show._offlineFail)return false;
+  const hasAudio=!!(show.relistenAvail||flags.hasAudio||(show.metaLoaded&&!show.notAvail));
+  const hasList=!!((show.songs&&show.songs.length)||show.setlistCached||show.cachePlayable||flags.setlist||show.relistenAvail);
+  return hasAudio&&hasList;
+}
+
+function rollDiceLikelyPlayable(show, flagsMap){
+  if(!show)return false;
+  flagsMap=flagsMap||readShowFlags();
+  const flags=flagsMap[show.id]||{};
+  if(flags.notAvail||show.notAvail||show.allRestricted||show._offlineFail)return false;
+  return !!(
+    show.relistenAvail ||
+    flags.hasAudio ||
+    flags.setlist ||
+    (show.songs&&show.songs.length) ||
+    show.cachePlayable ||
+    show.metaLoaded ||
+    !flags.notAvail
+  );
+}
+
+function rollDiceWeight(show){
+  const rating=Number(show.relistenRating||show.rating||0);
+  const ratingBoost=Number.isFinite(rating)?Math.max(0,rating-3)*1.6:0;
+  const year=parseInt(show.year||show.date,10)||1995;
+  const olderBoost=Math.max(0,Math.min(5,(1995-year)/6));
+  const sbdBoost=show.relistenSbd?1.5:0;
+  return Math.max(.5,1+ratingBoost+olderBoost+sbdBoost+Math.random()*.75);
+}
+
+function weightedRollPick(pool){
+  if(!pool.length)return null;
+  let total=0;
+  const weights=pool.map(function(s){const w=rollDiceWeight(s);total+=w;return w;});
+  let target=Math.random()*total;
+  for(let i=0;i<pool.length;i++){
+    target-=weights[i];
+    if(target<=0)return pool[i];
+  }
+  return pool[pool.length-1];
 }
 
 function jamTabIsVisible(){
@@ -3726,7 +3847,8 @@ function jamTabIsVisible(){
 function refreshRandomShowIfWaiting(){
   const el=document.getElementById('jamRandom');
   if(!el||!jamTabIsVisible())return;
-  if(!el.dataset.currentShowId || el.innerHTML.indexOf('Loading shows')>=0){
+  const lastPool=parseInt(el.dataset.rollPoolSize||'0',10);
+  if(!el.dataset.currentShowId || el.innerHTML.indexOf('Loading shows')>=0 || (lastPool>0&&lastPool<100)){
     loadRandomShow();
   }
 }
@@ -3767,44 +3889,35 @@ function loadRandomShow(){
   if(!el)return;
 
   const recent=readRollHistory();
+  const recentDates=readRollDateHistory();
   const currentId=el.dataset.currentShowId||'';
   const flagsMap=readShowFlags();
-  const instantEligible=shows.filter(function(s){return isRollDiceInstant(s, flagsMap);});
-  let eligible=(instantEligible.length>=25)?instantEligible:shows.filter(function(s){return isRollDiceEligible(s, flagsMap);});
-  if(!eligible.length){
-    eligible=shows.filter(function(s){
-      const flags=flagsMap[s.id]||{};
-      return s&&!s.notAvail&&!s._offlineFail&&(s.relistenAvail||(s.metaLoaded&&!s.notAvail)||flags.hasAudio||flags.setlist||(s.songs&&s.songs.length));
-    });
+  const strong=shows.filter(function(s){return rollDiceStrongPlayable(s, flagsMap);});
+  const likely=shows.filter(function(s){return rollDiceLikelyPlayable(s, flagsMap);});
+  el.dataset.rollPoolSize=String(strong.length);
+  const eligible=(strong.length>=100)?strong:(likely.length>strong.length?likely:strong);
+  const currentShow=shows.find(function(s){return s.id===currentId;});
+  const currentDate=currentShow&&currentShow.date;
+  let pool=eligible.filter(function(s){
+    return s.id!==currentId && s.date!==currentDate && !recent.includes(s.id) && !recentDates.includes(s.date);
+  });
+  if(pool.length<25){
+    pool=eligible.filter(function(s){return s.id!==currentId && !recent.includes(s.id);});
   }
-  let pool=eligible.filter(function(s){return s.id!==currentId&&!recent.includes(s.id);});
+  if(pool.length<10){
+    pool=eligible.filter(function(s){return s.id!==currentId && s.id!==recent[0];});
+  }
   if(!pool.length && eligible.length){
     pool=eligible.filter(function(s){return s.id!==currentId;});
   }
-  if(!pool.length && eligible.length){
-    pool=eligible.filter(function(s){return s.id!==recent[0];});
-    if(!pool.length)pool=eligible.slice();
-  }
+  if(!pool.length && eligible.length)pool=eligible.slice();
   if(!pool.length){
     el.innerHTML='<div class="jam-empty">Loading shows...</div>';
     setTimeout(refreshRandomShowIfWaiting,1200);
     return;
   }
 
-  // Weighted random: prefer ratings, soundboards, and older years without becoming deterministic.
-  const weighted = [];
-  pool.forEach(function(s){
-    const r = Number(s.relistenRating||s.rating||0);
-    const year=parseInt(s.year||s.date,10)||1995;
-    const olderBoost=Math.max(0,Math.min(4,Math.floor((1995-year)/8)));
-    const ratingWeight = Number.isFinite(r) ? Math.round(r*2) : 0;
-    const w = Math.max(1, ratingWeight) + (s.relistenSbd?3:0) + olderBoost;
-    for(let i=0;i<w;i++) weighted.push(s);
-  });
-
-  let pick = weighted.length
-    ? weighted[Math.floor(Math.random()*weighted.length)]
-    : pool[Math.floor(Math.random()*pool.length)];
+  let pick = weightedRollPick(pool);
   if(!pick){
     el.innerHTML='<div class="jam-empty">Loading shows...</div>';
     setTimeout(refreshRandomShowIfWaiting,1200);
@@ -3812,9 +3925,9 @@ function loadRandomShow(){
   }
   if(pool.length>1 && pick.id===currentId){
     const alt=pool.filter(function(s){return s.id!==currentId;});
-    pick=alt[Math.floor(Math.random()*alt.length)]||pick;
+    pick=weightedRollPick(alt)||pick;
   }
-  rememberRolledShow(pick.id);
+  rememberRolledShow(pick);
   el.dataset.currentShowId=pick.id;
   el.innerHTML = jamShowCard(pick, true);
 }
