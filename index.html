@@ -178,7 +178,7 @@ body{display:flex;justify-content:center}
 .jam-show-rating{color:var(--gold)}
 .jam-show-sbd{background:rgba(200,168,75,.12);color:var(--gold);border:1px solid rgba(200,168,75,.25);border-radius:4px;padding:1px 5px;font-size:9px}
 .jam-loading{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0}
-.jam-btn{width:100%;margin-top:12px;background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--gold);font-family:var(--mono);font-size:13px;cursor:pointer;transition:all .15s}
+.jam-btn{width:100%;margin-top:12px;background:transparent;border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--gold);font-family:var(--mono);font-size:13px;cursor:pointer;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(200,168,75,.18)}
 .jam-btn:active{background:var(--surf)}
 .jam-empty{color:var(--muted);font-size:12px;padding:8px 0;font-style:italic}
 .fav-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.25);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;line-height:1}
@@ -3727,6 +3727,18 @@ function refreshRandomShowIfWaiting(){
   }
 }
 
+let lastRollTapAt=0;
+function rollDiceButtonTap(ev){
+  if(ev){
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+  const now=Date.now();
+  if(now-lastRollTapAt<350)return;
+  lastRollTapAt=now;
+  loadRandomShow();
+}
+
 function loadRandomShow(){
   const el = document.getElementById('jamRandom');
   if(!el)return;
@@ -4852,7 +4864,7 @@ function retryShowMeta(id){
         </div>
       </div>
       <div id="jamRandom" class="jam-results"></div>
-      <button type="button" class="jam-btn" onclick="loadRandomShow()">Roll the Dice &#8635;</button>
+      <button type="button" class="jam-btn" ontouchend="rollDiceButtonTap(event)" onclick="rollDiceButtonTap(event)">Roll the Dice &#8635;</button>
     </div>
 
     <!-- Best Versions -->
