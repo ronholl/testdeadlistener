@@ -1247,7 +1247,8 @@ function onLoaded(list,opts){
   // Restore last playback position after a short delay
   if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
   loadFavorites(); // Load immediately - uses cache for instant display
-  if(curUser){updateViewStats();scheduleAdminMsgCheck(opts.fromCache?4500:3500);}
+  if(curUser){updateViewStats();scheduleAdminMsgCheck(opts.fromCache?4500:3500);trackVisit(curUser);}
+  else if(guestMode){trackVisit('guest');}
   // Load Cast SDK lazily — must not block show rendering
   // Sets up window callback first so SDK fires initCastApi when ready
   setTimeout(function(){
@@ -4654,7 +4655,7 @@ function enterGuestMode(){
   try{localStorage.setItem('gd_prior_guest','1');}catch(e){}
   // Clear saved login so next reload won't try to re-log in
   try{localStorage.removeItem('gd_user');localStorage.removeItem('gd_pin');localStorage.removeItem('gd_pending_user');localStorage.removeItem('gd_pending_pin');}catch(e){}
-  trackVisit('guest');
+  trackVisit('guest', true);
   document.getElementById('loginScreen').style.display='none';
   setHdrSt('Guest','ok');
   // Reset all filter state — guest starts fresh with all shows
@@ -4800,14 +4801,19 @@ function getOrCreateGuestId(){
   return id;
 }
 
-async function trackVisit(userName){
+async function trackVisit(userName, force){
   try{
     const isGuest=!userName||userName==='guest';
-    // Always use the same device ID - one row per device in sheet
     const deviceId=getOrCreateGuestId();
+    const user=isGuest?'guest':userName;
+    const throttleKey='gd_visit_ping_'+user.toLowerCase();
+    const now=Date.now();
+    const last=parseInt(localStorage.getItem(throttleKey)||'0',10);
+    if(!force&&last&&now-last<30*60*1000)return;
+    localStorage.setItem(throttleKey,String(now));
     const payload={
       action:'trackVisit',
-      user:isGuest?'guest':userName,
+      user:user,
       deviceId:deviceId,
       guestId:deviceId // backward compat
     };
