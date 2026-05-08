@@ -656,8 +656,17 @@ function userColor(name){const i=users.indexOf(name);return USER_COLORS[i>=0?i%U
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
   debugLines=[];
-  // Always fetch fresh first — data changes (attendance, new shows etc.)
-  // Cache is only used as a fallback if all network sources fail.
+  const cached=_readCache();
+  if(_canRenderFromSheetCache(cached)){
+    users=cached.users;
+    userPins=cached.pins||{};
+    userLimit=cached.userLimit||0;
+    requestAnimationFrame(function(){
+      onLoaded(_hydrateSheetCacheShows(cached.shows),{fromCache:true});
+      setTimeout(function(){_fetchSheetFresh({refresh:true});},250);
+    });
+    return;
+  }
   await _fetchSheetFresh();
 }
 
@@ -675,14 +684,119 @@ function _readCache(){
   return null;
 }
 
-function _writeCache(){
-  try{localStorage.setItem('gd_sheet_cache',JSON.stringify({shows:shows,users:users,pins:userPins}));}catch(e){}
+function _writeCache(list){
+  try{localStorage.setItem('gd_sheet_cache',JSON.stringify({
+    shows:_sheetCacheShows(list||shows),
+    users:users,
+    pins:userPins,
+    userLimit:userLimit,
+    ts:Date.now()
+  }));}catch(e){}
 }
 
-async function _fetchSheetFresh(){
+function _writeCacheSoon(list){
+  const snapshot={
+    shows:_sheetCacheShows(list||shows),
+    users:users.slice(),
+    pins:Object.assign({},userPins),
+    userLimit:userLimit,
+    ts:Date.now()
+  };
+  const run=function(){try{localStorage.setItem('gd_sheet_cache',JSON.stringify(snapshot));}catch(e){}};
+  try{
+    if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
+    else setTimeout(run,250);
+  }catch(e){setTimeout(run,250);}
+}
+
+function _sheetCacheShows(list){
+  return (list||[]).map(function(s){
+    const attendedUsers=[];
+    Object.keys(s.attended||{}).forEach(function(u){
+      if(s.attended[u])attendedUsers.push(u);
+    });
+    return {
+      id:s.id,
+      date:s.date,
+      year:s.year,
+      venue:s.venue,
+      city:s.city,
+      attendedUsers:attendedUsers
+    };
+  });
+}
+
+function _hydrateSheetCacheShows(list){
+  return (list||[]).map(function(s){
+    if(s&&Array.isArray(s.attendedUsers)){
+      const att={};
+      s.attendedUsers.forEach(function(u){att[u]=true;});
+      return mkShow(s.date,s.venue,s.city,att,Number(String(s.id||'').split('-').pop())||0);
+    }
+    return s;
+  });
+}
+
+function _canRenderFromSheetCache(cached){
+  try{
+    if(!cached||!cached.shows||cached.shows.length<=5||!cached.users||!cached.users.length)return false;
+    if(!cached.shows.some(function(s){return s&&s.date&&s.venue&&(Array.isArray(s.attendedUsers)||(s.attended&&typeof s.attended==='object'));}))return false;
+    if(localStorage.getItem('gd_prior_guest')==='1')return true;
+    const saved=localStorage.getItem('gd_user');
+    const savedPin=localStorage.getItem('gd_pin');
+    const savedIsPending=saved&&localStorage.getItem('gd_pending_user')===saved;
+    return !!(saved&&cached.pins&&cached.pins[saved]&&savedPin===cached.pins[saved]&&(cached.users.includes(saved)||savedIsPending));
+  }catch(e){return false;}
+}
+
+function restoreSavedUserShell(){
+  try{
+    if(localStorage.getItem('gd_prior_guest')==='1')return false;
+    const saved=JSON.parse(localStorage.getItem('gd_current_user_cache')||'{}');
+    const name=saved.name||localStorage.getItem('gd_user');
+    const pin=saved.pin||localStorage.getItem('gd_pin');
+    if(!name||!pin)return false;
+    curUser=name;
+    guestMode=false;
+    viewUser=name;
+    myOnly=true;
+    document.getElementById('pinScreen').style.display='none';
+    document.getElementById('newUserScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='flex';
+    const loginUsers=document.getElementById('loginUsers');
+    if(loginUsers){
+      loginUsers.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>';
+    }
+    const loginClose=document.getElementById('loginCloseBtn');
+    if(loginClose)loginClose.style.display='none';
+    const hdr=document.getElementById('hdrUser');
+    if(hdr&&!document.getElementById('hdrAvatar')){
+      hdr.innerHTML='<div class="hdr-user-avatar" id="hdrAvatar">?</div><div class="hdr-user-name" id="hdrUserName">—</div>';
+    }
+    const col=saved.color||USER_COLORS[0];
+    const av=document.getElementById('hdrAvatar');
+    if(av){av.textContent=name[0];av.style.background=col+'22';av.style.color=col;}
+    const hn=document.getElementById('hdrUserName');
+    if(hn)hn.textContent=name;
+    const usel=document.getElementById('usel');
+    if(usel&&!Array.from(usel.options).some(function(o){return o.value===name;})){
+      const o=document.createElement('option');o.value=name;o.textContent=name;usel.appendChild(o);
+    }
+    if(usel)usel.value=name;
+    const myBtn=document.getElementById('myBtn');
+    if(myBtn)myBtn.classList.add('on');
+    return true;
+  }catch(e){return false;}
+}
+
+async function _fetchSheetFresh(opts){
+  opts=opts||{};
   // 1. Try JSONP (fastest, direct from Google)
   const r=await tryJSONP();
-  if(r&&r.length>5){_writeCache();onLoaded(r);return;}
+  if(r&&r.length>5){
+    if(opts.background){_writeCacheSoon(r);return;}
+    onLoaded(r,opts);_writeCacheSoon(r);return;
+  }
   // 2. Try CORS proxies in sequence
   for(const url of [
     'https://api.allorigins.win/raw?url='+encodeURIComponent(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`),
@@ -691,7 +805,14 @@ async function _fetchSheetFresh(){
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`
   ]){
     const t=await tryFetch(url,12000);
-    if(t){const r2=parseCSV(t);if(r2&&r2.length>5){_writeCache();onLoaded(r2);return;}}
+    if(t){const r2=parseCSV(t);if(r2&&r2.length>5){
+      if(opts.background){_writeCacheSoon(r2);return;}
+      onLoaded(r2,opts);_writeCacheSoon(r2);return;
+    }}
+  }
+  if(opts.background){
+    setTimeout(function(){setHdrSt('Could not refresh sheet — using cached data','warn');},1500);
+    return;
   }
   // 3. All network sources failed — use cache as last resort
   const cached=_readCache();
@@ -957,9 +1078,10 @@ function bgScanLabel(indexed,total,pct){
     : 'background scan '+pct+'%')+' · '+count;
 }
 
-function onLoaded(list){
+function onLoaded(list,opts){
+  opts=opts||{};
   shows=list;
-  try{
+  if(!opts.fromCache)try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
@@ -1030,7 +1152,8 @@ function onLoaded(list){
   // ── Bulk prefetch all years from Relisten ────────────────────
   // Fetches 31 years in parallel (~400ms), marks shows as available
   // instantly so green ▶ indicators appear without waiting for full loads
-  prefetchRelistenAvailability();
+  if(!opts.fromCache)prefetchRelistenAvailability();
+  window._gdSheetRefreshPending=!!opts.fromCache;
   restorePendingLocalUser();
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
   users.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;usel.appendChild(o);});
@@ -1047,7 +1170,7 @@ function onLoaded(list){
 
   // Apply any locally-cached attendance changes on top of sheet data first
   // so rebuildAttCache() is correct before loginAs() reads attCount()
-  loadAttendedLocal();
+  if(!opts.fromCache)loadAttendedLocal();
   rebuildAttCache();
 
   // Build login screen with real user data
@@ -1084,15 +1207,41 @@ function onLoaded(list){
       // else login screen stays visible
     }
   } else if(curUser){
-    // Already logged in - just re-render with fresh data
-    renderLoginScreen();
-    document.getElementById('loginScreen').style.display='none';
+    // Already restored from local cache - validate against the fresh sheet data.
+    const savedPin=localStorage.getItem('gd_pin')||'';
+    const savedIsPending=localStorage.getItem('gd_pending_user')===curUser;
+    if(userPins[curUser]&&savedPin&&savedPin!==userPins[curUser]&&!savedIsPending){
+      try{
+        localStorage.removeItem('gd_user');
+        localStorage.removeItem('gd_pin');
+        localStorage.removeItem('gd_current_user_cache');
+      }catch(e){}
+      curUser=null;viewUser='all';myOnly=false;
+      renderLoginScreen();
+      document.getElementById('loginScreen').style.display='flex';
+    }else{
+      renderLoginScreen();
+      document.getElementById('loginScreen').style.display='none';
+      if(users.includes(curUser)||savedIsPending){
+        viewUser=curUser;
+        const usel=document.getElementById('usel');
+        if(usel)usel.value=curUser;
+        const col=userColor(curUser);
+        const av=document.getElementById('hdrAvatar');
+        if(av){av.textContent=curUser[0];av.style.background=col+'22';av.style.color=col;}
+        const hn=document.getElementById('hdrUserName');
+        if(hn)hn.textContent=curUser;
+        myOnly=attCount(curUser)>0;
+        const myBtn=document.getElementById('myBtn');
+        if(myBtn)myBtn.classList.toggle('on',myOnly);
+      }
+    }
   }
 
   renderOthers();applyFilters();
-  bgLoadBatch();
+  if(!opts.fromCache)bgLoadBatch();
   // Restore last playback position after a short delay
-  setTimeout(restoreLastPosition, 3000);
+  if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
   loadFavorites(); // Load immediately - uses cache for instant display
   if(curUser)updateViewStats();
   // Load Cast SDK lazily — must not block show rendering
@@ -1247,6 +1396,14 @@ function loginAs(name,save){
     }
   }catch(e){}
   if(localStorage.getItem('gd_pending_user')!==name)trackVisit(name);
+  try{
+    localStorage.setItem('gd_current_user_cache',JSON.stringify({
+      name:name,
+      pin:userPins[name]||localStorage.getItem('gd_pin')||'',
+      color:userColor(name),
+      ts:Date.now()
+    }));
+  }catch(e){}
   setTimeout(function(){refreshAttendance(true);}, 1000);
   // Restore header avatar structure in case guest mode replaced it with a span
   const hdr=document.getElementById('hdrUser');
@@ -1276,6 +1433,16 @@ function loginAs(name,save){
 function switchUser(){
   // Just show the user selection screen — no confirm needed
   // Tapping own name closes, tapping another name asks for PIN
+  if(!users.length){
+    const el=document.getElementById('loginUsers');
+    if(el)el.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>';
+    document.getElementById('pinScreen').style.display='none';
+    document.getElementById('newUserScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='flex';
+    var cb0=document.getElementById('loginCloseBtn');
+    if(cb0)cb0.style.display=curUser?'flex':'none';
+    return;
+  }
   renderLoginScreen();
   document.getElementById('loginScreen').style.display='flex';
   var cb=document.getElementById('loginCloseBtn');
@@ -1520,7 +1687,7 @@ function applyYearFilter(){
     if(el)el.scrollTop=0;
   });
 }
-function applyFilters(){
+function currentFilteredShows(){
   const q=document.getElementById('q').value.toLowerCase();
   const yr=document.getElementById('yrSel').value;
   let list=shows.filter(s=>{
@@ -1534,13 +1701,19 @@ function applyFilters(){
     return true;
   });
   if(!sortDesc)list=[...list].reverse();
+  return list;
+}
+function applyFilters(){
+  const list=currentFilteredShows();
   filtered=list;
   const _loaded=shows.filter(showLooksIndexed).length;
   const _total=shows.length;
   const _pct=Math.round(_loaded/_total*100);
-  const _prog=(_loaded<_total)
-    ? ` <span style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
-    : '';
+  const _prog=window._gdSheetRefreshPending
+    ? ' <span style="color:var(--gold2);font-size:10px">· cached sheet data · refreshing Google Sheets…</span>'
+    : ((_loaded<_total)
+      ? ` <span style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
+      : '');
   if(_loaded>=_total)setFullReindexRebuilding(false);
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
@@ -1570,6 +1743,9 @@ function updateViewStats(){
 // ── LIST ──────────────────────────────────────────────────────────
 function renderList(){
   const el=document.getElementById('list');
+  if(!filtered.length&&shows.length){
+    filtered=currentFilteredShows();
+  }
   if(!filtered.length){el.innerHTML='<div class="empty">No shows match</div>';return;}
   // Check if archive.org seems down
   const naCount=shows.filter(s=>s.notAvail&&s.metaLoaded).length;
@@ -1798,6 +1974,15 @@ function updateSongCntProgress(){
   // Update Shows tab cntbar progress indicator
   const cntbar=document.getElementById('cntbar');
   if(cntbar){
+    if(window._gdSheetRefreshPending){
+      const current=cntbar.innerHTML;
+      const base=current
+        .replace(/\s*<span[^>]*class="bgscan-prog"[^>]*>.*?<\/span>/g,'')
+        .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows indexed)?/gi,'')
+        .trimEnd();
+      cntbar.innerHTML=base+' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· cached sheet data · refreshing Google Sheets…</span>';
+      return;
+    }
     const prog=allDone
       ? ''
       : ' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· '+bgScanLabel(indexed,total,pct)+'</span>';
@@ -3144,6 +3329,7 @@ function switchTab(name){
   if(name==='others')refreshAttendance(false);
 }
 
+restoreSavedUserShell();
 loadData();
 logVisit();
 // Set poster button visible once DOM is ready (element is below the script tag)
@@ -4671,6 +4857,7 @@ async function originalSyncData(){
     // Re-fetch the sheet data
     const r=await tryJSONP();
     if(r){
+      _writeCacheSoon(r);
       // Preserve current audio state
       const wasPlaying=playing;
       const wasShow=curShow;
@@ -4812,7 +4999,7 @@ function retryShowMeta(id){
       <div id="msgText" style="font-size:15px;color:#d8d0c0;line-height:1.7;margin-bottom:14px"></div>
       <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:8px">Questions or feedback? <span onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d" style="color:var(--gold);cursor:pointer;text-decoration:underline">ronsdeadheadlistener&#64;gmail.com</span></div>
       <div style="text-align:center;margin-bottom:16px">
-        <a href="https://www.facebook.com/profile.php?id=61576644026202" target="_blank" style="display:inline-flex;align-items:center;gap:7px;color:var(--gold);text-decoration:none;font-size:12px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:20px;padding:6px 14px">
+        <a href="https://www.facebook.com/groups/1948010975809649" target="_blank" style="display:inline-flex;align-items:center;gap:7px;color:var(--gold);text-decoration:none;font-size:12px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:20px;padding:6px 14px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
           Ron's Listener on Facebook
         </a>
@@ -4912,7 +5099,7 @@ function retryShowMeta(id){
           <span id="contact-link" style="font-size:15px;color:#c8c0b0;cursor:pointer" onclick="var p='ronsdeadheadlistener',d='gmail.com',at=String.fromCharCode(64);window.location='mailto:'+p+at+d">✉ <span id="contact-email" style="text-decoration:underline">ronsdeadheadlistener&#64;gmail.com</span></span>
           <div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:5px">questions · new users · feedback</div>
           <div style="margin-top:10px">
-            <a href="https://www.facebook.com/profile.php?id=61576644026202" target="_blank" style="display:inline-flex;align-items:center;gap:7px;color:var(--gold);text-decoration:none;font-size:13px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:20px;padding:7px 16px">
+            <a href="https://www.facebook.com/groups/1948010975809649" target="_blank" style="display:inline-flex;align-items:center;gap:7px;color:var(--gold);text-decoration:none;font-size:13px;background:rgba(200,168,75,.08);border:1px solid rgba(200,168,75,.25);border-radius:20px;padding:7px 16px">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
               Ron's Listener on Facebook
             </a>
