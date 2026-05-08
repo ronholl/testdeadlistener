@@ -2575,6 +2575,7 @@ function fmtSize(b){const mb=b/1048576;return(mb>100?Math.round(mb):mb.toFixed(1
 // ── PLAYBACK ─────────────────────────────────────────────────────
 function playTrack(idx){
   if(!curShow?.tracks)return;
+  touchFavoritePlayback(curShow);
   const map = buildVisibleTrackIndexMap(curShow);
   const target = map[Math.max(0,Math.min(idx,map.length-1))];
   if(target==null) return;
@@ -2583,6 +2584,7 @@ function playTrack(idx){
 }
 function quickPlay(id){
   const show=shows.find(s=>s.id===id);if(!show||show.notAvail)return;
+  touchFavoritePlayback(show);
   if(curShow?.id===id&&audio){
     playing?pauseAudio():resumeAudio();
     return;
@@ -3132,6 +3134,7 @@ function doSongSearch(refreshOnly){
 async function openSetlistAndPlay(id,song){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
+  touchFavoritePlayback(show);
 
   // Open the setlist panel
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
