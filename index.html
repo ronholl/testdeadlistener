@@ -1400,7 +1400,7 @@ function loginAs(name,save){
       localStorage.setItem('gd_pin',userPins[name]||'');
     }
   }catch(e){}
-  if(localStorage.getItem('gd_pending_user')!==name)trackVisit(name);
+  if(localStorage.getItem('gd_pending_user')!==name)trackVisit(name, !!save);
   try{
     localStorage.setItem('gd_current_user_cache',JSON.stringify({
       name:name,
@@ -4801,12 +4801,19 @@ function getOrCreateGuestId(){
   return id;
 }
 
+function visitorClientKey(user,browserId){
+  const u=(user||'guest').toString().trim();
+  if(u&&u.toLowerCase()!=='guest')return 'user:'+u.toLowerCase().replace(/\s+/g,' ');
+  return browserId;
+}
+
 async function trackVisit(userName, force){
   try{
     const isGuest=!userName||userName==='guest';
-    const deviceId=getOrCreateGuestId();
+    const browserId=getOrCreateGuestId();
     const user=isGuest?'guest':userName;
-    const throttleKey='gd_visit_ping_'+user.toLowerCase();
+    const visitorKey=visitorClientKey(user,browserId);
+    const throttleKey='gd_visit_ping_'+visitorKey;
     const now=Date.now();
     const last=parseInt(localStorage.getItem(throttleKey)||'0',10);
     if(!force&&last&&now-last<30*60*1000)return;
@@ -4814,8 +4821,9 @@ async function trackVisit(userName, force){
     const payload={
       action:'trackVisit',
       user:user,
-      deviceId:deviceId,
-      guestId:deviceId // backward compat
+      deviceId:visitorKey,
+      browserId:browserId,
+      guestId:browserId // backward compat
     };
     fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
       body:JSON.stringify(payload),
