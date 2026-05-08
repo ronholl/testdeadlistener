@@ -1247,7 +1247,7 @@ function onLoaded(list,opts){
   // Restore last playback position after a short delay
   if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
   loadFavorites(); // Load immediately - uses cache for instant display
-  if(curUser)updateViewStats();
+  if(curUser){updateViewStats();scheduleAdminMsgCheck(opts.fromCache?4500:3500);}
   // Load Cast SDK lazily — must not block show rendering
   // Sets up window callback first so SDK fires initCastApi when ready
   setTimeout(function(){
@@ -1431,7 +1431,7 @@ function loginAs(name,save){
   applyFilters();updateAttCount();updateViewStats();
   setHdrSt('Welcome back, '+name+'!','ok');
   // Check for admin message after list settles — delayed so it doesn't interrupt loading
-  setTimeout(checkAdminMsg, 3500);
+  scheduleAdminMsgCheck(3500);
 }
 
 function switchUser(){
@@ -4442,6 +4442,12 @@ async function checkAdminMsg(){
     console.log('getMessage: showing message',d.id);
     showMsg(d.id,d.text);
   }catch(e){console.warn('checkAdminMsg error',e.message);}
+}
+let _adminMsgCheckScheduled=false;
+function scheduleAdminMsgCheck(delay){
+  if(_adminMsgCheckScheduled)return;
+  _adminMsgCheckScheduled=true;
+  setTimeout(checkAdminMsg, delay||3500);
 }
 function showMsg(id,text){
   const overlay=document.getElementById('msgOverlay');
