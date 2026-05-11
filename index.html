@@ -4064,13 +4064,21 @@ function loadTodayShows(){
                   'July','August','September','October','November','December'];
   dateEl.textContent = months[today.getMonth()]+' '+today.getDate()+' in Dead history';
 
-  // Find all shows on this month/day
+  // Find all shows on this month/day. Do not depend on relistenAvail/metaLoaded:
+  // those are populated by each device's local cache/background scan, so the
+  // Jam card could show 0, 1, or 3 shows on different devices for the same day.
   const todayShows = shows
-    .filter(s=>s.date && s.date.endsWith(suffix) && (s.relistenAvail||s.metaLoaded))
+    .filter(function(s){
+      return s.date && s.date.endsWith(suffix) && !s.notAvail && !s.allRestricted;
+    })
     .sort(function(a,b){
+      const ap=showLooksPlayable(a)?1:0;
+      const bp=showLooksPlayable(b)?1:0;
+      if(ap!==bp)return bp-ap;
       const ra=a.relistenRating||a.rating||0;
       const rb=b.relistenRating||b.rating||0;
-      return rb-ra;
+      if(ra!==rb)return rb-ra;
+      return (a.date||'').localeCompare(b.date||'');
     });
 
   if(!todayShows.length){
@@ -4377,7 +4385,7 @@ function jamShowCard(s, showPlay, songName){
   const rating = s.relistenRating||s.rating||0;
   const stars = rating ? '\u2605 '+rating.toFixed(1) : '';
   const sbd = s.relistenSbd ? '<span class="jam-show-sbd">SBD</span>' : '';
-  const hasAudio = s.relistenAvail||s.metaLoaded;
+  const hasAudio = showLooksPlayable(s);
   const songLine = songName
     ? '<div style="font-size:11px;color:rgba(200,168,75,.7);margin-top:3px">\u266b '+esc(songName)+'</div>'
     : '';
