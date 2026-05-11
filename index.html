@@ -4141,7 +4141,9 @@ function loadTodayShows(){
     return;
   }
 
-  listEl.innerHTML = todayShows.slice(0,5).map(function(s){
+  dateEl.textContent += ' · '+todayShows.length+' show'+(todayShows.length===1?'':'s');
+
+  listEl.innerHTML = todayShows.map(function(s){
     return jamShowCard(s);
   }).join('');
 }
