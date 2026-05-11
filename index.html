@@ -42,9 +42,10 @@
   --text:#e8e0d0;--muted:#77706a;
   --mono:'IBM Plex Mono',monospace;--serif:'Playfair Display',serif;
 }
-html,body{height:100%;background:#000;overscroll-behavior:none}
+html,body{height:100%;background:#000;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow:hidden}
 body{display:flex;justify-content:center}
-#app{background:var(--bg);color:var(--text);font-family:var(--mono);width:100%;max-width:520px;height:100vh;display:flex;flex-direction:column;border-left:1px solid var(--border);border-right:1px solid var(--border);position:relative;overflow:hidden}
+#app{background:var(--bg);color:var(--text);font-family:var(--mono);width:100%;max-width:520px;height:100vh;height:100dvh;display:flex;flex-direction:column;border-left:1px solid var(--border);border-right:1px solid var(--border);position:relative;overflow:hidden}
+@supports (height:100svh){#app{height:100svh}}
 
 /* ── LOGIN SCREEN ── */
 #loginScreen{position:absolute;inset:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:0;overflow-y:auto}
@@ -327,6 +328,60 @@ body{display:flex;justify-content:center}
   .tl-dur{font-size:12px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
   .tl-cur .tl-dur{color:var(--gold)}
   .tl-arrow{color:var(--muted);font-size:11px;opacity:.4;margin-left:3px}
+
+@media (max-width:390px),(max-height:740px){
+  .hdr{padding:8px 12px;gap:8px}
+  .hdr-logo{width:32px;height:32px}
+  .hdr-title{font-size:14px;max-width:100%}
+  .hdr-sub{font-size:10px;letter-spacing:.8px;line-height:1.35}
+  .hdr-st{font-size:8px;min-height:9px}
+  .hdr-user,#syncBtn,#helpBtn{width:30px!important;height:30px!important;min-width:30px!important}
+  .tabs{top:52px}
+  .tab{padding:8px 3px;font-size:9px;letter-spacing:.35px}
+  .ubar{padding:6px 12px;gap:6px}
+  .usel{min-width:0;font-size:11px;padding:4px 7px}
+  .ucnt{font-size:9px}
+  .stats{min-height:0}
+  .stat{padding:7px 4px}
+  .stat-n{font-size:21px;line-height:1.12}
+  .stat-l{font-size:8px;letter-spacing:.5px}
+  .filters{padding:8px 12px;gap:6px}
+  .srch{padding:7px 10px;font-size:12px}
+  .frow{gap:5px}
+  .fsel,.ftog{font-size:9px;padding:5px 6px}
+  .cntbar{font-size:9px;padding:5px 12px;line-height:1.35}
+  .row{padding:9px 12px;gap:7px;min-height:72px}
+  .row-date{font-size:12px;min-width:80px}
+  .row-venue{font-size:15px}
+  .row-city{font-size:12px}
+  .row-songs{font-size:11px}
+  .row-right{gap:4px}
+  .row-btns{gap:4px}
+  .fav-btn,.mine-btn{width:26px;height:26px;font-size:13px}
+  .pbtn{width:28px;height:28px}
+  .badge{width:18px;height:18px;font-size:7px}
+  .mini-player{padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px))}
+  .mp-row{gap:7px}
+  .mp-song{font-size:13px}
+  .mp-show{font-size:10px}
+  .mp-btn{width:32px;height:32px}
+  .mp-btn.main{width:36px;height:36px}
+  .mp-prog{margin-top:5px}
+}
+
+@media (max-width:340px){
+  .hdr{padding-left:10px;padding-right:10px}
+  .hdr-title{font-size:13px}
+  .hdr-sub{font-size:9px;letter-spacing:.6px}
+  .tab{font-size:8px}
+  .ubar label{display:none}
+  .row-date{min-width:74px;font-size:11px;letter-spacing:0}
+  .row-venue{font-size:14px}
+  .row-city,.row-songs{font-size:11px}
+  .badges{display:none}
+  .fav-btn,.mine-btn{width:25px;height:25px}
+  .pbtn{width:27px;height:27px}
+}
 
 </style>
   <link rel="icon" href="favicon_tight.ico">
@@ -5017,8 +5072,7 @@ function pauseAtPosition(show,trackIdx,pos){
   setTimeout(function(){setHdrSt('','');},4000);
 }
 
-async 
-function showReloadOptions(){
+async function showReloadOptions(){
   var ov=document.getElementById('reloadMenuOverlay');
   if(!ov)return;
   ov.style.display='flex';
