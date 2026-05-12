@@ -4119,20 +4119,13 @@ function loadTodayShows(){
                   'July','August','September','October','November','December'];
   dateEl.textContent = months[today.getMonth()]+' '+today.getDate()+' in Dead history';
 
-  // Find all shows on this month/day. Do not depend on relistenAvail/metaLoaded:
-  // those are populated by each device's local cache/background scan, so the
-  // Jam card could show 0, 1, or 3 shows on different devices for the same day.
+  // Find every show on this month/day. Availability flags are learned per device
+  // through local cache/background scans, so they must not decide count or order.
   const todayShows = shows
     .filter(function(s){
-      return s.date && s.date.endsWith(suffix) && !s.notAvail && !s.allRestricted;
+      return s.date && s.date.endsWith(suffix);
     })
     .sort(function(a,b){
-      const ap=showLooksPlayable(a)?1:0;
-      const bp=showLooksPlayable(b)?1:0;
-      if(ap!==bp)return bp-ap;
-      const ra=a.relistenRating||a.rating||0;
-      const rb=b.relistenRating||b.rating||0;
-      if(ra!==rb)return rb-ra;
       return (a.date||'').localeCompare(b.date||'');
     });
 
