@@ -2103,6 +2103,15 @@ function stripLeadingNonSongTracks(tracks){
 function cleanTrackLabel(s){
   return (s || '')
     .replace(/\.(mp3|ogg|flac|m4a|shn|wav)$/i,'')
+    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}\s*s\d+\s*t\d+\s*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}d\d+t\d+\s*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]xx[-_. ]xx[-_. ](?:studio[-_. ]?)?t\d+\s*/i,'')
+    .replace(/^s\d+\s*t\d+\s*/i,'')
+    .replace(/^d\d+t\d+\s*/i,'')
+    .replace(/^track\s*\d+\s*[-:.]?\s*/i,'')
+    .replace(/^\d{1,2}\s*\/+\s*/,'')
+    .replace(/^\d{1,2}\s*[-.)]\s*/,'')
+    .replace(/^\/+\s*/,'')
     .replace(/\s*->$/,'')
     .replace(/_/g,' ')
     .replace(/\s+/g,' ')
@@ -2123,6 +2132,75 @@ function looksLikeTapeId(s){
 function getUsableArchiveLabel(t){
   const raw=cleanTrackLabel((((t&&t.title)||'') || ((t&&t.name)||'')).toString());
   return raw && !looksLikeTapeId(raw) ? raw : '';
+}
+
+function sourceTitleQuality(src){
+  try{
+    const tracks=(src&&src.sets||[]).flatMap(function(set){return set.tracks||[];});
+    if(!tracks.length)return 0;
+    let score=0;
+    tracks.forEach(function(t){
+      const raw=(((t&&t.title)||'')||((t&&t.name)||'')).toString();
+      const clean=cleanTrackLabel(raw);
+      if(clean&&!looksLikeTapeId(clean))score+=2;
+      if(raw&&clean&&raw!==clean)score-=0.35;
+      if(/^track\s*\d+$/i.test(raw.trim()))score-=1;
+    });
+    return score/tracks.length;
+  }catch(e){
+    return 0;
+  }
+}
+
+function sourceTrackCount(src){
+  try{
+    const tracks=(src&&src.sets||[]).flatMap(function(set){return set.tracks||[];});
+    const seen=new Set();
+    tracks.forEach(function(t){
+      const raw=(((t&&t.title)||'')||((t&&t.name)||'')).toString();
+      const clean=normalizeSongForMatch(cleanTrackLabel(raw)).replace(/\\+/g,'').replace(/\s*>\s*$/,'').trim();
+      if(clean)seen.add(clean);
+    });
+    return seen.size||tracks.length;
+  }catch(e){
+    return 0;
+  }
+}
+
+function sourceCompleteness(src,maxTracks){
+  const count=sourceTrackCount(src);
+  if(!count||!maxTracks)return 0;
+  return count/maxTracks;
+}
+
+function sourceTrackDedupeKey(t){
+  const raw=(((t&&t.title)||'')||((t&&t.name)||'')).toString();
+  return normalizeSongForMatch(cleanTrackLabel(raw)).replace(/\\+/g,'').replace(/\s*>\s*$/,'').trim();
+}
+
+function preferTrackVersion(a,b){
+  const am=(a&&a.mp3)||'';
+  const bm=(b&&b.mp3)||'';
+  if(bm.includes('_vbr')&&!am.includes('_vbr'))return b;
+  if(am.includes('_vbr')&&!bm.includes('_vbr'))return a;
+  return a;
+}
+
+function dedupeSourceTracks(tracks){
+  const out=[];
+  (tracks||[]).forEach(function(t){
+    const key=sourceTrackDedupeKey(t);
+    const dur=parseFloat(t&&t.length)||0;
+    const p=out[out.length-1];
+    const pKey=sourceTrackDedupeKey(p);
+    const pDur=parseFloat(p&&p.length)||0;
+    if(key&&pKey&&key===pKey&&(!dur||!pDur||Math.abs(dur-pDur)<=3)){
+      out[out.length-1]=preferTrackVersion(p,t);
+    }else{
+      out.push(t);
+    }
+  });
+  return out;
 }
 
 
@@ -2216,8 +2294,14 @@ async function loadShowMeta(show,priority,forceArchiveBg){
       if(r.ok){
         const d=await r.json();
         if(d&&d.sources&&d.sources.length){
-          // Sort sources: highest weighted rating first
+          const maxTracks=Math.max.apply(null,d.sources.map(sourceTrackCount));
+          // Sort sources by show completeness first, then usable track titles, then rating.
+          // Ratings alone can pick a pristine partial set over a full-show recording.
           const srcs=d.sources.slice().sort(function(a,b){
+            const cq=sourceCompleteness(b,maxTracks)-sourceCompleteness(a,maxTracks);
+            if(Math.abs(cq)>0.25)return cq;
+            const tq=sourceTitleQuality(b)-sourceTitleQuality(a);
+            if(Math.abs(tq)>0.25)return tq;
             return (b.avg_rating_weighted||0)-(a.avg_rating_weighted||0);
           });
           // Store all recordings
@@ -2250,22 +2334,8 @@ async function loadShowMeta(show,priority,forceArchiveBg){
               });
             });
           });
-          // Deduplicate by title+duration (Relisten returns _vbr.mp3 + .mp3 for same track)
-          // Prefer the _vbr.mp3 version (better quality)
-          const seenKey=new Map(); // title|duration -> index in deduped
-          const deduped=[];
-          tracks.forEach(function(t){
-            const key=t.name+'|'+t.length;
-            if(seenKey.has(key)){
-              // Prefer vbr version
-              if(t.mp3&&t.mp3.includes('_vbr')){
-                deduped[seenKey.get(key)]=t;
-              }
-            } else {
-              seenKey.set(key,deduped.length);
-              deduped.push(t);
-            }
-          });
+          // Relisten can return both _vbr.mp3 and .mp3 rows for the same Archive track.
+          const deduped=dedupeSourceTracks(tracks);
           if(deduped.length<tracks.length){
             console.log('[GD] Deduped '+show.date+': '+tracks.length+' -> '+deduped.length+' tracks');
           }
@@ -4594,13 +4664,7 @@ async function switchRecording(showId,newId){
             });
           });
           if(tracks.length){
-            // Deduplicate consecutive identical tracks
-            const dd=[];
-            tracks.forEach(function(t){
-              const p=dd[dd.length-1];
-              if(p&&p.name===t.name&&p.length===t.length&&p.mp3===t.mp3)return;
-              dd.push(t);
-            });
+            const dd=dedupeSourceTracks(tracks);
             show.tracks=dd;
             show.totalDur=dd.reduce(function(s,t){return s+(parseFloat(t.length)||0);},0);
             const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
