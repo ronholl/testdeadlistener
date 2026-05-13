@@ -713,7 +713,20 @@ function savePos(id,t){
   }catch(e){}
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function fmtT(s){if(!s||isNaN(s))return'0:00';const m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}
+function parseDurationSeconds(v){
+  if(v===null||v===undefined||v==='')return 0;
+  if(typeof v==='number')return isNaN(v)?0:v;
+  const s=String(v).trim();
+  if(!s)return 0;
+  if(s.indexOf(':')>=0){
+    const parts=s.split(':').map(function(p){return parseFloat(p)||0;});
+    if(parts.length===3)return parts[0]*3600+parts[1]*60+parts[2];
+    if(parts.length===2)return parts[0]*60+parts[1];
+  }
+  const n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function fmtT(s){s=parseDurationSeconds(s);if(!s)return'0:00';const m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}
 function setHdrSt(msg,cls){const el=document.getElementById('hdrSt');el.textContent=msg;el.className='hdr-st '+(cls||'');if(cls==='ok')setTimeout(()=>{el.textContent='';el.className='hdr-st';},4000);}
 function userColor(name){const i=users.indexOf(name);return USER_COLORS[i>=0?i%USER_COLORS.length:0];}
 
@@ -2211,10 +2224,10 @@ function dedupeSourceTracks(tracks){
   const out=[];
   (tracks||[]).forEach(function(t){
     const key=sourceTrackDedupeKey(t);
-    const dur=parseFloat(t&&t.length)||0;
+    const dur=parseDurationSeconds(t&&t.length);
     const p=out[out.length-1];
     const pKey=sourceTrackDedupeKey(p);
-    const pDur=parseFloat(p&&p.length)||0;
+    const pDur=parseDurationSeconds(p&&p.length);
     if(key&&pKey&&key===pKey&&(!dur||!pDur||Math.abs(dur-pDur)<=3)){
       out[out.length-1]=preferTrackVersion(p,t);
     }else{
@@ -2362,7 +2375,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
           }
           show.tracks=deduped;
           show.setBreaks=setBreaks;
-          show.totalDur=deduped.reduce(function(s,t){return s+(parseFloat(t.length)||0);},0);
+          show.totalDur=deduped.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
           // Song names come from the same deduped track list used for playback.
           const songs=deduped.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
           if(songs.length){
@@ -2516,7 +2529,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
       const allT=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
       show.tracks=stripLeadingNonSongTracks(show.tracks);
-      show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
+      show.totalDur=show.tracks.reduce(function(s,f){return s+parseDurationSeconds(f.length);},0);
       if(show.tracks.length>0) show.allRestricted=false;
       show._needsArchive=false;
       show._archiveTempFail=false;
@@ -2624,7 +2637,7 @@ function renderSetlistBody(show){
   const visibleMap = buildVisibleTrackIndexMap(show);
   visibleMap.forEach(function(rawIdx,vi){
     const t=show.tracks[rawIdx];
-    const dur=t.length?fmtT(parseFloat(t.length)):'';
+    const dur=t.length?fmtT(t.length):'';
     const rawLabel=((t&&t.title)||'').toString()||((t&&t.name)||'').toString();
     const hasTransition=rawLabel&&rawLabel.trim().endsWith('->');
     const songName=visibleTrackLabel(show,vi);
@@ -4704,7 +4717,7 @@ async function switchRecording(showId,newId){
           if(tracks.length){
             const dd=dedupeSourceTracks(tracks);
             show.tracks=dd;
-            show.totalDur=dd.reduce(function(s,t){return s+(parseFloat(t.length)||0);},0);
+            show.totalDur=dd.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
             const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
             applyBestCachedSetlist(show,trackSongs);
             if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
@@ -4738,7 +4751,7 @@ async function switchRecording(showId,newId){
     });
     show.tracks=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
     if(!show.tracks.length)show.tracks=Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
-    show.totalDur=show.tracks.reduce(function(s,f){return s+(parseFloat(f.length)||0);},0);
+    show.totalDur=show.tracks.reduce(function(s,f){return s+parseDurationSeconds(f.length);},0);
     renderSetlistBody(show);
   }catch(e){
     document.getElementById('sp-body').innerHTML='<div class="sp-unavail">Could not load recording: '+e.message+'</div>';
