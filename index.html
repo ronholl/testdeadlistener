@@ -2105,6 +2105,7 @@ function cleanTrackLabel(s){
     .replace(/\.(mp3|ogg|flac|m4a|shn|wav)$/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}\s*s\d+\s*t\d+\s*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}d\d+t\d+\s*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}t\d+\s*/i,'')
     .replace(/^gd\d{2,4}[-_. ]xx[-_. ]xx[-_. ](?:studio[-_. ]?)?t\d+\s*/i,'')
     .replace(/^s\d+\s*t\d+\s*/i,'')
     .replace(/^d\d+t\d+\s*/i,'')
@@ -2171,6 +2172,26 @@ function sourceCompleteness(src,maxTracks){
   const count=sourceTrackCount(src);
   if(!count||!maxTracks)return 0;
   return count/maxTracks;
+}
+
+function archivePlayableFiles(meta){
+  return (meta&&meta.files||[]).filter(function(f){
+    return f.name&&(f.name.endsWith('.mp3')||f.name.endsWith('.ogg'))&&!f.name.includes('_sample');
+  });
+}
+
+function archiveMetaAsSource(meta){
+  return {sets:[{tracks:archivePlayableFiles(meta).map(function(f){
+    return {title:f.title||'',name:f.name||'',length:f.length||''};
+  })}]};
+}
+
+function archiveMetaTrackCount(meta){
+  return sourceTrackCount(archiveMetaAsSource(meta));
+}
+
+function archiveMetaTitleQuality(meta){
+  return sourceTitleQuality(archiveMetaAsSource(meta));
 }
 
 function sourceTrackDedupeKey(t){
@@ -2429,19 +2450,36 @@ async function loadShowMeta(show,priority,forceArchiveBg){
       if(docs.every(function(d){return d['access-restricted-item'];})){
         show.allRestricted=true;
       }
-      const best=docs.find(function(d){return !d['access-restricted-item'];})||docs[0];
-      show.archiveId=best.identifier;show.rating=best.avg_rating||0;
-      let meta=null;
+      let metaCandidates=[];
       let metaTempFail=false;
       for(let i=0;i<docs.length;i++){
         const doc=docs[i];
         try{
-          if(metaCache[doc.identifier]){meta=metaCache[doc.identifier];show.archiveId=doc.identifier;break;}
-          const r=await fetch('https://archive.org/metadata/'+doc.identifier,{signal:AbortSignal.timeout(tOut)});
-          if(r.ok){meta=await r.json();metaCache[doc.identifier]=meta;show.archiveId=doc.identifier;break;}
-          else if(r.status===429||r.status>=500)metaTempFail=true;
+          let docMeta=metaCache[doc.identifier];
+          if(!docMeta){
+            const r=await fetch('https://archive.org/metadata/'+doc.identifier,{signal:AbortSignal.timeout(tOut)});
+            if(r.ok){docMeta=await r.json();metaCache[doc.identifier]=docMeta;}
+            else if(r.status===429||r.status>=500)metaTempFail=true;
+          }
+          if(docMeta)metaCandidates.push({doc:doc,meta:docMeta});
         }catch(e){metaTempFail=true;}
       }
+      if(metaCandidates.length){
+        const maxArchiveTracks=Math.max.apply(null,metaCandidates.map(function(c){return archiveMetaTrackCount(c.meta);}));
+        metaCandidates.sort(function(a,b){
+          const aR=a.doc['access-restricted-item']?1:0,bR=b.doc['access-restricted-item']?1:0;
+          if(aR!==bR)return aR-bR;
+          const tq=archiveMetaTitleQuality(b.meta)-archiveMetaTitleQuality(a.meta);
+          if(Math.abs(tq)>0.75)return tq;
+          const cq=sourceCompleteness(archiveMetaAsSource(b.meta),maxArchiveTracks)-sourceCompleteness(archiveMetaAsSource(a.meta),maxArchiveTracks);
+          if(Math.abs(cq)>0.25)return cq;
+          return (b.doc.avg_rating||0)-(a.doc.avg_rating||0);
+        });
+      }
+      const chosen=metaCandidates[0]||null;
+      const best=chosen&&chosen.doc;
+      let meta=chosen&&chosen.meta;
+      if(best){show.archiveId=best.identifier;show.rating=best.avg_rating||0;}
       if(!meta&&metaTempFail){
         show._needsArchive=true;show._archiveTempFail=true;
         show.metaLoaded=false;show.notAvail=false;
