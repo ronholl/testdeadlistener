@@ -727,6 +727,18 @@ function parseDurationSeconds(v){
   return isNaN(n)?0:n;
 }
 function fmtT(s){s=parseDurationSeconds(s);if(!s)return'0:00';const m=Math.floor(s/60);return m+':'+String(Math.floor(s%60)).padStart(2,'0');}
+function refreshTrackDurationFromAudio(show,idx,aud){
+  if(!show||!show.tracks||!show.tracks[idx]||!aud||!isFinite(aud.duration)||aud.duration<=0)return;
+  const old=parseDurationSeconds(show.tracks[idx].length);
+  const fresh=aud.duration;
+  if(!old||Math.abs(old-fresh)>2){
+    show.tracks[idx].length=String(fresh);
+    show.totalDur=show.tracks.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
+    show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
+    if(curShow&&curShow.id===show.id)renderSetlistBody(show);
+    renderMiniPlayer();updateSpPlayer();
+  }
+}
 function setHdrSt(msg,cls){const el=document.getElementById('hdrSt');el.textContent=msg;el.className='hdr-st '+(cls||'');if(cls==='ok')setTimeout(()=>{el.textContent='';el.className='hdr-st';},4000);}
 function userColor(name){const i=users.indexOf(name);return USER_COLORS[i>=0?i%USER_COLORS.length:0];}
 
@@ -2843,7 +2855,7 @@ function startPlayback(show,idx,resumeAt){
     if(!resumePos||resumeSeeked||!audio)return;
     try{audio.currentTime=Math.max(0,resumePos-1);resumeSeeked=true;}catch(e){}
   }
-  audio.onloadedmetadata=function(){ seekAfterRetry(); };
+  audio.onloadedmetadata=function(){ refreshTrackDurationFromAudio(show,idx,audio); seekAfterRetry(); };
   audio.oncanplay=function(){ seekAfterRetry(); _stopBufferTimer(); _updateBufferUI(); };
   audio.onwaiting=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); };
   audio.onstalled=function(){ if(!_bufferTimer)_startBufferTimer(show,idx); };
@@ -5049,7 +5061,7 @@ function pauseAtPosition(show,trackIdx,pos){
     if(!pos||pos<=0||_seeked)return;
     try{audio.currentTime=pos;_seeked=true;}catch(e){}
   }
-  audio.onloadedmetadata=function(){_doSeek();};
+  audio.onloadedmetadata=function(){refreshTrackDurationFromAudio(show,trackIdx,audio);_doSeek();};
   audio.ontimeupdate=function(){
     if(!_seeked)_doSeek();
     savePos(show.id,audio.currentTime);updateProgress();
