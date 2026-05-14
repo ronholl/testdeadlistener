@@ -1168,6 +1168,7 @@ function applyBestCachedSetlist(show, incomingSongs, cached){
 
 
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
+const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
 function readShowFlags(){
   try{return JSON.parse(localStorage.getItem(SHOW_FLAGS_KEY)||'{}')||{};}catch(e){return {};}
 }
@@ -1185,6 +1186,27 @@ function saveShowFlags(show){
       archiveIdHintLoaded:show.archiveIdHintLoaded||''
     };
     writeShowFlags(flags);
+  }catch(e){}
+}
+function readArchiveHintFingerprints(){
+  try{return JSON.parse(localStorage.getItem(ARCHIVE_HINT_FP_KEY)||'{}')||{};}catch(e){return {};}
+}
+function writeArchiveHintFingerprints(fp){
+  try{localStorage.setItem(ARCHIVE_HINT_FP_KEY,JSON.stringify(fp||{}));}catch(e){}
+}
+function archiveHintFingerprint(show){
+  if(!show)return '';
+  if(show.archiveNoAudioHint)return 'NO_AUDIO';
+  return normalizeArchiveId(show.archiveIdHint||'');
+}
+function clearShowFlagsForShow(show){
+  try{
+    if(!show||!show.id)return;
+    const flags=readShowFlags();
+    if(flags&&Object.prototype.hasOwnProperty.call(flags,show.id)){
+      delete flags[show.id];
+      writeShowFlags(flags);
+    }
   }catch(e){}
 }
 function markShowSetlistCached(show){
@@ -1248,18 +1270,25 @@ function invalidateShowForArchiveHint(show,hint){
   show._archiveHintRefreshNeeded=true;
   removeShowFromSongIndex(show);
   clearCachedSetlistForShow(show);
+  clearShowFlagsForShow(show);
   clearMetaLoaded(show);
   console.log('[GD] Archive ID hint changed for '+show.date+' '+show.venue+': '+hint);
 }
 
-function applyArchiveHintInvalidation(show,flags){
-  const hint=normalizeArchiveId(show.archiveIdHint||'');
+function applyArchiveHintInvalidation(show,flags,fp){
+  const hint=archiveHintFingerprint(show);
+  if(!hint)return false;
+  const priorFp=fp?fp[show.id]||'':'';
+  if(priorFp!==hint){
+    invalidateShowForArchiveHint(show,hint);
+    if(fp)fp[show.id]=hint;
+    return true;
+  }
   if(show.archiveNoAudioHint){
     if(show.metaLoaded&&show.notAvail&&show.archiveIdHintLoaded==='NO_AUDIO')return false;
     invalidateShowForArchiveHint(show,'NO_AUDIO');
     return true;
   }
-  if(!hint)return false;
   if(!show.archiveIdHintLoaded){
     invalidateShowForArchiveHint(show,hint);
     return true;
@@ -1305,6 +1334,7 @@ function onLoaded(list,opts){
     // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
     const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
     const showFlags=readShowFlags();
+    const archiveHintFp=readArchiveHintFingerprints();
     // Restore Relisten availability cache (avoids re-fetching 31 years every launch)
     const relistenCache=JSON.parse(localStorage.getItem('gd_relisten_avail')||'{}');
     shows.forEach(function(s){
@@ -1361,8 +1391,9 @@ function onLoaded(list,opts){
         if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
       if((s.songs&&s.songs.length)||(showFlags[s.id]&&showFlags[s.id].setlist)) s.cachePlayable=true;
-      applyArchiveHintInvalidation(s,showFlags[s.id]);
+      applyArchiveHintInvalidation(s,showFlags[s.id],archiveHintFp);
     });
+    writeArchiveHintFingerprints(archiveHintFp);
   }catch(e){}
   // ── Bulk prefetch all years from Relisten ────────────────────
   // Fetches 31 years in parallel (~400ms), marks shows as available
@@ -2148,13 +2179,13 @@ function bgLoadBatch(){
   // 2) hardCandidates: never fully indexed
   // 3) archiveCandidates: Relisten miss during background load, needs one archive pass
   const hintedCandidates=shows.filter(function(s){
-    return (s.archiveIdHint||s.archiveNoAudioHint) && (!s.metaLoaded || !s.archiveIdHintLoaded || s._archiveHintRefreshNeeded);
+    return !isActiveLoadFresh(s.id) && (s.archiveIdHint||s.archiveNoAudioHint) && (!s.metaLoaded || !s.archiveIdHintLoaded || s._archiveHintRefreshNeeded);
   });
   const hardCandidates=shows.filter(function(s){
-    return !showLooksIndexed(s)&&!s._needsArchive;
+    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&!s._needsArchive;
   });
   const archiveCandidates=shows.filter(function(s){
-    return !showLooksIndexed(s)&&s._needsArchive&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
+    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&s._needsArchive&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
   });
   const exhaustedArchive=shows.filter(function(s){
     return !showLooksIndexed(s)&&s._needsArchive&&s._archiveBgTried&&!s._archiveTempFail;
@@ -2199,16 +2230,34 @@ function bgLoadBatch(){
   }
   const promises=batch.map((s,i)=>new Promise(res=>
     setTimeout(function(){
+      let done=false;
+      const finish=function(){if(done)return;done=true;res();};
       var p;
       s._bgLastQueuedAt=Date.now();
-      try{p=loadShowMeta(s,false,!!s._needsArchive);}catch(e){res();return;}
+      const itemTimer=setTimeout(function(){
+        if(!done){
+          console.warn('[GD] bg item timeout',s.id);
+          activeLoads.delete(s.id);
+          activeLoadStarted.delete(s.id);
+          finish();
+        }
+      },18000);
+      try{p=loadShowMeta(s,false,!!s._needsArchive);}catch(e){clearTimeout(itemTimer);finish();return;}
       // loadShowMeta may return undefined (early guard exit) or a Promise
-      if(p&&typeof p.then==='function'){p.then(res,res);}else{res();}
+      if(p&&typeof p.then==='function'){
+        p.then(function(){clearTimeout(itemTimer);finish();},function(){clearTimeout(itemTimer);finish();});
+      }else{
+        clearTimeout(itemTimer);finish();
+      }
     },i*BG_DELAY)
   ));
   const batchTimeout=new Promise(function(res){setTimeout(function(){res('__timeout__');},45000);});
   Promise.race([Promise.allSettled(promises),batchTimeout]).then(function(result){
     if(result==='__timeout__'){
+      batch.forEach(function(s){
+        activeLoads.delete(s.id);
+        activeLoadStarted.delete(s.id);
+      });
       window._gdBgLastTimeout={
         at:Date.now(),
         batch:batch.map(function(s){return {id:s.id,date:s.date,venue:s.venue,needsArchive:!!s._needsArchive,tempFail:!!s._archiveTempFail,hint:s.archiveIdHint||'',noAudio:!!s.archiveNoAudioHint};})
@@ -2284,6 +2333,18 @@ function totalShows(){
 // load is running wait on the same promise instead of returning immediately,
 // which was causing the "Fetching setlist" spinner to persist.
 const activeLoads=new Map();
+const activeLoadStarted=new Map();
+function isActiveLoadFresh(id){
+  if(!activeLoads.has(id))return false;
+  const started=activeLoadStarted.get(id)||0;
+  if(started && Date.now()-started>45000){
+    activeLoads.delete(id);
+    activeLoadStarted.delete(id);
+    console.warn('[GD] cleared stale load lock',id);
+    return false;
+  }
+  return true;
+}
 // Persist metaLoaded state so bg-loop progress survives app restarts
 function saveMetaLoaded(show){
   try{
@@ -2633,7 +2694,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
   }
   if(show.metaLoaded&&((show.tracks&&show.tracks.length)||show.notAvail||show.allRestricted))return;
   if(forceArchiveBg){show._archiveBgTried=true;show._archiveBgLastTry=Date.now();}
-  if(activeLoads.has(show.id)){
+  if(isActiveLoadFresh(show.id)){
     if(priority){
       // Await the in-flight load so renderSetlistBody fires promptly after
       await new Promise(r=>{
@@ -2644,6 +2705,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     return;
   }
   activeLoads.set(show.id,null);
+  activeLoadStarted.set(show.id,Date.now());
   show._archiveTempFail=false;
   show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   try{
@@ -2889,6 +2951,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
   }finally{
     const _fn=activeLoads.get(show.id);
     activeLoads.delete(show.id);
+    activeLoadStarted.delete(show.id);
     if(_fn)_fn(); // wake any priority waiters
   }
 }
