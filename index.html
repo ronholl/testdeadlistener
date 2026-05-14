@@ -2136,6 +2136,9 @@ function openSetlistForCurrent(){
 // ── META LOADING ──────────────────────────────────────────────────
 const BG_BATCH=18,BG_DELAY=90,BG_ARCHIVE_BATCH=2;
 let bgRunning=false;
+function bgArchiveRetryReady(s){
+  return !s._archiveBgLastTry || (Date.now()-s._archiveBgLastTry)>90000;
+}
 function bgLoadBatch(){
   if(bgRunning)return;
   if(!shows||!shows.length)return;
@@ -2147,24 +2150,71 @@ function bgLoadBatch(){
   const hintedCandidates=shows.filter(function(s){
     return (s.archiveIdHint||s.archiveNoAudioHint) && (!s.metaLoaded || !s.archiveIdHintLoaded || s._archiveHintRefreshNeeded);
   });
-  const hardCandidates=shows.filter(s=>!s.metaLoaded&&!s.cachePlayable&&!s._needsArchive);
-  const archiveCandidates=shows.filter(s=>!s.metaLoaded&&!s.cachePlayable&&s._needsArchive&&!s._archiveBgTried);
+  const hardCandidates=shows.filter(function(s){
+    return !showLooksIndexed(s)&&!s._needsArchive;
+  });
+  const archiveCandidates=shows.filter(function(s){
+    return !showLooksIndexed(s)&&s._needsArchive&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
+  });
+  const exhaustedArchive=shows.filter(function(s){
+    return !showLooksIndexed(s)&&s._needsArchive&&s._archiveBgTried&&!s._archiveTempFail;
+  });
+  exhaustedArchive.forEach(function(s){
+    s._needsArchive=false;
+    s.metaLoaded=true;
+    s.notAvail=true;
+    s.tracks=[];
+    s.totalDur=0;
+    saveMetaLoaded(s);
+  });
   const hintBatch=hintedCandidates.slice(0,BG_BATCH);
   const hadHintedBatch=hintBatch.length>0;
   const remainingSlots=Math.max(0,BG_BATCH-hintBatch.length);
   const batch=hintBatch
     .concat(hardCandidates.filter(function(s){return hintBatch.indexOf(s)<0;}).slice(0,Math.max(0,remainingSlots-BG_ARCHIVE_BATCH)))
     .concat(archiveCandidates.slice(0,BG_ARCHIVE_BATCH));
-  if(!batch.length){bgRunning=false;updateSongCntProgress();return;}
+  if(!batch.length){
+    window._gdBgLastEmpty={
+      total:shows.length,
+      indexed:shows.filter(showLooksIndexed).length,
+      hinted:hintedCandidates.length,
+      hard:hardCandidates.length,
+      archive:archiveCandidates.length,
+      unresolved:shows.filter(function(s){return !showLooksIndexed(s);}).slice(0,12).map(function(s){
+        return {
+          id:s.id,date:s.date,venue:s.venue,
+          metaLoaded:!!s.metaLoaded,
+          songs:!!(s.songs&&s.songs.length),
+          cachePlayable:!!s.cachePlayable,
+          needsArchive:!!s._needsArchive,
+          archiveBgTried:!!s._archiveBgTried,
+          archiveIdHint:s.archiveIdHint||'',
+          noAudio:!!s.archiveNoAudioHint,
+          notAvail:!!s.notAvail
+        };
+      })
+    };
+    console.log('[GD] bgLoadBatch empty',window._gdBgLastEmpty);
+    bgRunning=false;updateSongCntProgress();return;
+  }
   const promises=batch.map((s,i)=>new Promise(res=>
     setTimeout(function(){
       var p;
+      s._bgLastQueuedAt=Date.now();
       try{p=loadShowMeta(s,false,!!s._needsArchive);}catch(e){res();return;}
       // loadShowMeta may return undefined (early guard exit) or a Promise
       if(p&&typeof p.then==='function'){p.then(res,res);}else{res();}
     },i*BG_DELAY)
   ));
-  Promise.allSettled(promises).then(function(){
+  const batchTimeout=new Promise(function(res){setTimeout(function(){res('__timeout__');},45000);});
+  Promise.race([Promise.allSettled(promises),batchTimeout]).then(function(result){
+    if(result==='__timeout__'){
+      window._gdBgLastTimeout={
+        at:Date.now(),
+        batch:batch.map(function(s){return {id:s.id,date:s.date,venue:s.venue,needsArchive:!!s._needsArchive,tempFail:!!s._archiveTempFail,hint:s.archiveIdHint||'',noAudio:!!s.archiveNoAudioHint};})
+      };
+      console.warn('[GD] bgLoadBatch timeout',window._gdBgLastTimeout);
+    }
     updateSongCntProgress();
     if(hadHintedBatch)renderList();
     bgRunning=false;
@@ -2265,12 +2315,12 @@ function stripLeadingNonSongTracks(tracks){
 function cleanTrackLabel(s){
   return (s || '')
     .replace(/\.(mp3|ogg|flac|m4a|shn|wav)$/i,'')
-    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}\s*s\d+\s*t\d+\s*/i,'')
-    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}d\d+t\d+\s*/i,'')
-    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}t\d+\s*/i,'')
-    .replace(/^gd\d{2,4}[-_. ]xx[-_. ]xx[-_. ](?:studio[-_. ]?)?t\d+\s*/i,'')
-    .replace(/^s\d+\s*t\d+\s*/i,'')
-    .replace(/^d\d+t\d+\s*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*s\d+[-_. ]*t\d+[-_. ]*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*d\d+[-_. ]*t\d+[-_. ]*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*t\d+[-_. ]*/i,'')
+    .replace(/^gd\d{2,4}[-_. ]xx[-_. ]xx[-_. ]*(?:studio[-_. ]*)?t\d+[-_. ]*/i,'')
+    .replace(/^s\d+[-_. ]*t\d+[-_. ]*/i,'')
+    .replace(/^d\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^track\s*\d+\s*[-:.]?\s*/i,'')
     .replace(/^\d{1,2}\s*\/+\s*/,'')
     .replace(/^\d{1,2}\s*[-.)]\s*/,'')
@@ -2582,7 +2632,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     return;
   }
   if(show.metaLoaded&&((show.tracks&&show.tracks.length)||show.notAvail||show.allRestricted))return;
-  if(forceArchiveBg)show._archiveBgTried=true;
+  if(forceArchiveBg){show._archiveBgTried=true;show._archiveBgLastTry=Date.now();}
   if(activeLoads.has(show.id)){
     if(priority){
       // Await the in-flight load so renderSetlistBody fires promptly after
