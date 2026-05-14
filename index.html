@@ -1169,7 +1169,7 @@ function applyBestCachedSetlist(show, incomingSongs, cached){
 
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
-const ARCHIVE_HINT_LOGIC_VERSION='tracks-v2';
+const ARCHIVE_HINT_LOGIC_VERSION='tracks-v3';
 function readShowFlags(){
   try{return JSON.parse(localStorage.getItem(SHOW_FLAGS_KEY)||'{}')||{};}catch(e){return {};}
 }
@@ -1326,7 +1326,7 @@ function scheduleArchiveHintRefresh(){
 function onLoaded(list,opts){
   opts=opts||{};
   shows=list;
-  if(!opts.fromCache)try{
+  try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
@@ -1489,8 +1489,8 @@ function onLoaded(list,opts){
   }
 
   renderOthers();applyFilters();
-  if(!opts.fromCache)scheduleArchiveHintRefresh();
-  if(!opts.fromCache)bgLoadBatch();
+  scheduleArchiveHintRefresh();
+  bgLoadBatch();
   // Restore last playback position after a short delay
   if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
   loadFavorites(); // Load immediately - uses cache for instant display
@@ -2496,9 +2496,16 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
     clearCachedSetlistForShow(show);
   }
   const byBase={};
+  const titleByBase={};
   const fmtScore=function(n){return n.endsWith('.ogg')?5:n.includes('128')?4:n.endsWith('.mp3')&&!n.includes('64kb')?3:1;};
+  (meta.files||[]).forEach(function(f){
+    if(!f.name||!f.title)return;
+    const base=f.name.replace(/\.(mp3|ogg|flac|shn|wav)$/i,'');
+    if(base&&!titleByBase[base])titleByBase[base]=f.title;
+  });
   (meta.files||[]).filter(function(f){return f.name&&(f.name.endsWith('.mp3')||f.name.endsWith('.ogg'))&&!f.name.includes('_sample');}).forEach(function(f){
     const base=f.name.replace(/\.(mp3|ogg)$/,'');
+    if(!f.title&&titleByBase[base])f.title=titleByBase[base];
     if(!byBase[base]){
       byBase[base]=f;
     }else if(fmtScore(f.name)>fmtScore(byBase[base].name)){
