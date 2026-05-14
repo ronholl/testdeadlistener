@@ -1370,7 +1370,7 @@ function onLoaded(list,opts){
       // Restore the best cached setlist for this date into the search index.
       // Some dates exist under multiple show IDs; prefer the longest cached setlist.
       const bestCachedSongs = bestCachedSetlistForShow(cached, s);
-      if(bestCachedSongs.length && !s.songs && !s.archiveIdHint && !s.archiveNoAudioHint){
+      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
         s.cachePlayable = true;
