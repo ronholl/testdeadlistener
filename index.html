@@ -3649,10 +3649,13 @@ function doSongSearch(refreshOnly){
       }
     });
   });
-  // Sort by song name first, then date
+  // Show song matches chronologically so results are easy to scan.
   matches.sort(function(a,b){
-    const sc=a.song.toLowerCase().localeCompare(b.song.toLowerCase());
-    return sc!==0?sc:a.date.localeCompare(b.date);
+    const dc=a.date.localeCompare(b.date);
+    if(dc!==0)return dc;
+    const vc=a.venue.localeCompare(b.venue);
+    if(vc!==0)return vc;
+    return a.song.toLowerCase().localeCompare(b.song.toLowerCase());
   });
   cntEl.textContent=showSongIndexStats(matches.length,q);
   resEl.innerHTML=matches.slice(0,200).map(renderSongRow).join('');
@@ -4848,7 +4851,7 @@ function doJamSongSearch(){
     ? total+' performance'+(total===1?'':'s')+' found, rated shows first'
     : total+' performance'+(total===1?'':'s')+' found';
   el.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">'+label+'</div>'+
-    results.slice(0,10).map(function(r){
+    results.map(function(r){
       return jamShowCard(r.show, false, r.song);
     }).join('');
 }
