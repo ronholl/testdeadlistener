@@ -793,6 +793,7 @@ function _readCache(){
 
 function _writeCache(list){
   try{localStorage.setItem('gd_sheet_cache',JSON.stringify({
+    schemaVersion:2,
     shows:_sheetCacheShows(list||shows),
     users:users,
     pins:userPins,
@@ -803,6 +804,7 @@ function _writeCache(list){
 
 function _writeCacheSoon(list){
   const snapshot={
+    schemaVersion:2,
     shows:_sheetCacheShows(list||shows),
     users:users.slice(),
     pins:Object.assign({},userPins),
@@ -849,6 +851,9 @@ function _hydrateSheetCacheShows(list){
 function _canRenderFromSheetCache(cached){
   try{
     if(!cached||!cached.shows||cached.shows.length<=5||!cached.users||!cached.users.length)return false;
+    // Older sheet caches did not preserve Archive ID / NO_AUDIO hints. Rendering
+    // those can make duplicate dates borrow the wrong same-date setlists.
+    if(cached.schemaVersion!==2)return false;
     if(!cached.shows.some(function(s){return s&&s.date&&s.venue&&(Array.isArray(s.attendedUsers)||(s.attended&&typeof s.attended==='object'));}))return false;
     if(localStorage.getItem('gd_prior_guest')==='1')return true;
     const saved=localStorage.getItem('gd_user');
@@ -1110,6 +1115,7 @@ function bestCachedSetlistForShow(cached, show){
     if(show.archiveNoAudioHint) return [];
     let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
     if(show.archiveIdHint) return best.slice();
+    if(isDuplicateDateShow(show)) return best.slice();
     Object.keys(cached).forEach(function(k){
       if(k.indexOf(show.date + '-') === 0 && Array.isArray(cached[k]) && cached[k].length > best.length){
         best = cached[k];
@@ -1119,6 +1125,18 @@ function bestCachedSetlistForShow(cached, show){
   }catch(e){
     return [];
   }
+}
+
+function isDuplicateDateShow(show){
+  try{
+    if(!show||!show.date||!shows||!shows.length)return false;
+    let count=0;
+    for(let i=0;i<shows.length;i++){
+      if(shows[i]&&shows[i].date===show.date)count++;
+      if(count>1)return true;
+    }
+  }catch(e){}
+  return false;
 }
 
 function removeShowFromSongIndex(show){
