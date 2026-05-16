@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5h</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5i</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5h-stable-counts';
+const APP_BUILD = '1.5.5i-source-picker';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -3463,7 +3463,23 @@ function renderSetlistBody(show){
       ? '<span style="color:var(--red)">Source unavailable</span>'
       : '<span style="color:var(--red)">Access restricted</span>';
   }else{
-    const stars=show.rating?'★'.repeat(Math.min(5,Math.round(show.rating)))+'☆'.repeat(Math.max(0,5-Math.round(show.rating))):'';    const sbdBadge=show.isSoundboard?'<span style="background:rgba(200,168,75,.15);color:var(--gold);border:1px solid rgba(200,168,75,.3);border-radius:4px;font-size:9px;padding:1px 5px;margin-left:4px">SBD</span>':'';    const reviewTxt=show.numReviews?' · '+show.numReviews+' reviews':'';    const recs=show.recordings||[];    let picker='';    if(recs.length>1){      const opts=recs.map(function(r){        const label=(r.sbd?'[SBD] ':'')+r.id.substring(0,35)+(r.rating?' ★'+r.rating.toFixed(1):'')+(r.reviews?' ('+r.reviews+'r)':'');        return '<option value='+JSON.stringify(r.id)+(r.id===show.archiveId?' selected':'')+'>'+label+'</option>';      }).join('');      picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';    }    const recCountTxt=recs.length>1?' · <span style="color:var(--muted)">'+recs.length+' recordings</span>':'';    mt.innerHTML='<span class="sp-meta-line"><b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+'</span>'+picker;  }
+    const stars=show.rating?'★'.repeat(Math.min(5,Math.round(show.rating)))+'☆'.repeat(Math.max(0,5-Math.round(show.rating))):'';
+    const sbdBadge=show.isSoundboard?'<span style="background:rgba(200,168,75,.15);color:var(--gold);border:1px solid rgba(200,168,75,.3);border-radius:4px;font-size:9px;padding:1px 5px;margin-left:4px">SBD</span>':'';
+    const reviewTxt=show.numReviews?' · '+show.numReviews+' reviews':'';
+    const recs=sourceRecordsForShow(show);
+    const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
+    let picker='';
+    if(recs.length){
+      const opts=recs.map(function(r){
+        const id=normalizeArchiveId(r.id||'');
+        const label=sourceOptionLabel(r,selected);
+        return '<option value='+JSON.stringify(id)+(id===selected?' selected':'')+'>'+esc(label)+'</option>';
+      }).join('');
+      picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';
+    }
+    const recCountTxt=recs.length>1?' · <span style="color:var(--muted)">'+recs.length+' recordings</span>':'';
+    mt.innerHTML='<span class="sp-meta-line"><b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+'</span>'+picker;
+  }
   const body=document.getElementById('sp-body');if(!body)return;
 
   if(show._offlineFail){
@@ -6136,6 +6152,41 @@ function updateSpFavBtn(){
   btn.innerHTML=faved?'<span style="font-size:18px;line-height:1">★</span> fav':'<span style="font-size:18px;line-height:1;opacity:.35">☆</span> fav';
   btn.title=faved?'Remove from favorites':'Add to favorites';
   btn.style.color='';btn.style.background='';
+}
+
+function sourceOptionLabel(rec,selectedId){
+  const id=(rec&&rec.id)||selectedId||'';
+  const parts=[];
+  if(rec&&rec.sbd)parts.push('[SBD]');
+  parts.push(id.substring(0,42));
+  if(rec&&rec.rating)parts.push('★'+Number(rec.rating).toFixed(1));
+  if(rec&&rec.reviews)parts.push('('+rec.reviews+'r)');
+  if(rec&&rec.cached)parts.push('(cached)');
+  if(rec&&rec.manual&&!rec.rating)parts.push('(sheet)');
+  return parts.join(' ');
+}
+
+function sourceRecordsForShow(show){
+  const selected=normalizeArchiveId((show&&show.archiveId)||(show&&show.archiveIdHint)||'');
+  const seen=new Set();
+  const recs=[];
+  (show&&show.recordings||[]).forEach(function(r){
+    const id=normalizeArchiveId((r&&r.id)||'');
+    if(!id||seen.has(id))return;
+    seen.add(id);
+    recs.push(Object.assign({},r,{id:id}));
+  });
+  if(selected&&!seen.has(selected)){
+    recs.unshift({
+      id:selected,
+      rating:show.rating||0,
+      reviews:show.numReviews||0,
+      sbd:!!show.isSoundboard,
+      restricted:false,
+      manual:!!show.archiveIdHint
+    });
+  }
+  return recs;
 }
 
 function retryShowMeta(id){
