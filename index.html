@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5f</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5g</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5f-resolved-count';
+const APP_BUILD = '1.5.5g-row-ready';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1304,6 +1304,15 @@ function showLooksStartupReady(show){
     showLooksIndexed(show) ||
     (!show.archiveIdHint && !show.archiveNoAudioHint && show.relistenAvail) ||
     show._archiveTempFail ||
+    show._offlineFail
+  ));
+}
+
+function showLooksUnavailable(show){
+  return !!(show && (
+    show.archiveNoAudioHint ||
+    show.notAvail ||
+    (show.metaLoaded && show.notAvail) ||
     show._offlineFail
   ));
 }
@@ -2095,6 +2104,20 @@ function updateViewStats(){
 }
 
 // ── LIST ──────────────────────────────────────────────────────────
+function rowSetlistSummary(show){
+  if(!show)return '';
+  if(show.songs&&show.songs.length)return show.songs.slice(0,5).join(' · ');
+  const tracks=(show.tracks||[]).map(function(t){
+    return getUsableArchiveLabel(t)||cleanTrackLabel((t&&t.name)||'');
+  }).filter(function(s){
+    return s&&s.length>1&&!/^Track \d+$/i.test(s);
+  });
+  if(tracks.length)return tracks.slice(0,5).join(' · ');
+  if(plausibleArchiveId(show.archiveIdHint||show.archiveId||''))return 'Archive source ready';
+  if(show.relistenAvail)return 'Source ready';
+  return '';
+}
+
 function renderList(){
   const el=document.getElementById('list');
   if(!filtered.length&&shows.length){
@@ -2132,8 +2155,8 @@ function renderList(){
     }else if(hasAudio||hasCachedSetlist){
       const dot='<span style="color:var(--green)">▶ </span>';
       const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
-      const songs=hasCachedSetlist?s.songs.slice(0,5).join(' · '):'Tap to load show';
-      sub=`<div class="row-songs">${dot}${prefix}${songs}</div>`;
+      const songs=rowSetlistSummary(s)||(hasAudio?'Source ready':'');
+      sub=`<div class="row-songs">${dot}${prefix}${esc(songs)}</div>`;
     }
     return `<div class="row${ip?' playing':''}" onclick="openSetlist('${s.id}')">
       <div class="row-date">${s.date}</div>
@@ -2470,7 +2493,8 @@ function updateSongCntProgress(){
     return !showLooksStartupReady(s)&&!s.archiveIdHint&&!s.archiveNoAudioHint&&!s.relistenAvail&&!s._needsArchive;
   }).length;
   const resolved=Math.min(total,indexed+unknownNoSource);
-  const unavailable=Math.max(0,total-indexed);
+  const unavailable=shows.filter(showLooksUnavailable).length;
+  const available=Math.max(0,total-unavailable);
   const pct=Math.round(resolved/total*100);
   updateScanDebugStats(resolved,total,pct);
   const allDone=resolved>=total;
@@ -2485,9 +2509,7 @@ function updateSongCntProgress(){
       doSongSearch(true);
     }else if(!qActive){
       if(allDone){
-        el.textContent=unavailable>0
-          ? 'Search any song · '+indexed.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio'
-          : 'Search any song · all '+total.toLocaleString()+' shows ready';
+        el.textContent='Search any song · '+available.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio';
       }else{
         el.textContent='Search any song · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' shows checked ('+pct+'%)';
         if(unresolved>0){
@@ -4038,15 +4060,14 @@ function showSongIndexStats(matchCount,q){
   const total=shows.length;
   const unresolved=Math.max(0,total-indexed);
   const resolved=Math.min(total,indexed+unknownNoSource);
-  const unavailable=Math.max(0,total-indexed);
+  const unavailable=shows.filter(showLooksUnavailable).length;
+  const available=Math.max(0,total-unavailable);
   const allDone=resolved>=total;
   const pct=Math.round(resolved/total*100);
   const prog=allDone?'':(unknownNoSource===total-indexed?' · '+unknownNoSource.toLocaleString()+' no source cached':' · '+pct+'% checked');
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
   return allDone
-    ? (unavailable>0
-      ? 'Search any song · '+indexed.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio'
-      : 'Search any song · all '+total.toLocaleString()+' shows indexed ('+withAudio.toLocaleString()+' with audio)')
+    ? 'Search any song · '+available.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio'
     : 'Search any song · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' shows checked ('+pct+'%)';
 }
 
@@ -4891,7 +4912,7 @@ function jamFavoriteShowRow(s,user,fav){
   const hasCachedSetlist=!!(s.songs&&s.songs.length);
   const dot='<span style="color:var(--green)">▶ </span>';
   const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
-  const songs=hasCachedSetlist?s.songs.slice(0,5).join(' · '):(hasAudio?'Tap to load show':'');
+  const songs=rowSetlistSummary(s)||(hasAudio?'Source ready':'');
   const sub=songs?'<div class="row-songs">'+dot+prefix+esc(songs)+'</div>':'';
   const safeId=String(s.id).replace(/'/g,"\\'");
   const safeFavId=String(favShowId||s.id).replace(/'/g,"\\'");
