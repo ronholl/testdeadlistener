@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5b</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5c</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5b-first-paint';
+const APP_BUILD = '1.5.5c-index-readiness';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1283,6 +1283,7 @@ function showLooksPlayable(show){
   if(show&&show.archiveNoAudioHint)return false;
   return !!(show && !show.notAvail && (
     (show.metaLoaded && (!show.tracks || !show.tracks.length || !show.notAvail)) ||
+    plausibleArchiveId(show.archiveIdHint||show.archiveId||'') ||
     (!show.archiveIdHint && !show.archiveNoAudioHint && show.relistenAvail) ||
     (show.songs && show.songs.length)
   ));
@@ -1291,9 +1292,10 @@ function showLooksPlayable(show){
 function showLooksIndexed(show){
   return !!(show && (
     (show.songs && show.songs.length) ||
-    show.metaLoaded ||
     show.archiveNoAudioHint ||
-    (show.archiveIdHint && plausibleArchiveId(show.archiveIdHint))
+    show.notAvail ||
+    show._offlineFail ||
+    (show.metaLoaded && show.notAvail)
   ));
 }
 
@@ -2433,7 +2435,9 @@ function bgLoadBatch(){
       console.warn('[GD] bgLoadBatch timeout',window._gdBgLastTimeout);
     }
     updateSongCntProgress();
-    if(hadHintedBatch)renderList();
+    if(batch.some(function(s){
+      return !!(s.archiveNoAudioHint || s.notAvail || (s.songs&&s.songs.length) || s.cachePlayable || s.metaLoaded);
+    }))renderList();
     bgRunning=false;
     setTimeout(bgLoadBatch,350);
   });
