@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5L</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5M</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5l-source-quiet';
+const APP_BUILD = '1.5.5m-source-quiet-retry';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2757,9 +2757,16 @@ async function drainArchiveIdSaveQueue(){
 
 function scheduleArchiveSourceListRefresh(show){
   if(!show||!show.archiveIdHint||sourceNoAlt(show)||show._sourceListRefreshQueued||show._sourceListRefreshRunning)return;
+  if(show._sourceListRefreshDone)return;
   if(show._sourceListRefreshLastTry&&Date.now()-show._sourceListRefreshLastTry<30000)return;
   show._sourceListRefreshQueued=true;
   setTimeout(function(){refreshArchiveHintSourceList(show);},2500);
+}
+
+function retryArchiveSourceListRefresh(show,delayMs){
+  if(!show||!show.archiveIdHint||sourceNoAlt(show)||show._sourceListRefreshQueued||show._sourceListRefreshRunning||show._sourceListRefreshDone)return;
+  show._sourceListRefreshQueued=true;
+  setTimeout(function(){refreshArchiveHintSourceList(show);},delayMs||8000);
 }
 
 function mergeSourceRecords(base, extra){
@@ -2801,6 +2808,7 @@ async function refreshArchiveHintSourceList(show){
   show._sourceListRefreshQueued=false;
   show._sourceListRefreshRunning=true;
   show._sourceListRefreshLastTry=Date.now();
+  show._sourceListRefreshAttempts=(show._sourceListRefreshAttempts||0)+1;
   const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint);
   let recs=[];
   let relistenCount=0;
@@ -2815,13 +2823,17 @@ async function refreshArchiveHintSourceList(show){
     if(recs.length>1){
       show.recordings=recs;
       show.archiveId=selected;
+      show._sourceListRefreshDone=true;
       if(curShow&&curShow.id===show.id)renderSetlistBody(show);
     }
-    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,error:lastError};
+    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,attempts:show._sourceListRefreshAttempts,error:lastError};
   }catch(e){
-    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,error:(e&&e.message)||lastError||'source refresh failed'};
+    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,attempts:show._sourceListRefreshAttempts,error:(e&&e.message)||lastError||'source refresh failed'};
   }finally{
     show._sourceListRefreshRunning=false;
+    if(!show._sourceListRefreshDone&&show._sourceListRefreshAttempts<3){
+      retryArchiveSourceListRefresh(show,show._sourceListRefreshAttempts===1?8000:20000);
+    }
   }
 }
 
@@ -3502,13 +3514,15 @@ function renderSetlistBody(show){
     const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
     if(show.archiveIdHint&&recs.length<=1&&!sourceNoAlt(show))scheduleArchiveSourceListRefresh(show);
     let picker='';
-    if(recs.length){
+    if(recs.length>1){
       const opts=recs.map(function(r){
         const id=normalizeArchiveId(r.id||'');
         const label=sourceOptionLabel(r,selected);
         return '<option value='+JSON.stringify(id)+(id===selected?' selected':'')+'>'+esc(label)+'</option>';
       }).join('');
       picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';
+    }else if(selected){
+      picker='<br><div style="color:var(--muted);font-family:var(--mono);font-size:10px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">source: '+esc(selected)+'</div>';
     }
     const recCountTxt=recs.length>1
       ? ' · <span style="color:var(--muted)">'+recs.length+' recordings</span>'
