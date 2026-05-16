@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5e</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5f</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5e-mobile-scan';
+const APP_BUILD = '1.5.5f-resolved-count';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1344,7 +1344,7 @@ function setFullReindexRebuilding(on){
   }catch(e){}
 }
 function bgScanLabel(indexed,total,pct){
-  const count = indexed.toLocaleString()+'/'+total.toLocaleString()+' shows indexed';
+  const count = indexed.toLocaleString()+'/'+total.toLocaleString()+' shows checked';
   return (isFullReindexRebuilding()
     ? 'background scan rebuilding '+pct+'%'
     : 'background scan '+pct+'%')+' · '+count;
@@ -2469,10 +2469,11 @@ function updateSongCntProgress(){
   const unknownNoSource=shows.filter(function(s){
     return !showLooksStartupReady(s)&&!s.archiveIdHint&&!s.archiveNoAudioHint&&!s.relistenAvail&&!s._needsArchive;
   }).length;
-  const effectiveDone=unresolved>0&&(unknownNoSource===unresolved || indexed/total>=0.85);
-  const pct=effectiveDone?100:Math.round(indexed/total*100);
-  updateScanDebugStats(effectiveDone?total:indexed,total,pct);
-  const allDone=indexed>=total||effectiveDone;
+  const resolved=Math.min(total,indexed+unknownNoSource);
+  const unavailable=Math.max(0,total-indexed);
+  const pct=Math.round(resolved/total*100);
+  updateScanDebugStats(resolved,total,pct);
+  const allDone=resolved>=total;
   if(allDone)setFullReindexRebuilding(false);
   // Update Songs tab counter
   const el=document.getElementById('songCnt');
@@ -2484,11 +2485,11 @@ function updateSongCntProgress(){
       doSongSearch(true);
     }else if(!qActive){
       if(allDone){
-        el.textContent=effectiveDone
-          ? 'Search any song · '+indexed.toLocaleString()+' shows available · '+unresolved.toLocaleString()+' without audio'
+        el.textContent=unavailable>0
+          ? 'Search any song · '+indexed.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio'
           : 'Search any song · all '+total.toLocaleString()+' shows ready';
       }else{
-        el.textContent='Search any song · '+indexed.toLocaleString()+'/'+total.toLocaleString()+' shows ready ('+pct+'%)';
+        el.textContent='Search any song · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' shows checked ('+pct+'%)';
         if(unresolved>0){
           el.textContent += unknownNoSource===unresolved
             ? ' · '+unresolved.toLocaleString()+' no source cached'
@@ -2504,7 +2505,7 @@ function updateSongCntProgress(){
       const current=cntbar.innerHTML;
       const base=current
         .replace(/\s*<span[^>]*class="bgscan-prog"[^>]*>.*?<\/span>/g,'')
-        .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows indexed)?/gi,'')
+        .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows (?:indexed|checked))?/gi,'')
         .trimEnd();
       cntbar.innerHTML=base+' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· cached sheet data · refreshing Google Sheets…</span>';
       return;
@@ -2518,7 +2519,7 @@ function updateSongCntProgress(){
     const current=cntbar.innerHTML;
     const base=current
       .replace(/\s*<span[^>]*class="bgscan-prog"[^>]*>.*?<\/span>/g,'')
-      .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows indexed)?/gi,'')
+      .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows (?:indexed|checked))?/gi,'')
       .trimEnd();
     cntbar.innerHTML=base+prog;
   }
@@ -4036,16 +4037,17 @@ function showSongIndexStats(matchCount,q){
   }).length;
   const total=shows.length;
   const unresolved=Math.max(0,total-indexed);
-  const effectiveDone=unresolved>0&&(unknownNoSource===unresolved || indexed/total>=0.85);
-  const allDone=indexed>=total||effectiveDone;
-  const pct=effectiveDone?100:Math.round(indexed/total*100);
-  const prog=allDone?'':(unknownNoSource===total-indexed?' · '+unknownNoSource.toLocaleString()+' no source cached':' · '+pct+'% ready');
+  const resolved=Math.min(total,indexed+unknownNoSource);
+  const unavailable=Math.max(0,total-indexed);
+  const allDone=resolved>=total;
+  const pct=Math.round(resolved/total*100);
+  const prog=allDone?'':(unknownNoSource===total-indexed?' · '+unknownNoSource.toLocaleString()+' no source cached':' · '+pct+'% checked');
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
   return allDone
-    ? (effectiveDone
-      ? 'Search any song · '+indexed.toLocaleString()+' shows available · '+unresolved.toLocaleString()+' without audio'
+    ? (unavailable>0
+      ? 'Search any song · '+indexed.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio'
       : 'Search any song · all '+total.toLocaleString()+' shows indexed ('+withAudio.toLocaleString()+' with audio)')
-    : 'Search any song · '+indexed.toLocaleString()+'/'+total.toLocaleString()+' shows ready ('+pct+'%)';
+    : 'Search any song · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' shows checked ('+pct+'%)';
 }
 
 // Featured songs for pre-loaded Songs tab display
