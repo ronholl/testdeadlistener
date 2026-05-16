@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5M</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5N</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5m-source-quiet-retry';
+const APP_BUILD = '1.5.5n-source-fallback-quiet';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2769,6 +2769,18 @@ function retryArchiveSourceListRefresh(show,delayMs){
   setTimeout(function(){refreshArchiveHintSourceList(show);},delayMs||8000);
 }
 
+async function fetchJsonWithTimeout(url,ms){
+  const controller=(typeof AbortController!=='undefined')?new AbortController():null;
+  const timer=controller?setTimeout(function(){controller.abort();},ms):null;
+  try{
+    const r=await fetch(url,controller?{signal:controller.signal}:{});
+    if(!r.ok)return null;
+    return await r.json();
+  }finally{
+    if(timer)clearTimeout(timer);
+  }
+}
+
 function mergeSourceRecords(base, extra){
   const out=[];
   const seen=new Set();
@@ -2782,9 +2794,7 @@ function mergeSourceRecords(base, extra){
 }
 
 async function relistenSourceRecordsForShow(show){
-  const r=await fetch('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,{signal:AbortSignal.timeout(12000)});
-  if(!r.ok)return [];
-  const d=await r.json();
+  const d=await fetchJsonWithTimeout('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,12000);
   if(!d||!Array.isArray(d.sources)||!d.sources.length)return [];
   const maxTracks=Math.max.apply(null,d.sources.map(sourceTrackCount));
   const srcs=d.sources.slice().sort(function(a,b){
@@ -2803,6 +2813,36 @@ async function relistenSourceRecordsForShow(show){
   };}).filter(function(r){return r.id;});
 }
 
+function archiveSearchLooksLikeShow(id,show){
+  const s=(id||'').toString().toLowerCase();
+  const d=(show.date||'').split('-');
+  if(!s||d.length<3)return false;
+  const yy=d[0].slice(2), yyyy=d[0], mm=d[1], dd=d[2];
+  return s.indexOf(yyyy+'-'+mm+'-'+dd)>=0||
+         s.indexOf(yy+'-'+mm+'-'+dd)>=0||
+         s.indexOf(yyyy+mm+dd)>=0||
+         s.indexOf(yy+mm+dd)>=0;
+}
+
+async function archiveOrgSourceRecordsForShow(show){
+  const q=encodeURIComponent('collection:GratefulDead AND date:'+show.date);
+  const url='https://archive.org/advancedsearch.php?q='+q+'&fl[]=identifier&fl[]=avg_rating&fl[]=num_reviews&fl[]=access-restricted-item&rows=50&output=json';
+  const d=await fetchJsonWithTimeout(url,9000);
+  const docs=(d&&d.response&&Array.isArray(d.response.docs))?d.response.docs:[];
+  return docs.map(function(doc){return {
+    id:doc.identifier,
+    rating:Number(doc.avg_rating||0),
+    reviews:Number(doc.num_reviews||0),
+    sbd:/(\.|-|_)sbd(\.|-|_)|soundboard/i.test(doc.identifier||''),
+    restricted:!!doc['access-restricted-item'],
+    archiveFallback:true
+  };}).filter(function(rec){return rec.id&&archiveSearchLooksLikeShow(rec.id,show);}).sort(function(a,b){
+    if(!!b.sbd!==!!a.sbd)return b.sbd?1:-1;
+    if((b.rating||0)!==(a.rating||0))return (b.rating||0)-(a.rating||0);
+    return (b.reviews||0)-(a.reviews||0);
+  });
+}
+
 async function refreshArchiveHintSourceList(show){
   if(!show||!show.archiveIdHint||sourceNoAlt(show))return;
   show._sourceListRefreshQueued=false;
@@ -2812,11 +2852,25 @@ async function refreshArchiveHintSourceList(show){
   const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint);
   let recs=[];
   let relistenCount=0;
+  let archiveCount=0;
   let lastError='';
   try{
-    const relistenRecords=await relistenSourceRecordsForShow(show);
-    relistenCount=relistenRecords.length;
-    recs=mergeSourceRecords(recs,relistenRecords);
+    try{
+      const relistenRecords=await relistenSourceRecordsForShow(show);
+      relistenCount=relistenRecords.length;
+      recs=mergeSourceRecords(recs,relistenRecords);
+    }catch(e){
+      lastError=e&&e.message?e.message:'relisten failed';
+    }
+    if(recs.length<=1){
+      try{
+        const archiveRecords=await archiveOrgSourceRecordsForShow(show);
+        archiveCount=archiveRecords.length;
+        recs=mergeSourceRecords(recs,archiveRecords);
+      }catch(e){
+        if(!lastError)lastError=e&&e.message?e.message:'archive source list failed';
+      }
+    }
     if(selected&&!recs.some(function(r){return r.id===selected;})){
       recs.unshift({id:selected,rating:show.rating||0,reviews:show.numReviews||0,sbd:!!show.isSoundboard,restricted:false,manual:true});
     }
@@ -2826,9 +2880,9 @@ async function refreshArchiveHintSourceList(show){
       show._sourceListRefreshDone=true;
       if(curShow&&curShow.id===show.id)renderSetlistBody(show);
     }
-    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,attempts:show._sourceListRefreshAttempts,error:lastError};
+    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,archive:archiveCount,total:recs.length,attempts:show._sourceListRefreshAttempts,error:lastError};
   }catch(e){
-    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,attempts:show._sourceListRefreshAttempts,error:(e&&e.message)||lastError||'source refresh failed'};
+    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,archive:archiveCount,total:recs.length,attempts:show._sourceListRefreshAttempts,error:(e&&e.message)||lastError||'source refresh failed'};
   }finally{
     show._sourceListRefreshRunning=false;
     if(!show._sourceListRefreshDone&&show._sourceListRefreshAttempts<3){
@@ -3522,7 +3576,7 @@ function renderSetlistBody(show){
       }).join('');
       picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';
     }else if(selected){
-      picker='<br><div style="color:var(--muted);font-family:var(--mono);font-size:10px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">source: '+esc(selected)+'</div>';
+      picker='<br><select disabled style="background:var(--surf);color:var(--muted);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%;opacity:.75"><option>'+esc(selected)+'</option></select>';
     }
     const recCountTxt=recs.length>1
       ? ' · <span style="color:var(--muted)">'+recs.length+' recordings</span>'
@@ -6211,7 +6265,6 @@ function sourceOptionLabel(rec,selectedId){
   if(rec&&rec.rating)parts.push('★'+Number(rec.rating).toFixed(1));
   if(rec&&rec.reviews)parts.push('('+rec.reviews+'r)');
   if(rec&&rec.cached)parts.push('(cached)');
-  if(rec&&rec.manual&&!rec.rating)parts.push('(sheet)');
   return parts.join(' ');
 }
 
