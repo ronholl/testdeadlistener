@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5i</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5j</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5i-source-picker';
+const APP_BUILD = '1.5.5j-source-refresh';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2756,14 +2756,18 @@ async function drainArchiveIdSaveQueue(){
 }
 
 function scheduleArchiveSourceListRefresh(show){
-  if(!show||!show.archiveIdHint||sourceLocked(show)||sourceNoAlt(show)||show._sourceListRefreshQueued)return;
+  if(!show||!show.archiveIdHint||sourceNoAlt(show)||show._sourceListRefreshQueued||show._sourceListRefreshRunning)return;
+  if(show._sourceListRefreshLastTry&&Date.now()-show._sourceListRefreshLastTry<30000)return;
   show._sourceListRefreshQueued=true;
   setTimeout(function(){refreshArchiveHintSourceList(show);},900);
 }
 
 async function refreshArchiveHintSourceList(show){
+  if(!show||!show.archiveIdHint||sourceNoAlt(show))return;
+  show._sourceListRefreshQueued=false;
+  show._sourceListRefreshRunning=true;
+  show._sourceListRefreshLastTry=Date.now();
   try{
-    if(!show||!show.archiveIdHint||sourceLocked(show)||sourceNoAlt(show))return;
     const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint);
     const r=await fetch('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,{signal:AbortSignal.timeout(12000)});
     if(!r.ok)return;
@@ -2790,7 +2794,10 @@ async function refreshArchiveHintSourceList(show){
     show.recordings=recs;
     show.archiveId=selected;
     if(curShow&&curShow.id===show.id)renderSetlistBody(show);
-  }catch(e){}
+  }catch(e){
+  }finally{
+    show._sourceListRefreshRunning=false;
+  }
 }
 
 
@@ -3468,6 +3475,7 @@ function renderSetlistBody(show){
     const reviewTxt=show.numReviews?' · '+show.numReviews+' reviews':'';
     const recs=sourceRecordsForShow(show);
     const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
+    if(show.archiveIdHint&&recs.length<=1&&!sourceNoAlt(show))scheduleArchiveSourceListRefresh(show);
     let picker='';
     if(recs.length){
       const opts=recs.map(function(r){
@@ -3477,7 +3485,11 @@ function renderSetlistBody(show){
       }).join('');
       picker='<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:100%">'+opts+'</select>';
     }
-    const recCountTxt=recs.length>1?' · <span style="color:var(--muted)">'+recs.length+' recordings</span>':'';
+    const recCountTxt=recs.length>1
+      ? ' · <span style="color:var(--muted)">'+recs.length+' recordings</span>'
+      : (show._sourceListRefreshQueued||show._sourceListRefreshRunning
+        ? ' · <span style="color:var(--muted)">checking sources…</span>'
+        : '');
     mt.innerHTML='<span class="sp-meta-line"><b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+'</span>'+picker;
   }
   const body=document.getElementById('sp-body');if(!body)return;
