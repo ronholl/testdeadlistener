@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5g</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5h</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5g-row-ready';
+const APP_BUILD = '1.5.5h-stable-counts';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1223,9 +1223,10 @@ function writeShowFlags(flags){
 function saveShowFlags(show){
   try{
     const flags=readShowFlags();
+    const hasArchiveHint=plausibleArchiveId(show.archiveIdHint||show.archiveId||'');
     flags[show.id]={
       hasAudio:!!(show.metaLoaded&&!show.notAvail),
-      notAvail:!!show.notAvail,
+      notAvail:!!(show.notAvail&&!hasArchiveHint&&!show.archiveNoAudioHint),
       setlist:!!(show.songs&&show.songs.length),
       archiveId:show.archiveId||'',
       archiveIdHintLoaded:show.archiveIdHintLoaded||''
@@ -1260,9 +1261,10 @@ function markShowSetlistCached(show){
   try{
     const flags=readShowFlags();
     const cur=flags[show.id]||{};
+    const hasArchiveHint=plausibleArchiveId(show.archiveIdHint||show.archiveId||'');
     cur.setlist=!!(show.songs&&show.songs.length);
     if(typeof cur.hasAudio==='undefined') cur.hasAudio=!!(show.metaLoaded&&!show.notAvail);
-    if(typeof cur.notAvail==='undefined') cur.notAvail=!!show.notAvail;
+    if(typeof cur.notAvail==='undefined') cur.notAvail=!!(show.notAvail&&!hasArchiveHint&&!show.archiveNoAudioHint);
     if(show.archiveId) cur.archiveId=show.archiveId;
     if(show.archiveIdHintLoaded) cur.archiveIdHintLoaded=show.archiveIdHintLoaded;
     flags[show.id]=cur;
@@ -1281,6 +1283,7 @@ function restorePendingLocalUser(){
 
 function showLooksPlayable(show){
   if(show&&show.archiveNoAudioHint)return false;
+  if(show&&plausibleArchiveId(show.archiveIdHint||show.archiveId||''))return true;
   return !!(show && !show.notAvail && (
     (show.metaLoaded && (!show.tracks || !show.tracks.length || !show.notAvail)) ||
     plausibleArchiveId(show.archiveIdHint||show.archiveId||'') ||
@@ -1309,11 +1312,13 @@ function showLooksStartupReady(show){
 }
 
 function showLooksUnavailable(show){
+  if(!show)return false;
+  if(show.archiveNoAudioHint)return true;
+  if(plausibleArchiveId(show.archiveIdHint||show.archiveId||''))return false;
+  if(show.relistenAvail || (show.songs&&show.songs.length) || (show.tracks&&show.tracks.length))return false;
   return !!(show && (
-    show.archiveNoAudioHint ||
     show.notAvail ||
-    (show.metaLoaded && show.notAvail) ||
-    show._offlineFail
+    (show.metaLoaded && show.notAvail)
   ));
 }
 
@@ -1470,7 +1475,7 @@ function onLoaded(list,opts){
         if(showFlags[s.id].hasAudio){
           s.metaLoaded=true;
           s.notAvail=false;
-        }else if(showFlags[s.id].notAvail){
+        }else if(showFlags[s.id].notAvail && !s.archiveIdHint && !s.archiveNoAudioHint){
           s.notAvail=true;
         }
         if(showFlags[s.id].setlist) s.cachePlayable=true;
@@ -3168,6 +3173,12 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     else renderList();
     return;
   }
+  const archiveHint=normalizeArchiveId(show.archiveIdHint||'');
+  if(archiveHint && show.notAvail){
+    show.notAvail=false;
+    show.metaLoaded=false;
+    clearMetaLoaded(show);
+  }
   if(show.metaLoaded&&((show.tracks&&show.tracks.length)||show.notAvail||show.allRestricted))return;
   if(forceArchiveBg){show._archiveBgTried=true;show._archiveBgLastTry=Date.now();}
   if(isActiveLoadFresh(show.id)){
@@ -3186,7 +3197,6 @@ async function loadShowMeta(show,priority,forceArchiveBg){
   show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   try{
     const tOut=priority?14000:10000;
-    const archiveHint=normalizeArchiveId(show.archiveIdHint||'');
     if(archiveHint){
       if(applyCachedArchiveSourceToShow(show,archiveHint)){
         stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
