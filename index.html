@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5c</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5d</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5c-index-readiness';
+const APP_BUILD = '1.5.5d-mobile-scan';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2271,7 +2271,8 @@ function openSetlistForCurrent(){
 }
 
 // ── META LOADING ──────────────────────────────────────────────────
-const BG_BATCH=18,BG_DELAY=90,BG_ARCHIVE_BATCH=2;
+const IS_MOBILE_BG=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent||'');
+const BG_BATCH=IS_MOBILE_BG?6:18,BG_DELAY=IS_MOBILE_BG?180:90,BG_ARCHIVE_BATCH=IS_MOBILE_BG?1:2;
 const APP_STARTED_AT=Date.now();
 let bgRunning=false;
 function bgArchiveRetryReady(s){
@@ -2396,7 +2397,10 @@ function bgLoadBatch(){
       })
     };
     console.log('[GD] bgLoadBatch empty',window._gdBgLastEmpty);
-    bgRunning=false;updateSongCntProgress();return;
+    bgRunning=false;
+    updateSongCntProgress();
+    setTimeout(bgLoadBatch,2500);
+    return;
   }
   const promises=batch.map((s,i)=>new Promise(res=>
     setTimeout(function(){
