@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5O</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5P</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5o-relisten-first';
+const APP_BUILD = '1.5.5p-relisten-single-pass';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2118,7 +2118,6 @@ function rowSetlistSummary(show){
     return s&&s.length>1&&!/^Track \d+$/i.test(s);
   });
   if(tracks.length)return tracks.slice(0,5).join(' · ');
-  if(plausibleArchiveId(show.archiveIdHint||show.archiveId||''))return 'Archive source ready';
   if(show.relistenAvail)return 'Source ready';
   return '';
 }
@@ -3086,6 +3085,38 @@ function applyRelistenSourceToShow(show,src,archiveId){
   cacheArchiveSourceForShow(show,'relisten');
 }
 
+function sortedRelistenSources(d){
+  if(!d||!d.sources||!d.sources.length)return [];
+  const maxTracks=Math.max.apply(null,d.sources.map(sourceTrackCount));
+  return d.sources.slice().sort(function(a,b){
+    const cq=sourceCompleteness(b,maxTracks)-sourceCompleteness(a,maxTracks);
+    if(Math.abs(cq)>0.25)return cq;
+    const tq=sourceTitleQuality(b)-sourceTitleQuality(a);
+    if(Math.abs(tq)>0.25)return tq;
+    return (b.avg_rating_weighted||0)-(a.avg_rating_weighted||0);
+  });
+}
+
+function applyRelistenShowDataToShow(show,d,preferredArchiveId){
+  const preferred=normalizeArchiveId(preferredArchiveId||'');
+  const srcs=sortedRelistenSources(d);
+  if(!srcs.length)return false;
+  const recs=srcs.map(function(s){return {
+    id:s.upstream_identifier,
+    uuid:s.uuid,
+    relistenId:s.id,
+    rating:s.avg_rating_weighted||0,
+    reviews:s.num_reviews||0,
+    sbd:s.is_soundboard||false,
+    restricted:false
+  };});
+  const exact=preferred?srcs.find(function(s){return normalizeArchiveId(s.upstream_identifier||'')===preferred;}):null;
+  const chosen=exact||srcs[0];
+  applyRelistenSourceToShow(show,chosen,exact?preferred:(chosen&&chosen.upstream_identifier));
+  show.recordings=recs;
+  return true;
+}
+
 function sourceTrackDedupeKey(t){
   const raw=(((t&&t.title)||'')||((t&&t.name)||'')).toString();
   return normalizeSongForMatch(cleanTrackLabel(raw)).replace(/\\+/g,'').replace(/\s*>\s*$/,'').trim();
@@ -3263,10 +3294,9 @@ async function loadShowMeta(show,priority,forceArchiveBg){
         return;
       }
       try{
-        const hintHit=await getArchiveHintRelistenSource(show,archiveHint,Math.min(tOut,6000));
-        if(hintHit&&hintHit.kind==='relisten'){
-          applyRelistenSourceToShow(show,hintHit.source,archiveHint);
-          show.archiveId=archiveHint;
+        const r=await fetch('https://api.relisten.net/api/v2/artists/grateful-dead/shows/'+show.date,
+          {signal:AbortSignal.timeout(tOut)});
+        if(r.ok&&applyRelistenShowDataToShow(show,await r.json(),archiveHint)){
           show.archiveIdHintLoaded=archiveHint;
           show._archiveHintRefreshNeeded=false;
           saveShowFlags(show);
@@ -3277,10 +3307,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
           return;
         }
       }catch(e){
-        // If the exact Archive ID is not exposed through Relisten on this
-        // device, fall through to the normal Relisten source selection before
-        // trying archive.org directly. That keeps iPhone playback on the path
-        // that has historically worked best.
+        // Fall through to the normal Relisten/archive fallback chain.
       }
     }
     // ── PRIMARY: Relisten API ─────────────────────────────────────
@@ -3297,83 +3324,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
         if(r.ok)d=await r.json();
       }
       if(d){
-        if(d&&d.sources&&d.sources.length){
-          const maxTracks=Math.max.apply(null,d.sources.map(sourceTrackCount));
-          // Sort sources by show completeness first, then usable track titles, then rating.
-          // Ratings alone can pick a pristine partial set over a full-show recording.
-          const srcs=d.sources.slice().sort(function(a,b){
-            const cq=sourceCompleteness(b,maxTracks)-sourceCompleteness(a,maxTracks);
-            if(Math.abs(cq)>0.25)return cq;
-            const tq=sourceTitleQuality(b)-sourceTitleQuality(a);
-            if(Math.abs(tq)>0.25)return tq;
-            return (b.avg_rating_weighted||0)-(a.avg_rating_weighted||0);
-          });
-          // Store all recordings
-          show.recordings=srcs.map(function(s){return {
-            id:s.upstream_identifier,
-            uuid:s.uuid,
-            relistenId:s.id,
-            rating:s.avg_rating_weighted||0,
-            reviews:s.num_reviews||0,
-            sbd:s.is_soundboard||false,
-            restricted:false
-          };});
-          // Pick best source
-          const best=srcs[0];
-          show.archiveId=best.upstream_identifier;
-          show.rating=best.avg_rating_weighted||0;
-          show.numReviews=best.num_reviews||0;
-          show.isSoundboard=best.is_soundboard||false;
-          // Extract tracks preserving set structure
-          const tracks=[];
-          const setBreaks=[]; // indices where new sets start
-          (best.sets||[]).forEach(function(set,si){
-            if(si>0&&set.tracks&&set.tracks.length>0)setBreaks.push(tracks.length);
-            (set.tracks||[]).forEach(function(t){
-              if(t.mp3_url)tracks.push({
-                name:t.title||('Track '+(tracks.length+1)),
-                mp3:t.mp3_url,
-                length:t.duration?String(t.duration):'',
-                size:''
-              });
-            });
-          });
-          // Relisten can return both _vbr.mp3 and .mp3 rows for the same Archive track.
-          const deduped=dedupeSourceTracks(tracks);
-          if(deduped.length<tracks.length){
-            console.log('[GD] Deduped '+show.date+': '+tracks.length+' -> '+deduped.length+' tracks');
-          }
-          show.tracks=deduped;
-          show.setBreaks=setBreaks;
-          show.totalDur=deduped.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
-          // Song names come from the same deduped track list used for playback.
-          const songs=deduped.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
-          if(songs.length){
-            show.cachePlayable=true;
-            const chosenSongs=applyBestCachedSetlist(show,songs);
-            if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
-              var _ms=sourceTrackTitle(show,curTrackIdx);
-              navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:'Grateful Dead',album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
-            }
-            chosenSongs.forEach(function(song){
-              const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
-              if(!songIndex[key])songIndex[key]=[];
-              if(!songIndex[key].some(function(e){return e.id===show.id;}))
-                songIndex[key].push({id:show.id,date:show.date,venue:show.venue,city:show.city,song:song});
-            });
-            try{
-              const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
-              if(!Array.isArray(c[show.id]) || songs.length > c[show.id].length) c[show.id]=songs;
-              localStorage.setItem('gd_setlists',JSON.stringify(c));
-            }catch(e){}
-            markShowSetlistCached(show);
-          }
-          show._relistenBlocked=false;
-          show._needsArchive=false;
-          show.metaLoaded=true;
-          show.notAvail=tracks.length===0;
-          if(!show.notAvail) clearMetaLoaded(show); // remove any stale bad cache entry
-          saveMetaLoaded(show);
+        if(applyRelistenShowDataToShow(show,d,'')){
           maybeQueueArchiveIdSave(show,'relisten');
           relistenOk=true;
         }
