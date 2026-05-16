@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5K</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.5.5L</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.5.5k-source-fallback';
+const APP_BUILD = '1.5.5l-source-quiet';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2759,7 +2759,7 @@ function scheduleArchiveSourceListRefresh(show){
   if(!show||!show.archiveIdHint||sourceNoAlt(show)||show._sourceListRefreshQueued||show._sourceListRefreshRunning)return;
   if(show._sourceListRefreshLastTry&&Date.now()-show._sourceListRefreshLastTry<30000)return;
   show._sourceListRefreshQueued=true;
-  setTimeout(function(){refreshArchiveHintSourceList(show);},900);
+  setTimeout(function(){refreshArchiveHintSourceList(show);},2500);
 }
 
 function mergeSourceRecords(base, extra){
@@ -2796,39 +2796,6 @@ async function relistenSourceRecordsForShow(show){
   };}).filter(function(r){return r.id;});
 }
 
-function archiveSearchLooksLikeShow(id,show){
-  const s=(id||'').toString().toLowerCase();
-  if(!s)return false;
-  const d=(show.date||'').split('-');
-  if(d.length<3)return false;
-  const yy=d[0].slice(2), yyyy=d[0], mm=d[1], dd=d[2];
-  return s.indexOf(yyyy+'-'+mm+'-'+dd)>=0||
-         s.indexOf(yy+'-'+mm+'-'+dd)>=0||
-         s.indexOf(yyyy+mm+dd)>=0||
-         s.indexOf(yy+mm+dd)>=0;
-}
-
-async function archiveOrgSourceRecordsForShow(show){
-  const query=encodeURIComponent('collection:GratefulDead AND date:'+show.date);
-  const url='https://archive.org/advancedsearch.php?q='+query+'&fl[]=identifier&fl[]=avg_rating&fl[]=num_reviews&fl[]=downloads&fl[]=access-restricted-item&rows=75&output=json';
-  const r=await fetch(url,{signal:AbortSignal.timeout(14000)});
-  if(!r.ok)return [];
-  const d=await r.json();
-  const docs=(d&&d.response&&Array.isArray(d.response.docs))?d.response.docs:[];
-  return docs.map(function(doc){return {
-    id:doc.identifier,
-    rating:Number(doc.avg_rating||0),
-    reviews:Number(doc.num_reviews||0),
-    sbd:/(\.|-|_)sbd(\.|-|_)|soundboard/i.test(doc.identifier||''),
-    restricted:!!doc['access-restricted-item'],
-    archiveFallback:true
-  };}).filter(function(rec){return rec.id&&archiveSearchLooksLikeShow(rec.id,show);}).sort(function(a,b){
-    if(!!b.sbd!==!!a.sbd)return b.sbd?1:-1;
-    if((b.rating||0)!==(a.rating||0))return (b.rating||0)-(a.rating||0);
-    return (b.reviews||0)-(a.reviews||0);
-  });
-}
-
 async function refreshArchiveHintSourceList(show){
   if(!show||!show.archiveIdHint||sourceNoAlt(show))return;
   show._sourceListRefreshQueued=false;
@@ -2837,38 +2804,24 @@ async function refreshArchiveHintSourceList(show){
   const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint);
   let recs=[];
   let relistenCount=0;
-  let archiveCount=0;
   let lastError='';
   try{
-    const results=await Promise.allSettled([
-      relistenSourceRecordsForShow(show),
-      archiveOrgSourceRecordsForShow(show)
-    ]);
-    if(results[0].status==='fulfilled'){
-      relistenCount=results[0].value.length;
-      recs=mergeSourceRecords(recs,results[0].value);
-    }else{
-      lastError=results[0].reason&&results[0].reason.message?results[0].reason.message:'relisten failed';
-    }
-    if(results[1].status==='fulfilled'){
-      archiveCount=results[1].value.length;
-      recs=mergeSourceRecords(recs,results[1].value);
-    }else if(!lastError){
-      lastError=results[1].reason&&results[1].reason.message?results[1].reason.message:'archive search failed';
-    }
+    const relistenRecords=await relistenSourceRecordsForShow(show);
+    relistenCount=relistenRecords.length;
+    recs=mergeSourceRecords(recs,relistenRecords);
     if(selected&&!recs.some(function(r){return r.id===selected;})){
       recs.unshift({id:selected,rating:show.rating||0,reviews:show.numReviews||0,sbd:!!show.isSoundboard,restricted:false,manual:true});
     }
-    if(recs.length){
+    if(recs.length>1){
       show.recordings=recs;
       show.archiveId=selected;
+      if(curShow&&curShow.id===show.id)renderSetlistBody(show);
     }
-    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,archive:archiveCount,total:recs.length,error:lastError};
+    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,error:lastError};
   }catch(e){
-    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,archive:archiveCount,total:recs.length,error:(e&&e.message)||lastError||'source refresh failed'};
+    window._gdSourceRefreshLast={at:Date.now(),date:show.date,venue:show.venue,selected:selected,relisten:relistenCount,total:recs.length,error:(e&&e.message)||lastError||'source refresh failed'};
   }finally{
     show._sourceListRefreshRunning=false;
-    if(curShow&&curShow.id===show.id)renderSetlistBody(show);
   }
 }
 
@@ -3559,9 +3512,7 @@ function renderSetlistBody(show){
     }
     const recCountTxt=recs.length>1
       ? ' · <span style="color:var(--muted)">'+recs.length+' recordings</span>'
-      : (show._sourceListRefreshQueued||show._sourceListRefreshRunning
-        ? ' · <span style="color:var(--muted)">checking sources…</span>'
-        : '');
+      : '';
     mt.innerHTML='<span class="sp-meta-line"><b>'+(show.tracks||[]).length+'</b> tracks · <b>'+fmtT(show.totalDur)+'</b>'+(stars?' · '+stars+' '+show.rating.toFixed(1):'')+sbdBadge+reviewTxt+recCountTxt+'</span>'+picker;
   }
   const body=document.getElementById('sp-body');if(!body)return;
