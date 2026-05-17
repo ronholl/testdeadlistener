@@ -1306,7 +1306,6 @@ function showLooksIndexed(show){
 function showLooksStartupReady(show){
   return !!(show && (
     showLooksIndexed(show) ||
-    show._archiveTempFail ||
     show._offlineFail
   ));
 }
@@ -2337,6 +2336,7 @@ function noteBgItemProgress(show){
   }catch(e){}
 }
 function bgArchiveRetryReady(s){
+  if(s&&s._archivePartialScan)return !s._archiveBgLastTry || (Date.now()-s._archiveBgLastTry)>5000;
   return !s._archiveBgLastTry || (Date.now()-s._archiveBgLastTry)>90000;
 }
 function newestShowFirst(a,b){
@@ -2350,6 +2350,7 @@ function visibleSetlistPriority(show){
   let score=0;
   if(user&&show.attended&&show.attended[user])score+=100;
   if(filtered&&filtered.some(function(s){return s&&s.id===show.id;}))score+=50;
+  if(show.archiveIdHint)score+=35;
   return score;
 }
 function setlistLoadPriority(a,b){
@@ -2364,9 +2365,8 @@ function bgLoadBatch(){
   // Priority queues:
   // 1) hardCandidates: normal Relisten-first setlist indexing
   // 2) hintedCandidates: cheap NO_AUDIO finalization only
-  // 3) archiveHintCandidates: low-priority exact Archive ID readiness
+  // 3) archiveCandidates: required archive.org setlist/audio fallback
   // 4) archiveIdBackfillCandidates: lower-priority durable Archive ID writes
-  // 5) archiveCandidates: lowest-priority deep archive.org pass
   const hintedCandidates=shows.filter(function(s){
     return !isActiveLoadFresh(s.id) && s.archiveNoAudioHint && (!s.metaLoaded || !s.archiveIdHintLoaded || s._archiveHintRefreshNeeded);
   }).sort(newestShowFirst);
@@ -2391,10 +2391,7 @@ function bgLoadBatch(){
     localStorage.setItem(ARCHIVE_ID_BACKFILL_STATS_KEY,JSON.stringify(window._gdArchiveIdBackfillStats));
   }catch(e){}
   const hardCandidates=shows.filter(function(s){
-    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&!s._needsArchive&&!s.archiveIdHint;
-  }).sort(setlistLoadPriority);
-  const archiveHintCandidates=shows.filter(function(s){
-    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&!s._needsArchive&&s.archiveIdHint&&!s.archiveNoAudioHint&&(!s._archiveTempFail||bgArchiveRetryReady(s));
+    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&!s._needsArchive;
   }).sort(setlistLoadPriority);
   const archiveCandidates=shows.filter(function(s){
     return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&s._needsArchive&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
@@ -2413,7 +2410,6 @@ function bgLoadBatch(){
   const indexedNow=shows.filter(showLooksIndexed).length;
   const indexedPctNow=shows.length?indexedNow/shows.length:0;
   const elapsed=Date.now()-APP_STARTED_AT;
-  const allowArchiveHintLoad=indexedPctNow>=0.95 || elapsed>30000 || hardCandidates.length===0;
   const allowArchiveIdBackfill=indexedPctNow>=0.90 || elapsed>20000;
   const allowDeepArchiveScan=indexedPctNow>=0.90 || elapsed>30000 || hardCandidates.length===0;
   archiveIdBackfillCandidates.slice(0,40).forEach(function(s){
@@ -2432,29 +2428,27 @@ function bgLoadBatch(){
   const remainingAfterHard=Math.max(0,BG_BATCH-hardBatch.length);
   const hintBatch=hintedCandidates.slice(0,Math.min(2,remainingAfterHard));
   const hadHintedBatch=hintBatch.length>0;
-  const remainingAfterNoAudioHints=Math.max(0,BG_BATCH-hardBatch.length-hintBatch.length);
-  const archiveHintSlots=allowArchiveHintLoad?Math.min(1,remainingAfterNoAudioHints):0;
-  const archiveHintBatch=archiveHintCandidates.slice(0,archiveHintSlots);
-  const remainingSlots=Math.max(0,remainingAfterNoAudioHints-archiveHintBatch.length);
-  const backfillSlots=allowArchiveIdBackfill?Math.min(2,remainingSlots):0;
+  const remainingSlots=Math.max(0,BG_BATCH-hardBatch.length-hintBatch.length);
+  const tailDrain=indexedPctNow>=0.94||hardCandidates.length===0;
+  const archiveBatchLimit=tailDrain?(IS_MOBILE_BG?3:6):BG_ARCHIVE_BATCH;
+  const archiveSlots=allowDeepArchiveScan?Math.min(archiveBatchLimit,remainingSlots):0;
+  const archiveBatch=archiveCandidates.slice(0,archiveSlots);
+  const remainingAfterArchive=Math.max(0,remainingSlots-archiveBatch.length);
+  const backfillSlots=allowArchiveIdBackfill?Math.min(2,remainingAfterArchive):0;
   const backfillBatch=archiveIdBackfillCandidates.filter(function(s){return hintBatch.indexOf(s)<0;}).slice(0,backfillSlots);
-  const remainingAfterBackfill=Math.max(0,remainingSlots-backfillBatch.length);
-  const archiveSlots=allowDeepArchiveScan?Math.min(hardBatch.length?BG_ARCHIVE_BATCH:6,remainingAfterBackfill):0;
   const batch=hardBatch
     .concat(hintBatch)
-    .concat(archiveHintBatch)
-    .concat(backfillBatch)
-    .concat(archiveCandidates.slice(0,archiveSlots));
+    .concat(archiveBatch)
+    .concat(backfillBatch);
   try{
     window._gdBgLastBatch={
       at:Date.now(),
       hard:hardBatch.length,
       hinted:hintBatch.length,
-      archiveHints:archiveHintBatch.length,
       backfill:backfillBatch.length,
       archive:archiveSlots,
+      tailDrain:tailDrain,
       hardCandidates:hardCandidates.length,
-      archiveHintCandidates:archiveHintCandidates.length,
       archiveCandidates:archiveCandidates.length,
       first:batch.slice(0,8).map(function(s){return {date:s.date,venue:s.venue,needsArchive:!!s._needsArchive,archiveId:s.archiveId||'',hint:s.archiveIdHint||''};})
     };
@@ -2464,7 +2458,6 @@ function bgLoadBatch(){
       total:shows.length,
       indexed:shows.filter(showLooksIndexed).length,
       hinted:hintedCandidates.length,
-      archiveHints:archiveHintCandidates.length,
       backfill:archiveIdBackfillCandidates.length,
       hard:hardCandidates.length,
       archive:archiveCandidates.length,
@@ -3126,6 +3119,8 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
   }
   show._needsArchive=false;
   show._archiveTempFail=false;
+  show._archivePartialScan=false;
+  show._archiveMetaScanOffset=0;
   show.metaLoaded=true;show.notAvail=show.tracks.length===0;
   if(!show.notAvail) clearMetaLoaded(show);
   saveMetaLoaded(show);
@@ -3508,18 +3503,34 @@ async function loadShowMeta(show,priority,forceArchiveBg){
       }
       let metaCandidates=[];
       let metaTempFail=false;
-      for(let i=0;i<docs.length;i++){
-        const doc=docs[i];
+      const metaLimit=priority?docs.length:4;
+      const metaStart=priority?0:(show._archiveMetaScanOffset||0);
+      const metaDocs=priority?docs:docs.slice(metaStart,metaStart+metaLimit);
+      const metaResults=await Promise.allSettled(metaDocs.map(async function(doc){
         try{
           let docMeta=metaCache[doc.identifier];
           if(!docMeta){
             const r=await fetch('https://archive.org/metadata/'+doc.identifier,{signal:AbortSignal.timeout(tOut)});
             if(r.ok){docMeta=await r.json();metaCache[doc.identifier]=docMeta;}
-            else if(r.status===429||r.status>=500)metaTempFail=true;
+            else if(r.status===429||r.status>=500)throw new Error('temp');
           }
-          if(docMeta)metaCandidates.push({doc:doc,meta:docMeta});
-        }catch(e){metaTempFail=true;}
+          return docMeta?{doc:doc,meta:docMeta}:null;
+        }catch(e){throw e;}
+      }));
+      metaResults.forEach(function(r){
+        if(r.status==='fulfilled'&&r.value)metaCandidates.push(r.value);
+        else if(r.status==='rejected')metaTempFail=true;
+      });
+      if(!priority&&!metaCandidates.length&&!metaTempFail&&metaStart+metaLimit<docs.length){
+        show._archiveMetaScanOffset=metaStart+metaLimit;
+        show._archivePartialScan=true;
+        show._needsArchive=true;
+        show._archiveTempFail=true;
+        show.metaLoaded=false;show.notAvail=false;
+        return;
       }
+      show._archivePartialScan=false;
+      show._archiveMetaScanOffset=0;
       if(metaCandidates.length){
         const maxArchiveTracks=Math.max.apply(null,metaCandidates.map(function(c){return archiveMetaTrackCount(c.meta);}));
         metaCandidates.sort(function(a,b){
