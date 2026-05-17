@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.6.1</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.6.1A</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.6.1';
+const APP_BUILD = '1.6.1A';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2337,6 +2337,7 @@ function noteBgItemProgress(show){
 }
 function bgArchiveRetryReady(s){
   if(s&&s._archivePartialScan)return !s._archiveBgLastTry || (Date.now()-s._archiveBgLastTry)>5000;
+  if(s&&s.archiveIdHint&&s._archiveTempFail)return !s._archiveBgLastTry || (Date.now()-s._archiveBgLastTry)>15000;
   return !s._archiveBgLastTry || (Date.now()-s._archiveBgLastTry)>90000;
 }
 function newestShowFirst(a,b){
@@ -2390,11 +2391,24 @@ function bgLoadBatch(){
     };
     localStorage.setItem(ARCHIVE_ID_BACKFILL_STATS_KEY,JSON.stringify(window._gdArchiveIdBackfillStats));
   }catch(e){}
+  shows.forEach(function(s){
+    if(s&&!s.archiveIdHint&&!s.archiveNoAudioHint&&s._needsArchive&&!showLooksIndexed(s)){
+      s._needsArchive=false;
+      s._archiveTempFail=false;
+      s._archiveBgTried=false;
+      s._backgroundNoArchiveAssumed=true;
+      s.metaLoaded=true;
+      s.notAvail=true;
+      s.tracks=[];
+      s.totalDur=0;
+      saveMetaLoaded(s);
+    }
+  });
   const hardCandidates=shows.filter(function(s){
     return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&!s._needsArchive;
   }).sort(setlistLoadPriority);
   const archiveCandidates=shows.filter(function(s){
-    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&s._needsArchive&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
+    return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&s._needsArchive&&s.archiveIdHint&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
   }).sort(newestShowFirst);
   const exhaustedArchive=shows.filter(function(s){
     return !showLooksIndexed(s)&&s._needsArchive&&s._archiveBgTried&&!s._archiveTempFail;
@@ -3362,6 +3376,17 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     return;
   }
   const archiveHint=normalizeArchiveId(show.archiveIdHint||'');
+  if(!archiveHint&&show._backgroundNoArchiveAssumed){
+    show._needsArchive=false;
+    show._archiveTempFail=false;
+    show.metaLoaded=true;
+    show.notAvail=true;
+    show.tracks=[];
+    show.totalDur=0;
+    saveMetaLoaded(show);
+    if(priority)renderSetlistBody(show);
+    return;
+  }
   if(archiveHint && show.notAvail){
     show.notAvail=false;
     show.metaLoaded=false;
@@ -3410,7 +3435,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
         show.metaLoaded=false;
         show.notAvail=false;
         show._archiveTempFail=true;
-        show._needsArchive=false;
+        show._needsArchive=true;
         stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
         if(priority){renderSetlistBody(show);renderList();}
         else renderList();
@@ -3420,7 +3445,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
       show.metaLoaded=false;
       show.notAvail=false;
       show._archiveTempFail=true;
-      show._needsArchive=false;
+      show._needsArchive=true;
       stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
       if(priority){renderSetlistBody(show);renderList();}
       else renderList();
