@@ -3550,7 +3550,7 @@ function renderSetlistBody(show){
   if(show._offlineFail){
     mt.innerHTML='<span style="color:var(--muted)">📶 Could not load — offline</span>';
   }else if(show._archiveTempFail){
-    mt.innerHTML='<span style="color:var(--gold)">Archive is slow — retryable</span>';
+    mt.innerHTML='<span style="color:var(--gold)">Audio source timed out</span> <button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:7px;padding:4px 10px;color:var(--gold);font-family:var(--mono);font-size:10px;cursor:pointer;margin-left:8px">Retry</button>';
   }else if(show.notAvail&&!archiveHint){
     mt.innerHTML='<span style="color:var(--muted)">not on Relisten or archive.org</span>';
   }else if(show.allRestricted&&(!show.tracks||!show.tracks.length)){
@@ -3578,8 +3578,8 @@ function renderSetlistBody(show){
     return;
   }
   if(show._archiveTempFail&&!(archiveHint&&hasCachedSetlist)){
-    body.innerHTML='<div class="sp-unavail">Archive.org is reachable in the browser, but the app could not get its track metadata just now. This is usually a temporary network or rate-limit hiccup, not a missing show.<br><br>'+
-      '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry loading tracks</button>'+
+    body.innerHTML='<div class="sp-unavail">Audio did not load from Archive.org just now. This is usually temporary.<br><br>'+
+      '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">Retry loading audio</button>'+
       '<br><br><a href="https://archive.org/search.php?query=date%3A'+show.date+'+collection%3AGratefulDead" target="_blank" style="color:var(--gold)">Open archive search ↗</a></div>';
     return;
   }
