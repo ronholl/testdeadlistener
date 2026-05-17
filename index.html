@@ -642,6 +642,7 @@ let _signupReturnTarget=null; // screen to return to if guest backs out of signu
 let _pendingSignupAction=null; // {type:'attended'|'favorite', showId:string}
 let _signupUiState=null;
 let curShow=null, audio=null, playing=false, curTrackIdx=0;
+let archiveAutoRetryTimer=null, archiveAutoRetryShowId=null, archiveAutoRetryCount=0;
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=true;
 let positions={}, songIndex={}, metaCache={};
@@ -2248,6 +2249,7 @@ function toggleTheir(){
 // ── SETLIST PANEL ─────────────────────────────────────────────────
 async function openSetlist(id){
   const show=shows.find(s=>s.id===id);if(!show)return;
+  if(archiveAutoRetryShowId&&archiveAutoRetryShowId!==show.id)stopArchiveAutoRetry();
   // Remember which tab was active so Back returns there
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
   if(!curShow||curShow.id!==show.id) curTrackIdx=-1; // no auto-highlight on open
@@ -2277,6 +2279,7 @@ async function openSetlist(id){
     // Show cached setlist immediately while audio loads
     if(show.songs&&show.songs.length){
       renderSetlistBody(show);
+      document.getElementById('sp-meta-txt').innerHTML='<span class="sp-meta-line"><span class="spinner"></span>Loading sources</span>'+sourcePickerHtml(show,sourceRecordsForShow(show),_hint||normalizeArchiveId(show.archiveId||''));
       loadShowMeta(show,true).then(function(){if(curShow&&curShow.id===show.id)renderSetlistBody(show);});
       return;
     }else{
@@ -2291,6 +2294,7 @@ async function openSetlist(id){
 }
 
 function closeSetlist(){
+  stopArchiveAutoRetry();
   const _spc=document.getElementById('setlistPanel');
   _spc.classList.remove('open');_spc.style.top='';_spc.style.height='';
   const _mpEl2=document.getElementById('miniPlayer');if(_mpEl2)_mpEl2.style.visibility='';
@@ -3550,7 +3554,8 @@ function renderSetlistBody(show){
   if(show._offlineFail){
     mt.innerHTML='<span style="color:var(--muted)">📶 Could not load — offline</span>';
   }else if(show._archiveTempFail){
-    mt.innerHTML='<span style="color:var(--gold)">Audio source timed out</span> <button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:7px;padding:4px 10px;color:var(--gold);font-family:var(--mono);font-size:10px;cursor:pointer;margin-left:8px">Retry</button>';
+    mt.innerHTML='<span style="color:var(--gold)">Audio source timed out</span>'+archiveRetryControls(show);
+    if(archiveAutoRetryShowId===show.id&&!archiveAutoRetryTimer)scheduleArchiveAutoRetry(show.id);
   }else if(show.notAvail&&!archiveHint){
     mt.innerHTML='<span style="color:var(--muted)">not on Relisten or archive.org</span>';
   }else if(show.allRestricted&&(!show.tracks||!show.tracks.length)){
@@ -3579,7 +3584,8 @@ function renderSetlistBody(show){
   }
   if(show._archiveTempFail&&!(archiveHint&&hasCachedSetlist)){
     body.innerHTML='<div class="sp-unavail">Audio did not load from Archive.org just now. This is usually temporary.<br><br>'+
-      '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">Retry loading audio</button>'+
+      '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">Retry loading audio</button> '+
+      '<button data-auto-retry="'+show.id+'" onclick="toggleArchiveAutoRetry(this.dataset.autoRetry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">'+(archiveAutoRetryShowId===show.id?'Stop auto retry':'Auto retry')+'</button>'+
       '<br><br><a href="https://archive.org/search.php?query=date%3A'+show.date+'+collection%3AGratefulDead" target="_blank" style="color:var(--gold)">Open archive search ↗</a></div>';
     return;
   }
@@ -6313,7 +6319,50 @@ function retryShowMeta(id){
   show.metaLoaded=false;show.notAvail=false;show._offlineFail=false;show._archiveTempFail=false;show.tracks=null;show._autoRetried=false;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Retrying…</div>';
   document.getElementById('sp-meta-txt').innerHTML='<span class="sp-meta-line"><span class="spinner"></span>Retrying tracks</span>'+sourcePickerHtml(show,sourceRecordsForShow(show),selected);
-  loadShowMeta(show,true).then(()=>renderSetlistBody(show));
+  return loadShowMeta(show,true).then(function(){
+    if(!show._archiveTempFail)stopArchiveAutoRetry();
+    renderSetlistBody(show);
+  });
+}
+
+function archiveRetryControls(show){
+  const autoOn=archiveAutoRetryShowId===show.id;
+  const count=autoOn&&archiveAutoRetryCount?' <span style="color:var(--muted);font-size:10px">('+archiveAutoRetryCount+')</span>':'';
+  return ' <button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:7px;padding:4px 10px;color:var(--gold);font-family:var(--mono);font-size:10px;cursor:pointer;margin-left:8px">Retry</button>'+
+    ' <button data-auto-retry="'+show.id+'" onclick="toggleArchiveAutoRetry(this.dataset.autoRetry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:7px;padding:4px 10px;color:var(--gold);font-family:var(--mono);font-size:10px;cursor:pointer">'+(autoOn?'Stop auto':'Auto retry')+'</button>'+count;
+}
+
+function toggleArchiveAutoRetry(id){
+  if(archiveAutoRetryShowId===id){
+    stopArchiveAutoRetry();
+    const show=shows.find(s=>s.id===id);if(show)renderSetlistBody(show);
+    return;
+  }
+  archiveAutoRetryShowId=id;archiveAutoRetryCount=0;
+  scheduleArchiveAutoRetry(id,1200);
+  const show=shows.find(s=>s.id===id);if(show)renderSetlistBody(show);
+}
+
+function scheduleArchiveAutoRetry(id,delay){
+  clearTimeout(archiveAutoRetryTimer);
+  archiveAutoRetryTimer=setTimeout(function(){
+    if(archiveAutoRetryShowId!==id)return;
+    const sp=document.getElementById('setlistPanel');
+    const show=shows.find(s=>s.id===id);
+    if(!sp||!sp.classList.contains('open')||!show){stopArchiveAutoRetry();return;}
+    archiveAutoRetryCount+=1;
+    retryShowMeta(id).then(function(){
+      const still=shows.find(s=>s.id===id);
+      if(archiveAutoRetryShowId===id&&still&&still._archiveTempFail)scheduleArchiveAutoRetry(id,8000);
+    });
+  },delay||8000);
+}
+
+function stopArchiveAutoRetry(){
+  clearTimeout(archiveAutoRetryTimer);
+  archiveAutoRetryTimer=null;
+  archiveAutoRetryShowId=null;
+  archiveAutoRetryCount=0;
 }
 
 </script>
