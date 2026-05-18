@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.6.1A</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.6.1B</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.6.1A';
+const APP_BUILD = '1.6.1B';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1296,6 +1296,9 @@ function showLooksPlayable(show){
 function showLooksIndexed(show){
   return !!(show && (
     (show.songs && show.songs.length) ||
+    (show.tracks && show.tracks.length) ||
+    show.cachePlayable ||
+    show.setlistCached ||
     show.archiveNoAudioHint ||
     show.notAvail ||
     show._offlineFail ||
@@ -1313,7 +1316,6 @@ function showLooksStartupReady(show){
 function showLooksUnavailable(show){
   if(!show)return false;
   if(show.archiveNoAudioHint)return true;
-  if(plausibleArchiveId(show.archiveIdHint||show.archiveId||''))return false;
   if(show.relistenAvail || (show.songs&&show.songs.length) || (show.tracks&&show.tracks.length))return false;
   return !!(show && (
     show.notAvail ||
@@ -1323,6 +1325,12 @@ function showLooksUnavailable(show){
 
 function updateScanDebugStats(indexed,total,pct){
   try{
+    const unresolvedArchiveIds=shows.filter(function(s){
+      return s&&s.archiveIdHint&&!showLooksIndexed(s);
+    });
+    const archiveIdsWithoutAudio=shows.filter(function(s){
+      return s&&s.archiveIdHint&&showLooksUnavailable(s);
+    });
     window._gdScanStats={
       build:APP_BUILD,
       at:Date.now(),
@@ -1332,6 +1340,9 @@ function updateScanDebugStats(indexed,total,pct){
       songIndexed:shows.filter(showLooksIndexed).length,
       archiveIdHints:shows.filter(function(s){return !!s.archiveIdHint;}).length,
       validArchiveIdHints:shows.filter(function(s){return plausibleArchiveId(s.archiveIdHint||'');}).length,
+      archiveIdResolved:shows.filter(function(s){return !!s.archiveIdHint&&showLooksIndexed(s);}).length,
+      archiveIdUnresolved:unresolvedArchiveIds.length,
+      archiveIdsWithoutAudio:archiveIdsWithoutAudio.length,
       noAudioHints:shows.filter(function(s){return !!s.archiveNoAudioHint;}).length,
       relistenAvail:shows.filter(function(s){return !!s.relistenAvail;}).length,
       archiveTempFail:shows.filter(function(s){return !!s._archiveTempFail;}).length,
@@ -1342,6 +1353,12 @@ function updateScanDebugStats(indexed,total,pct){
       sheetRefreshPending:!!window._gdSheetRefreshPending,
       sampleUnready:shows.filter(function(s){return !showLooksStartupReady(s);}).slice(0,10).map(function(s){
         return {id:s.id,date:s.date,venue:s.venue,archiveIdHint:s.archiveIdHint||'',noAudio:!!s.archiveNoAudioHint,relistenAvail:!!s.relistenAvail,metaLoaded:!!s.metaLoaded,songs:!!(s.songs&&s.songs.length),needsArchive:!!s._needsArchive,tempFail:!!s._archiveTempFail};
+      }),
+      sampleArchiveIdUnresolved:unresolvedArchiveIds.slice(0,12).map(function(s){
+        return {id:s.id,date:s.date,venue:s.venue,archiveIdHint:s.archiveIdHint||'',metaLoaded:!!s.metaLoaded,notAvail:!!s.notAvail,tracks:(s.tracks&&s.tracks.length)||0,songs:(s.songs&&s.songs.length)||0,needsArchive:!!s._needsArchive,tempFail:!!s._archiveTempFail};
+      }),
+      sampleArchiveIdsWithoutAudio:archiveIdsWithoutAudio.slice(0,12).map(function(s){
+        return {id:s.id,date:s.date,venue:s.venue,archiveIdHint:s.archiveIdHint||'',metaLoaded:!!s.metaLoaded,notAvail:!!s.notAvail,tracks:(s.tracks&&s.tracks.length)||0,songs:(s.songs&&s.songs.length)||0};
       })
     };
   }catch(e){}
@@ -2553,6 +2570,7 @@ function updateSongCntProgress(){
   const unavailable=shows.filter(showLooksUnavailable).length;
   const available=Math.max(0,total-unavailable);
   const pct=Math.round(resolved/total*100);
+  const statusText='Search any song · '+available.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' checked ('+pct+'%)';
   updateScanDebugStats(resolved,total,pct);
   const allDone=resolved>=total;
   if(allDone)setFullReindexRebuilding(false);
@@ -2565,16 +2583,7 @@ function updateSongCntProgress(){
     if(qActive&&songsActive){
       doSongSearch(true);
     }else if(!qActive){
-      if(allDone){
-        el.textContent='Search any song · '+available.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio';
-      }else{
-        el.textContent='Search any song · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' shows checked ('+pct+'%)';
-        if(unresolved>0){
-          el.textContent += unknownNoSource===unresolved
-            ? ' · '+unresolved.toLocaleString()+' no source cached'
-            : ' · '+unresolved.toLocaleString()+' queued';
-        }
-      }
+      el.textContent=statusText;
     }
   }
   // Update Shows tab cntbar progress indicator
@@ -4256,11 +4265,9 @@ function showSongIndexStats(matchCount,q){
   const available=Math.max(0,total-unavailable);
   const allDone=resolved>=total;
   const pct=Math.round(resolved/total*100);
-  const prog=allDone?'':(unknownNoSource===total-indexed?' · '+unknownNoSource.toLocaleString()+' no source cached':' · '+pct+'% checked');
-  if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+prog;
-  return allDone
-    ? 'Search any song · '+available.toLocaleString()+' shows available · '+unavailable.toLocaleString()+' without audio'
-    : 'Search any song · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' shows checked ('+pct+'%)';
+  const status=' · '+available.toLocaleString()+' available · '+unavailable.toLocaleString()+' without audio · '+resolved.toLocaleString()+'/'+total.toLocaleString()+' checked ('+pct+'%)';
+  if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+status;
+  return 'Search any song'+status;
 }
 
 // Featured songs for pre-loaded Songs tab display
