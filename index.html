@@ -516,7 +516,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.6.1B</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.6.1C</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -578,7 +578,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.6.1B';
+const APP_BUILD = '1.6.1C';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -3078,7 +3078,7 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
   if(rating)show.rating=rating||0;
   const rawDesc=(meta.metadata&&meta.metadata.description)||'';
   const archiveOverride=!!show.archiveIdHint;
-  const songs=archiveOverride?[]:parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
+  const songs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
   removeShowFromSongIndex(show);
   if(songs.length){
     const chosenSongs=archiveOverride?songs.slice():applyBestCachedSetlist(show,songs);
