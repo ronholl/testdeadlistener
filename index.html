@@ -553,7 +553,7 @@ body{display:flex;justify-content:center}
         <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
         <button class="ftog" id="theirBtn" style="display:none" onclick="toggleTheir()">— shows</button>
-        <button class="ftog" id="srtBtn" onclick="toggleSort()">Date ↓</button>
+        <button class="ftog" id="srtBtn" onclick="toggleSort()">Date ↑</button>
       </div>
     </div>
     <div class="cntbar" id="cntbar">Loading...</div>
@@ -646,7 +646,7 @@ let _signupUiState=null;
 let curShow=null, audio=null, playing=false, curTrackIdx=0;
 let archiveAutoRetryTimer=null, archiveAutoRetryShowId=null, archiveAutoRetryCount=0;
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
-let myOnly=false, sortDesc=true;
+let myOnly=false, sortDesc=false;
 let positions={}, songIndex={}, metaCache={};
 let preloadAudio=null; // preloaded next track for seamless playback
 let playIntent=false;
