@@ -1592,6 +1592,17 @@ function onLoaded(list,opts){
       }
       if((s.songs&&s.songs.length)||(showFlags[s.id]&&showFlags[s.id].setlist)) s.cachePlayable=true;
       applyArchiveHintInvalidation(s,showFlags[s.id],archiveHintFp);
+      if(showAssumedNoAudioNoSource(s)&&!showLooksIndexed(s)){
+        s._needsArchive=false;
+        s._archiveTempFail=false;
+        s._archiveBgTried=false;
+        s._backgroundNoArchiveAssumed=true;
+        s.metaLoaded=true;
+        s.notAvail=true;
+        s.tracks=[];
+        s.totalDur=0;
+        saveMetaLoaded(s);
+      }
     });
     writeArchiveHintFingerprints(archiveHintFp);
   }catch(e){}
