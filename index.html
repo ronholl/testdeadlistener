@@ -1580,10 +1580,13 @@ function onLoaded(list,opts){
       // Restore the best cached setlist for this date into the search index.
       // Some dates exist under multiple show IDs; prefer the longest cached setlist.
       const bestCachedSongs = bestCachedSetlistForShow(cached, s);
-      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint && !showAssumedNoAudioNoSource(s)){
+      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
-        s.setlistTrusted=!!(showFlags[s.id]&&showFlags[s.id].setlistTrusted);
+        // Older caches predate setlistTrusted. Normal Dead shows can trust the
+        // cached setlist; manual Archive-ID shows stay stricter because Archive
+        // descriptions often contain notes instead of songs.
+        s.setlistTrusted=!s.archiveIdHint||!!(showFlags[s.id]&&showFlags[s.id].setlistTrusted);
         s.cachePlayable = true;
         s._displayNameMap = null; s._visibleTrackMap = null; s._visibleTrackLabels = null;
         if(s.setlistTrusted)markShowSetlistCached(s);
