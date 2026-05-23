@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.5">
+  <link rel="manifest" href="manifest.json?v=1.7.6">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.5</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.6</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.5';
+const APP_BUILD = '1.7.6';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1148,6 +1148,8 @@ function bestCachedSetlistForShow(cached, show){
   try{
     if(!cached || !show || !show.date) return [];
     if(show.archiveNoAudioHint) return [];
+    const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
+    if(archiveKey&&Array.isArray(cached[archiveKey])&&cached[archiveKey].length)return cached[archiveKey].slice();
     let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
     if(best.length) return best.slice();
     if(isDuplicateDateShow(show) || sourceLocked(show)) return best.slice();
@@ -1188,7 +1190,44 @@ function clearCachedSetlistForShow(show){
     const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
     if(c&&Object.prototype.hasOwnProperty.call(c,show.id)){
       delete c[show.id];
-      localStorage.setItem('gd_setlists',JSON.stringify(c));
+    }
+    const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
+    if(archiveKey&&Object.prototype.hasOwnProperty.call(c,archiveKey))delete c[archiveKey];
+    localStorage.setItem('gd_setlists',JSON.stringify(c));
+  }catch(e){}
+}
+
+function archiveSetlistCacheKey(archiveId){
+  const id=normalizeArchiveId(archiveId||'');
+  return id?'archive:'+id:'';
+}
+
+function saveCachedSetlistForShow(show,songs){
+  try{
+    if(!show||!show.id||!songs||!songs.length)return;
+    const savedSongs=songs.slice();
+    const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    c[show.id]=savedSongs;
+    const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
+    if(archiveKey)c[archiveKey]=savedSongs;
+    localStorage.setItem('gd_setlists',JSON.stringify(c));
+    const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
+    if(archiveId&&Array.isArray(shows)){
+      shows.forEach(function(s){
+        if(!s||s===show||normalizeArchiveId(s.archiveIdHint||s.archiveId||'')!==archiveId)return;
+        if(!(s.songs&&s.songs.length)){
+          s.songs=savedSongs.slice();
+          s.setlistCached=true;
+          s.cachePlayable=true;
+          s.setlistTrusted=true;
+          s.archiveIdHintLoaded=archiveId;
+          s._archiveHintRefreshNeeded=false;
+          s._archiveHintChanged=false;
+          s._displayNameMap=null;s._visibleTrackMap=null;s._visibleTrackLabels=null;
+          indexShowSongs(s,s.songs);
+          markShowSetlistCached(s);
+        }
+      });
     }
   }catch(e){}
 }
@@ -3283,11 +3322,7 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
     show.setlistTrusted=!!(descTrusted||trackSongs.length);
     show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
     if(show.setlistTrusted)indexShowSongs(show,chosenSongs);
-    try{
-      const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
-      if(show.setlistTrusted && (archiveOverride || !Array.isArray(c[show.id]) || chosenSongs.length > c[show.id].length)) c[show.id]=chosenSongs;
-      localStorage.setItem('gd_setlists',JSON.stringify(c));
-    }catch(e){}
+    if(show.setlistTrusted)saveCachedSetlistForShow(show,chosenSongs);
     if(show.setlistTrusted)markShowSetlistCached(show);
   }else if(archiveOverride){
     show.songs=null;show.setlistCached=false;show.cachePlayable=false;show.setlistTrusted=false;
@@ -3345,11 +3380,7 @@ function applyRelistenSourceToShow(show,src,archiveId){
     show.setlistTrusted=true;
     show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
     indexShowSongs(show,songs);
-    try{
-      const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
-      c[show.id]=songs;
-      localStorage.setItem('gd_setlists',JSON.stringify(c));
-    }catch(e){}
+    saveCachedSetlistForShow(show,songs);
     markShowSetlistCached(show);
   }else if(show.archiveIdHint&&!(show.songs&&show.songs.length)){
     show.songs=null;show.setlistCached=false;show.cachePlayable=false;show.setlistTrusted=false;
