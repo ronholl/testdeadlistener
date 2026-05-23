@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.7">
+  <link rel="manifest" href="manifest.json?v=1.7.8">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.7</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.8</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.7';
+const APP_BUILD = '1.7.8';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2831,19 +2831,36 @@ function readArchiveSourceCache(){
 function writeArchiveSourceCache(cache){
   try{localStorage.setItem(ARCHIVE_SOURCE_CACHE_KEY,JSON.stringify(cache||{}));}catch(e){}
 }
+function deriveSetlistFromTracks(tracks){
+  return sanitizeSongList((tracks||[]).map(function(t){
+    return getUsableArchiveLabel(t)||cleanTrackLabel((((t&&t.title)||'')||((t&&t.name)||'')).toString());
+  }).filter(function(s){
+    return s&&s.length>1&&!/^Track \d+$/i.test(s)&&!looksLikeTapeId(s)&&!looksLikeArchiveNote(s);
+  }));
+}
 function cacheArchiveSourceForShow(show,source){
   try{
     if(!show||!show.archiveId||!show.tracks||!show.tracks.length)return;
     const id=normalizeArchiveId(show.archiveId);
     if(!plausibleArchiveId(id))return;
     const cache=readArchiveSourceCache();
+    const cachedSongs=(show.songs&&show.songs.length)?sanitizeSongList(show.songs):deriveSetlistFromTracks(show.tracks);
+    if(cachedSongs.length&&!(show.songs&&show.songs.length)){
+      show.songs=cachedSongs.slice();
+      show.setlistCached=true;
+      show.cachePlayable=true;
+      show.setlistTrusted=true;
+      indexShowSongs(show,show.songs);
+      saveCachedSetlistForShow(show,show.songs);
+      markShowSetlistCached(show);
+    }
     cache[id]={
       ts:Date.now(),
       source:source||'',
       tracks:show.tracks.slice(0,120).map(function(t){return {name:t.name||'',title:t.title||'',mp3:t.mp3||'',length:t.length||'',size:t.size||''};}),
       setBreaks:(show.setBreaks||[]).slice(),
-      songs:(show.songs||[]).slice(0,120),
-      setlistTrusted:!!show.setlistTrusted,
+      songs:cachedSongs.slice(0,120),
+      setlistTrusted:!!(show.setlistTrusted||cachedSongs.length),
       totalDur:show.totalDur||0,
       rating:show.rating||0,
       reviews:show.numReviews||0,
@@ -2868,17 +2885,16 @@ function applyCachedArchiveSourceToShow(show,archiveId){
     show.numReviews=entry.reviews||0;
     show.isSoundboard=!!entry.sbd;
     show.recordings=mergeSourceRecords(show.recordings,[{id:id,rating:show.rating||0,reviews:show.numReviews||0,sbd:!!show.isSoundboard,restricted:false,cached:true}]);
-    const cachedSongs=sanitizeSongList(entry.songs);
+    const cachedSongs=sanitizeSongList(entry.songs&&entry.songs.length?entry.songs:deriveSetlistFromTracks(entry.tracks));
     if(cachedSongs.length){
       show.songs=cachedSongs.slice();
       show.setlistCached=true;
-      show.setlistTrusted=!!entry.setlistTrusted;
+      show.setlistTrusted=!!(entry.setlistTrusted||show.archiveIdHint);
       show.cachePlayable=true;
       removeShowFromSongIndex(show);
-      if(show.setlistTrusted){
-        indexShowSongs(show,show.songs);
-        markShowSetlistCached(show);
-      }
+      indexShowSongs(show,show.songs);
+      saveCachedSetlistForShow(show,show.songs);
+      markShowSetlistCached(show);
     }else if(show.archiveIdHint&&!(show.songs&&show.songs.length)){
       show.songs=null;show.setlistCached=false;show.cachePlayable=false;show.setlistTrusted=false;
     }
@@ -2891,6 +2907,53 @@ function applyCachedArchiveSourceToShow(show,archiveId){
     return false;
   }
 }
+
+function gdDiag(query){
+  try{
+    const q=String(query||'').toLowerCase();
+    const setlists=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const sourceCache=readArchiveSourceCache();
+    const flags=readShowFlags();
+    const fps=readArchiveHintFingerprints();
+    const matches=(shows||[]).filter(function(s){
+      return !q ||
+        (s.id||'').toLowerCase().indexOf(q)>=0 ||
+        (s.date||'').toLowerCase().indexOf(q)>=0 ||
+        (s.venue||'').toLowerCase().indexOf(q)>=0 ||
+        (s.city||'').toLowerCase().indexOf(q)>=0 ||
+        (s.archiveIdHint||'').toLowerCase().indexOf(q)>=0 ||
+        (s.archiveId||'').toLowerCase().indexOf(q)>=0;
+    }).slice(0,20).map(function(s){
+      const aid=normalizeArchiveId(s.archiveIdHint||s.archiveId||'');
+      const archiveKey=archiveSetlistCacheKey(aid);
+      const src=aid?sourceCache[aid]:null;
+      return {
+        id:s.id,date:s.date,venue:s.venue,city:s.city,
+        archiveIdHint:s.archiveIdHint||'',archiveId:s.archiveId||'',archiveIdHintLoaded:s.archiveIdHintLoaded||'',
+        songs:(s.songs&&s.songs.length)||0,
+        firstSongs:(s.songs||[]).slice(0,5),
+        tracks:(s.tracks&&s.tracks.length)||0,
+        metaLoaded:!!s.metaLoaded,notAvail:!!s.notAvail,
+        cachePlayable:!!s.cachePlayable,setlistCached:!!s.setlistCached,setlistTrusted:!!s.setlistTrusted,
+        refreshNeeded:!!s._archiveHintRefreshNeeded,hintChanged:!!s._archiveHintChanged,tempFail:!!s._archiveTempFail,
+        setlistById:Array.isArray(setlists[s.id])?setlists[s.id].length:0,
+        setlistByArchiveKey:archiveKey&&Array.isArray(setlists[archiveKey])?setlists[archiveKey].length:0,
+        sourceCacheTracks:src&&src.tracks?src.tracks.length:0,
+        sourceCacheSongs:src&&src.songs?src.songs.length:0,
+        flags:flags[s.id]||null,
+        fingerprint:fps[s.id]||''
+      };
+    });
+    const diag={build:APP_BUILD,at:new Date().toISOString(),query:query||'',matches:matches};
+    window._gdDiag=diag;
+    console.log('[GD diag]',diag);
+    return diag;
+  }catch(e){
+    console.warn('[GD diag failed]',e);
+    return {error:String(e&&e.message||e)};
+  }
+}
+window.gdDiag=gdDiag;
 
 const ARCHIVE_ID_SAVE_ATTEMPTS_KEY='gd_archive_id_save_attempts_v3';
 const ARCHIVE_ID_SAVE_LAST_KEY='gd_archive_id_save_last_v1';
