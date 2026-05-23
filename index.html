@@ -128,6 +128,8 @@ body{display:flex;justify-content:center}
 .hdr-user:active{background:rgba(200,168,75,.15)}
 .hdr-user-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--serif)}
 .hdr-user-name{display:none}
+.hdr-user.guest{border-radius:14px;width:auto;height:28px;padding:0 8px;min-width:0;max-width:46px;background:rgba(200,168,75,.1)}
+.hdr-user.guest .guest-label{font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1}
 .tabs{display:flex;background:#111;border-bottom:1px solid var(--border);position:sticky;top:65px;z-index:119}
 .tab{flex:1;padding:9px 4px;text-align:center;font-size:10px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono);transition:all .15s;user-select:none}
 .tab.on{color:var(--gold);border-bottom-color:var(--gold)}
@@ -337,13 +339,15 @@ body{display:flex;justify-content:center}
   .tl-arrow{color:var(--muted);font-size:11px;opacity:.4;margin-left:3px}
 
 @media (max-width:390px),(max-height:740px){
-  .hdr{padding:8px 12px;gap:8px}
-  .hdr-logo{width:32px;height:32px}
-  .hdr-title{font-size:14px;max-width:100%}
-  .hdr-sub{font-size:10px;letter-spacing:.8px;line-height:1.35}
+  .hdr{padding:7px 10px;gap:6px}
+  .hdr-logo{width:30px;height:30px}
+  .hdr-title{font-size:13px;max-width:100%}
+  .hdr-sub{font-size:9px;letter-spacing:.55px;line-height:1.3}
   .hdr-st{font-size:8px;min-height:9px}
-  .hdr-user,#syncBtn,#helpBtn{width:30px!important;height:30px!important;min-width:30px!important}
-  .tabs{top:52px}
+  .hdr-user:not(.guest),#syncBtn,#helpBtn{width:28px!important;height:28px!important;min-width:28px!important;font-size:13px!important}
+  .hdr-user.guest{height:26px;max-width:42px;padding:0 6px}
+  .hdr-user.guest .guest-label{font-size:8px}
+  .tabs{top:49px}
   .tab{padding:8px 3px;font-size:9px;letter-spacing:.35px}
   .ubar{padding:6px 12px;gap:6px}
   .usel{min-width:0;font-size:11px;padding:4px 7px}
@@ -367,19 +371,21 @@ body{display:flex;justify-content:center}
   .fav-btn,.mine-btn{width:26px;height:26px;font-size:13px}
   .pbtn{width:28px;height:28px}
   .badge{width:18px;height:18px;font-size:7px}
-  .mini-player{padding:7px 10px calc(7px + env(safe-area-inset-bottom,0px))}
+  .mini-player{padding:6px 10px calc(6px + env(safe-area-inset-bottom,0px))}
   .mp-row{gap:7px}
   .mp-song{font-size:13px}
   .mp-show{font-size:10px}
   .mp-btn{width:32px;height:32px}
   .mp-btn.main{width:36px;height:36px}
   .mp-prog{margin-top:5px}
+  .mp-idle{padding:7px 0;font-size:10px}
 }
 
 @media (max-width:340px){
-  .hdr{padding-left:10px;padding-right:10px}
-  .hdr-title{font-size:13px}
-  .hdr-sub{font-size:9px;letter-spacing:.6px}
+  .hdr{padding-left:8px;padding-right:8px;gap:5px}
+  .hdr-logo{width:28px;height:28px}
+  .hdr-title{font-size:12px}
+  .hdr-sub{font-size:8px;letter-spacing:.4px}
   .tab{font-size:8px}
   .ubar label{display:none}
   .row-date{min-width:74px;font-size:11px;letter-spacing:0}
@@ -396,7 +402,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.15">
+  <link rel="manifest" href="manifest.json?v=1.7.18">
 </head>
 <body>
 <div id="app">
@@ -523,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.15</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.18</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -585,7 +591,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.15';
+const APP_BUILD = '1.7.18';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -639,6 +645,16 @@ function normalizeArchiveId(v){
   if(!s||isArchiveNoAudioHint(s))return '';
   const m=s.match(/archive\.org\/(?:details|download)\/([^/?#]+)/i);
   return (m?m[1]:s).replace(/^https?:\/\/archive\.org\/details\//i,'').replace(/[?#].*$/,'').trim();
+}
+function setHeaderGuestMode(on){
+  const hdr=document.getElementById('hdrUser');
+  if(!hdr)return;
+  hdr.classList.toggle('guest',!!on);
+  if(on){
+    hdr.innerHTML='<span class="guest-label">Guest</span>';
+  }else if(!document.getElementById('hdrAvatar')){
+    hdr.innerHTML='<div class="hdr-user-avatar" id="hdrAvatar">?</div><div class="hdr-user-name" id="hdrUserName">—</div>';
+  }
 }
 
 // ── STATE ─────────────────────────────────────────────────────────
@@ -907,6 +923,10 @@ function _canRenderFromSheetCache(cached){
   }catch(e){return false;}
 }
 
+function shouldUseCachedStartup(){
+  return _canRenderFromSheetCache(_readCache());
+}
+
 function restoreSavedUserShell(){
   try{
     if(localStorage.getItem('gd_prior_guest')==='1')return false;
@@ -927,10 +947,7 @@ function restoreSavedUserShell(){
     }
     const loginClose=document.getElementById('loginCloseBtn');
     if(loginClose)loginClose.style.display='none';
-    const hdr=document.getElementById('hdrUser');
-    if(hdr&&!document.getElementById('hdrAvatar')){
-      hdr.innerHTML='<div class="hdr-user-avatar" id="hdrAvatar">?</div><div class="hdr-user-name" id="hdrUserName">—</div>';
-    }
+    setHeaderGuestMode(false);
     const col=saved.color||USER_COLORS[0];
     const av=document.getElementById('hdrAvatar');
     if(av){av.textContent=name[0];av.style.background=col+'22';av.style.color=col;}
@@ -1727,8 +1744,7 @@ function onLoaded(list,opts){
       guestMode=true;
       renderLoginScreen();
       document.getElementById('loginScreen').style.display='none';
-      const hdr=document.getElementById('hdrUser');
-      if(hdr)hdr.innerHTML='<span style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px">Guest</span>';
+      setHeaderGuestMode(true);
       const av=document.getElementById('hdrAvatar');
       if(av){av.textContent='?';av.style.background='';av.style.color='';}
     } else {
@@ -1955,10 +1971,7 @@ function loginAs(name,save){
   }catch(e){}
   setTimeout(function(){refreshAttendance(true);}, 1000);
   // Restore header avatar structure in case guest mode replaced it with a span
-  const hdr=document.getElementById('hdrUser');
-  if(hdr&&!document.getElementById('hdrAvatar')){
-    hdr.innerHTML='<div class="hdr-user-avatar" id="hdrAvatar">?</div><div class="hdr-user-name" id="hdrUserName">—</div>';
-  }
+  setHeaderGuestMode(false);
   // Update header
   const col=userColor(name);
   document.getElementById('hdrAvatar').textContent=name[0];
@@ -4985,7 +4998,9 @@ function switchTab(name){
   if(name==='others')refreshAttendance(false);
 }
 
-restoreSavedUserShell();
+const _gdCachedStartup=shouldUseCachedStartup();
+if(!_gdCachedStartup)restoreSavedUserShell();
+else setTimeout(function(){if(!shows.length)restoreSavedUserShell();},1200);
 loadData();
 logVisit();
 // Set poster button visible once DOM is ready (element is below the script tag)
@@ -6332,8 +6347,7 @@ function enterGuestMode(){
   const tb=document.getElementById('theirBtn');
   if(tb){tb.style.display='none';tb.classList.remove('on');}
   // Reset header to guest badge
-  const hdr=document.getElementById('hdrUser');
-  if(hdr)hdr.innerHTML='<span style="font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:10px;padding:2px 8px">Guest</span>';
+  setHeaderGuestMode(true);
   // Reset avatar in case it's still showing previous user
   const av=document.getElementById('hdrAvatar');
   if(av){av.textContent='?';av.style.background='';av.style.color='';}
