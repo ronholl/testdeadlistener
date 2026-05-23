@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.9">
+  <link rel="manifest" href="manifest.json?v=1.7.10">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.9</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.10</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.9';
+const APP_BUILD = '1.7.10';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1143,7 +1143,6 @@ function logVisit(){
   }catch(e){}
 }
 
-
 function bestCachedSetlistForShow(cached, show){
   try{
     if(!cached || !show || !show.date) return [];
@@ -1206,12 +1205,24 @@ function saveCachedSetlistForShow(show,songs){
   try{
     if(!show||!show.id||!songs||!songs.length)return;
     const savedSongs=songs.slice();
+    const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
     const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
     c[show.id]=savedSongs;
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey)c[archiveKey]=savedSongs;
-    localStorage.setItem('gd_setlists',JSON.stringify(c));
-    const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
+    try{
+      localStorage.setItem('gd_setlists',JSON.stringify(c));
+      window._gdSetlistsWriteLast={ok:true,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
+    }catch(e){
+      window._gdSetlistsWriteLast={ok:false,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e&&e.message||e)};
+      try{
+        localStorage.removeItem(ARCHIVE_SOURCE_CACHE_KEY);
+        localStorage.setItem('gd_setlists',JSON.stringify(c));
+        window._gdSetlistsWriteLast={ok:true,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
+      }catch(e2){
+        window._gdSetlistsWriteLast={ok:false,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e2&&e2.message||e2)};
+      }
+    }
     if(archiveId&&Array.isArray(shows)){
       shows.forEach(function(s){
         if(!s||s===show||normalizeArchiveId(s.archiveIdHint||s.archiveId||'')!==archiveId)return;
@@ -2940,6 +2951,7 @@ function gdDiag(query){
         setlistByArchiveKey:archiveKey&&Array.isArray(setlists[archiveKey])?setlists[archiveKey].length:0,
         sourceCacheTracks:src&&src.tracks?src.tracks.length:0,
         sourceCacheSongs:src&&src.songs?src.songs.length:0,
+        setlistsWrite:window._gdSetlistsWriteLast||null,
         flags:flags[s.id]||null,
         fingerprint:fps[s.id]||''
       };
