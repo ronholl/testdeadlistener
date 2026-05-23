@@ -1323,8 +1323,22 @@ function showLooksIndexed(show){
 function showLooksStartupReady(show){
   return !!(show && (
     showLooksIndexed(show) ||
+    showAssumedNoAudioNoSource(show) ||
     show._offlineFail
   ));
+}
+
+function showNeedsStartupWork(show){
+  if(!show)return false;
+  if(show._archiveHintChanged)return true;
+  if(show.archiveNoAudioHint)return !!(!show.metaLoaded || !show.archiveIdHintLoaded || show._archiveHintRefreshNeeded);
+  if(show.archiveIdHint){
+    return !!(!showLooksIndexed(show) || show._archiveHintRefreshNeeded || show._archiveTempFail);
+  }
+  // Do not make the startup progress bar depend on crawling the whole catalog.
+  // Non-manual, non-Relisten shows can be assumed ready locally and resolved
+  // later only when visible/opened.
+  return false;
 }
 
 function showLooksUnavailable(show){
@@ -1351,11 +1365,12 @@ function showAssumedNoAudioNoSource(show){
 
 function scanProgressStats(){
   const total=totalShows();
-  const resolved=shows.filter(showLooksStartupReady).length;
+  const pending=shows.filter(showNeedsStartupWork).length;
+  const resolved=Math.max(0,total-pending);
   const unavailable=shows.filter(showLooksUnavailable).length;
   const available=Math.max(0,total-unavailable);
   const pct=total?Math.round(resolved/total*100):0;
-  return {total:total,resolved:resolved,available:available,unavailable:unavailable,pct:pct,allDone:total>0&&resolved>=total};
+  return {total:total,resolved:resolved,available:available,unavailable:unavailable,pct:pct,allDone:total>0&&pending===0,pending:pending};
 }
 
 function scanProgressStatus(prefix){
@@ -2176,9 +2191,10 @@ function currentFilteredShows(){
 function applyFilters(){
   const list=currentFilteredShows();
   filtered=list;
-  const _loaded=shows.filter(showLooksStartupReady).length;
-  const _total=shows.length;
-  const _pct=Math.round(_loaded/_total*100);
+  const _st=scanProgressStats();
+  const _loaded=_st.resolved;
+  const _total=_st.total;
+  const _pct=_st.pct;
   updateScanDebugStats(_loaded,_total,_pct);
   const _prog=window._gdSheetRefreshPending
     ? ' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· cached sheet data · refreshing Google Sheets…</span>'
