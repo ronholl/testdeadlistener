@@ -2955,6 +2955,50 @@ function gdDiag(query){
 }
 window.gdDiag=gdDiag;
 
+function diagTargetShow(){
+  return curShow || (filtered&&filtered[0]) || (shows&&shows[0]) || null;
+}
+function renderHelpDiagSummary(){
+  const el=document.getElementById('helpDiagOutput');
+  if(!el)return;
+  const show=diagTargetShow();
+  if(!show){
+    el.innerHTML='<div style="color:var(--muted);font-size:11px">No show loaded yet.</div>';
+    return;
+  }
+  const d=gdDiag(show.archiveIdHint||show.archiveId||show.id);
+  const m=d&&d.matches&&d.matches[0];
+  if(!m){
+    el.innerHTML='<div style="color:var(--muted);font-size:11px">No diagnostic match.</div>';
+    return;
+  }
+  const rows=[
+    ['Show',m.date+' · '+m.venue],
+    ['Sheet Archive ID',m.archiveIdHint||'(blank)'],
+    ['Loaded Archive ID',m.archiveId||'(blank)'],
+    ['Songs / Tracks',m.songs+' / '+m.tracks],
+    ['Setlist Cache',m.setlistById+' id · '+m.setlistByArchiveKey+' archive'],
+    ['Source Cache',m.sourceCacheSongs+' songs · '+m.sourceCacheTracks+' tracks'],
+    ['Flags',[
+      m.metaLoaded?'meta':'no-meta',
+      m.notAvail?'not-avail':'avail',
+      m.cachePlayable?'cache-play':'no-cache-play',
+      m.setlistTrusted?'trusted':'untrusted',
+      m.refreshNeeded?'refresh':'no-refresh',
+      m.tempFail?'temp-fail':'ok'
+    ].join(' · ')],
+    ['Fingerprint',m.fingerprint||'(none)']
+  ];
+  el.innerHTML=rows.map(function(r){
+    return '<div style="display:grid;grid-template-columns:116px 1fr;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
+      '<div style="color:rgba(200,168,75,.7)">'+esc(r[0])+'</div>'+
+      '<div style="color:#d8d0c0;word-break:break-word">'+esc(String(r[1]))+'</div>'+
+      '</div>';
+  }).join('')+
+    '<div style="color:var(--muted);font-size:10px;margin-top:8px">Build '+APP_BUILD+' · diagnostics target the open show, or the first visible show if none is open.</div>';
+}
+window.renderHelpDiagSummary=renderHelpDiagSummary;
+
 const ARCHIVE_ID_SAVE_ATTEMPTS_KEY='gd_archive_id_save_attempts_v3';
 const ARCHIVE_ID_SAVE_LAST_KEY='gd_archive_id_save_last_v1';
 const ARCHIVE_ID_BACKFILL_STATS_KEY='gd_archive_id_backfill_stats_v1';
@@ -6016,6 +6060,7 @@ function showHelp(){
   screen.style.display='block';
   document.body.style.overflow='hidden';
   const mp=document.getElementById('miniPlayer');if(mp)mp.style.display='none';
+  renderHelpDiagSummary();
   // Fetch visitor stats from Apps Script
   fetchVisitorStats();
 }
@@ -6800,6 +6845,12 @@ function stopArchiveAutoRetry(){
           <div style="font-family:var(--serif);font-size:26px;color:var(--gold);letter-spacing:.5px;line-height:1.2">Ron's Deadhead Listener</div>
           <div style="font-family:var(--serif);font-size:18px;color:rgba(200,168,75,.7);letter-spacing:.3px;margin-top:5px;line-height:1.3">Built for Deadheads by Ron</div>
           <div style="font-size:12px;color:rgba(200,168,75,.6);margin-top:6px;letter-spacing:.5px">1965 – 1995 · <span id="help-show-count">2,290</span> Shows</div>
+        </div>
+
+        <!-- Diagnostics -->
+        <div style="background:rgba(200,168,75,.07);border:1px solid rgba(200,168,75,.28);border-radius:12px;padding:12px 14px;margin-bottom:16px">
+          <button onclick="renderHelpDiagSummary()" style="width:100%;background:transparent;border:1px solid rgba(200,168,75,.45);border-radius:9px;padding:9px;color:var(--gold);font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px">Diagnostics</button>
+          <div id="helpDiagOutput" style="font-family:var(--mono);font-size:10px;line-height:1.55;color:var(--muted)"></div>
         </div>
 
         <!-- Install on phone — PROMINENT AT TOP -->
