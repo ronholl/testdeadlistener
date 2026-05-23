@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.6">
+  <link rel="manifest" href="manifest.json?v=1.7.7">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.6</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.7</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.6';
+const APP_BUILD = '1.7.7';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1642,6 +1642,9 @@ function onLoaded(list,opts){
           if(!songIndex[key].some(function(e){return e.id===s.id;}))
             songIndex[key].push({id:s.id,date:s.date,venue:s.venue,city:s.city,song:song});
         });
+      }
+      if(!s.songs&&s.archiveIdHint&&applyCachedArchiveSourceToShow(s,s.archiveIdHint)){
+        s.cachePlayable=!!(s.songs&&s.songs.length);
       }
       // Restore Relisten availability flags
       if(relistenCache[s.date]&&!s.archiveIdHint&&!s.archiveNoAudioHint){
@@ -3828,6 +3831,15 @@ function renderSetlistBody(show){
   if(!mt)return;
   const archiveHint=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
   const hasCachedSetlist=!!(show.songs&&show.songs.length);
+  const cachedOnlySetlistHtml=function(){
+    const songRows=sanitizeSongList(show.songs).map(function(s,i){
+      return '<div class="tl-row" style="opacity:.82;cursor:default">'+
+        '<span class="tl-num">'+(i+1)+'</span>'+
+        '<span class="tl-title">'+esc(s)+'</span>'+
+        '</div>';
+    }).join('');
+    return '<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 12px 4px">Setlist</div>'+songRows;
+  };
   if(show._offlineFail){
     mt.innerHTML='<span style="color:var(--muted)">📶 Could not load — offline</span>';
   }else if(show._archiveTempFail){
@@ -3881,19 +3893,8 @@ function renderSetlistBody(show){
       body.innerHTML='<div class="sp-unavail">not on Relisten or archive.org</div>';
       return;
     }
-    if(hasCachedSetlist&&(!archiveHint||show.setlistTrusted)){
-      const songRows=sanitizeSongList(show.songs).map(function(s,i){
-        return '<div class="tl-row" style="opacity:.82;cursor:default">'+
-          '<span class="tl-num">'+(i+1)+'</span>'+
-          '<span class="tl-title">'+esc(s)+'</span>'+
-          '</div>';
-      }).join('');
-      body.innerHTML='<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 12px 4px">Setlist</div>'+songRows;
-      return;
-    }
-    if(archiveHint&&hasCachedSetlist&&!show.setlistTrusted){
-      body.innerHTML='<div class="loading" id="sp-body-loading"><span class="spinner"></span><span id="sp-body-msg">Loading tracks</span><span id="sp-body-dots"></span></div>';
-      startLoadingDots('sp-body-msg','Loading tracks');
+    if(hasCachedSetlist){
+      body.innerHTML=cachedOnlySetlistHtml();
       return;
     }
     // Auto-retry once silently before showing the no-audio message.
