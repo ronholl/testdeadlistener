@@ -145,8 +145,13 @@ body{display:flex;justify-content:center}
 .stat-l{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px}
 .filters{padding:9px 16px;display:flex;flex-direction:column;gap:7px;border-bottom:1px solid var(--border);background:#111}
 .srch{background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:var(--mono);font-size:13px;width:100%}
+.srch.manual-clear{padding-right:34px}
+.manual-clear::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;display:none}
 .srch:focus{outline:none;border-color:var(--gold)}
 .srch::placeholder{color:var(--muted)}
+.search-clear{display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);width:24px;height:24px;border:0;background:transparent;color:var(--muted);font-size:22px;line-height:22px;font-family:var(--mono);cursor:pointer;align-items:center;justify-content:center;padding:0}
+.search-clear.show{display:flex}
+.search-clear:active{color:var(--gold)}
 .frow{display:flex;gap:6px}
 .fsel{flex:1;background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:5px 7px;font-family:var(--mono);font-size:10px}
 .fsel:focus{outline:none;border-color:var(--gold)}
@@ -391,7 +396,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.13">
+  <link rel="manifest" href="manifest.json?v=1.7.15">
 </head>
 <body>
 <div id="app">
@@ -518,7 +523,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.13</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.15</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -548,7 +553,7 @@ body{display:flex;justify-content:center}
       <div class="stat"><span class="stat-n" id="s-yrs">—</span><span class="stat-l">Years</span></div>
     </div>
     <div class="filters">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%"/></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch manual-clear" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%"/><button class="search-clear" id="qClear" type="button" aria-label="Clear search" onclick="clearShowSearch()">×</button></div>
       <div class="frow">
         <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
@@ -562,7 +567,7 @@ body{display:flex;justify-content:center}
 
   <div id="tab-songs" style="display:none">
     <div class="song-view">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="songQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%"/></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch manual-clear" id="songQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%"/><button class="search-clear" id="songQClear" type="button" aria-label="Clear song search" onclick="clearSongSearch()">×</button></div>
       <div class="cntbar" id="songCnt" style="padding:4px 0;border:none">Type a song name to search</div>
     </div>
     <div class="song-results" id="songResults"></div>
@@ -580,7 +585,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.13';
+const APP_BUILD = '1.7.15';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2258,7 +2263,27 @@ function currentFilteredShows(){
   });
   return sortShowsByDate(list);
 }
+function updateShowSearchClear(){
+  updateSearchClear('q','qClear');
+}
+function updateSearchClear(inputId,buttonId){
+  const q=document.getElementById(inputId);
+  const btn=document.getElementById(buttonId);
+  if(btn)btn.classList.toggle('show',!!(q&&q.value));
+}
+function clearSearchInput(inputId,buttonId,afterClear){
+  const q=document.getElementById(inputId);
+  if(!q)return;
+  q.value='';
+  updateSearchClear(inputId,buttonId);
+  if(afterClear)afterClear();
+  q.focus();
+}
+function clearShowSearch(){
+  clearSearchInput('q','qClear',applyFilters);
+}
 function applyFilters(){
+  updateShowSearchClear();
   const list=currentFilteredShows();
   filtered=list;
   const _st=scanProgressStats();
@@ -4670,7 +4695,16 @@ function parseSongs(text){
 }
 
 let songTimer=null;
-function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
+function updateSongSearchClear(){
+  updateSearchClear('songQ','songQClear');
+}
+function clearSongSearch(){
+  clearSearchInput('songQ','songQClear',function(){
+    clearTimeout(songTimer);
+    renderFeaturedSongs();
+  });
+}
+function songSearch(){updateSongSearchClear();clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
 function showSongIndexStats(matchCount,q){
   const st=scanProgressStats();
@@ -5863,7 +5897,18 @@ function loadRandomShow(){
 
 // ── BEST VERSIONS ─────────────────────────────────────────────────
 let jamSongTimer = null;
+function updateJamSongSearchClear(){
+  updateSearchClear('jamSongQ','jamSongQClear');
+}
+function clearJamSongSearch(){
+  clearSearchInput('jamSongQ','jamSongQClear',function(){
+    clearTimeout(jamSongTimer);
+    const el=document.getElementById('jamBestList');
+    if(el)el.innerHTML='<div class="jam-empty">Type at least 2 characters</div>';
+  });
+}
 function jamSongSearch(){
+  updateJamSongSearchClear();
   clearTimeout(jamSongTimer);
   jamSongTimer = setTimeout(doJamSongSearch, 250);
 }
@@ -7092,9 +7137,12 @@ function stopArchiveAutoRetry(){
         </div>
       </div>
       <div style="padding:0 0 10px">
-        <input id="jamSongQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Type a song name&hellip;"
+        <div style="position:relative;display:flex;align-items:center">
+        <input id="jamSongQ" class="manual-clear" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Type a song name&hellip;"
           oninput="jamSongSearch()"
-          style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
+          style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:11px 38px 11px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
+        <button class="search-clear" id="jamSongQClear" type="button" aria-label="Clear Jam song search" onclick="clearJamSongSearch()">×</button>
+        </div>
       </div>
       <div id="jamBestList" class="jam-results"></div>
     </div>
