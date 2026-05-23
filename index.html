@@ -1144,7 +1144,7 @@ function bestCachedSetlistForShow(cached, show){
     if(show.archiveNoAudioHint) return [];
     let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
     if(show.archiveIdHint) return sanitizeSongList(best);
-    if(isDuplicateDateShow(show) || sourceLocked(show)) return sanitizeSongList(best);
+    if(sourceLocked(show)) return sanitizeSongList(best);
     Object.keys(cached).forEach(function(k){
       if(k.indexOf(show.date + '-') === 0 && Array.isArray(cached[k]) && cached[k].length > best.length){
         best = cached[k];
@@ -2337,9 +2337,14 @@ function renderList(){
     let sub='';
     const hasAudio=showLooksPlayable(s);
     const hasCachedSetlist=!!(s.songs&&s.songs.length);
-    if(s.archiveNoAudioHint || showAssumedNoAudioNoSource(s) || (s.notAvail&&s.metaLoaded&&!hasCachedSetlist)){
+    if(hasCachedSetlist){
+      const dot='<span style="color:var(--green)">▶ </span>';
+      const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
+      const songs=rowSetlistSummary(s);
+      if(songs)sub=`<div class="row-songs">${dot}${prefix}${esc(songs)}</div>`;
+    }else if(s.archiveNoAudioHint || showAssumedNoAudioNoSource(s) || (s.notAvail&&s.metaLoaded)){
       sub='<div class="row-na">not on Relisten or archive.org</div>';
-    }else if(hasAudio||hasCachedSetlist){
+    }else if(hasAudio){
       const dot='<span style="color:var(--green)">▶ </span>';
       const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
       const songs=rowSetlistSummary(s);
@@ -3812,7 +3817,7 @@ function renderSetlistBody(show){
   }else if(show._archiveTempFail){
     mt.innerHTML='<span style="color:var(--gold)">Audio source timed out</span>'+archiveRetryControls(show)+sourcePickerHtml(show,sourceRecordsForShow(show),archiveHint||normalizeArchiveId(show.archiveId||''));
     if(archiveAutoRetryShowId===show.id&&!archiveAutoRetryTimer)scheduleArchiveAutoRetry(show.id);
-  }else if(show.notAvail&&!archiveHint){
+  }else if(show.notAvail&&!archiveHint&&!hasCachedSetlist){
     mt.innerHTML='<span style="color:var(--muted)">not on Relisten or archive.org</span>';
   }else if(show.allRestricted&&(!show.tracks||!show.tracks.length)){
     mt.innerHTML=show._relistenBlocked
@@ -3838,7 +3843,7 @@ function renderSetlistBody(show){
       '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">↺ Retry when connected</button></div>';
     return;
   }
-  if(show._archiveTempFail&&!(archiveHint&&hasCachedSetlist&&show.setlistTrusted)){
+  if(show._archiveTempFail&&!hasCachedSetlist){
     body.innerHTML='<div class="sp-unavail">Audio did not load from Archive.org just now. This is usually temporary.<br><br>'+
       '<button data-retry="'+show.id+'" onclick="retryShowMeta(this.dataset.retry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">Retry loading audio</button> '+
       '<button data-auto-retry="'+show.id+'" onclick="toggleArchiveAutoRetry(this.dataset.autoRetry)" style="background:transparent;border:1px solid rgba(200,168,75,.4);border-radius:8px;padding:8px 20px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer">'+(archiveAutoRetryShowId===show.id?'Stop auto retry':'Auto retry')+'</button>'+
@@ -3860,7 +3865,7 @@ function renderSetlistBody(show){
       body.innerHTML='<div class="sp-unavail">not on Relisten or archive.org</div>';
       return;
     }
-    if(archiveHint&&hasCachedSetlist&&show.setlistTrusted){
+    if(hasCachedSetlist&&(!archiveHint||show.setlistTrusted)){
       const songRows=sanitizeSongList(show.songs).map(function(s,i){
         return '<div class="tl-row" style="opacity:.82;cursor:default">'+
           '<span class="tl-num">'+(i+1)+'</span>'+
