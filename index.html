@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.10">
+  <link rel="manifest" href="manifest.json?v=1.7.11">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.10</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.11</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.10';
+const APP_BUILD = '1.7.11';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1530,8 +1530,8 @@ function applyArchiveHintInvalidation(show,flags,fp){
 
   const loadedHint=normalizeArchiveId(show.archiveIdHintLoaded || (flags&&flags.archiveIdHintLoaded) || '');
   const loadedArchive=normalizeArchiveId(show.archiveId || (flags&&flags.archiveId) || '');
-  const hasCachedSetlist=!!((show.songs&&show.songs.length)||(flags&&flags.setlist)||show.setlistCached||show.cachePlayable);
-  const hasCachedAudio=!!((show.tracks&&show.tracks.length)||(flags&&flags.hasAudio));
+  const hasCachedSetlist=!!(show.songs&&show.songs.length);
+  const hasCachedAudio=!!(show.tracks&&show.tracks.length);
 
   // First install after adding sheet Archive IDs should not wipe useful caches
   // just because older flags only knew an Archive/Relisten source ID, not the
@@ -1566,8 +1566,7 @@ function applyArchiveHintInvalidation(show,flags,fp){
   }
 
   if(fp)fp[show.id]=fpHint;
-  if(loadedHint===hint && !show.metaLoaded)return false;
-  if((loadedHint===hint||loadedArchive===hint) && show.metaLoaded && !show.notAvail)return false;
+  if((loadedHint===hint||loadedArchive===hint) && (hasCachedSetlist||hasCachedAudio))return false;
   invalidateShowForArchiveHint(show,hint);
   show._archiveHintChanged=true;
   return true;
@@ -1633,7 +1632,6 @@ function onLoaded(list,opts){
           s.notAvail=true;
         }
         if(showFlags[s.id].setlistTrusted) s.setlistTrusted=true;
-        if(showFlags[s.id].setlist) s.cachePlayable=true;
         if(showFlags[s.id].archiveId) s.archiveId=showFlags[s.id].archiveId;
         if(showFlags[s.id].archiveIdHintLoaded) s.archiveIdHintLoaded=showFlags[s.id].archiveIdHintLoaded;
       }
@@ -1667,7 +1665,7 @@ function onLoaded(list,opts){
         s.relistenDur     = rc.dur||0;
         if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
-      if((s.songs&&s.songs.length)||(showFlags[s.id]&&showFlags[s.id].setlist)) s.cachePlayable=true;
+      if(s.songs&&s.songs.length) s.cachePlayable=true;
       applyArchiveHintInvalidation(s,showFlags[s.id],archiveHintFp);
       if(showAssumedNoAudioNoSource(s)&&!showLooksIndexed(s)){
         s._needsArchive=false;
