@@ -1225,7 +1225,6 @@ function sanitizeSongList(songs){
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
 const ARCHIVE_HINT_LOGIC_VERSION='tracks-v3';
-const SETLIST_TRUST_VERSION='track-title-v2';
 function readShowFlags(){
   try{return JSON.parse(localStorage.getItem(SHOW_FLAGS_KEY)||'{}')||{};}catch(e){return {};}
 }
@@ -1241,7 +1240,6 @@ function saveShowFlags(show){
       notAvail:!!(show.notAvail&&!hasArchiveHint&&!show.archiveNoAudioHint),
       setlist:!!(show.songs&&show.songs.length),
       setlistTrusted:!!show.setlistTrusted,
-      setlistTrustVersion:show.setlistTrusted?SETLIST_TRUST_VERSION:'',
       archiveId:show.archiveId||'',
       archiveIdHintLoaded:show.archiveIdHintLoaded||''
     };
@@ -1278,7 +1276,6 @@ function markShowSetlistCached(show){
     const hasArchiveHint=plausibleArchiveId(show.archiveIdHint||show.archiveId||'');
     cur.setlist=!!(show.songs&&show.songs.length);
     cur.setlistTrusted=!!show.setlistTrusted;
-    cur.setlistTrustVersion=show.setlistTrusted?SETLIST_TRUST_VERSION:'';
     if(typeof cur.hasAudio==='undefined') cur.hasAudio=!!(show.metaLoaded&&!show.notAvail);
     if(typeof cur.notAvail==='undefined') cur.notAvail=!!(show.notAvail&&!hasArchiveHint&&!show.archiveNoAudioHint);
     if(show.archiveId) cur.archiveId=show.archiveId;
@@ -1311,10 +1308,10 @@ function showLooksPlayable(show){
 
 function showLooksIndexed(show){
   return !!(show && (
-    (show.songs && show.songs.length && (!show.archiveIdHint || show.setlistTrusted)) ||
+    (show.songs && show.songs.length) ||
     (show.tracks && show.tracks.length) ||
     show.cachePlayable ||
-    (show.setlistCached && (!show.archiveIdHint || show.setlistTrusted)) ||
+    show.setlistCached ||
     show.archiveNoAudioHint ||
     showAssumedNoAudioNoSource(show) ||
     show.notAvail ||
@@ -1449,33 +1446,50 @@ function applyArchiveHintInvalidation(show,flags,fp){
   const hint=show.archiveNoAudioHint?'NO_AUDIO':normalizeArchiveId(show.archiveIdHint||'');
   const fpHint=archiveHintFingerprint(show);
   if(!hint||!fpHint)return false;
-  const priorFp=fp?fp[show.id]||'':'';
-  if(priorFp!==fpHint){
-    invalidateShowForArchiveHint(show,hint);
-    if(!show.archiveNoAudioHint){
-      show.archiveIdHintLoaded=hint;
-      show._archiveHintRefreshNeeded=false;
-      saveShowFlags(show);
-    }
-    if(fp)fp[show.id]=fpHint;
-    return true;
-  }
   if(show.archiveNoAudioHint){
     if(show.metaLoaded&&show.notAvail&&show.archiveIdHintLoaded==='NO_AUDIO')return false;
     invalidateShowForArchiveHint(show,'NO_AUDIO');
+    if(fp)fp[show.id]=fpHint;
     return true;
   }
-  if(!show.archiveIdHintLoaded){
+
+  const loadedHint=normalizeArchiveId(show.archiveIdHintLoaded || (flags&&flags.archiveIdHintLoaded) || '');
+  const loadedArchive=normalizeArchiveId(show.archiveId || (flags&&flags.archiveId) || '');
+  const hasCachedSetlist=!!((show.songs&&show.songs.length)||(flags&&flags.setlist)||show.setlistCached||show.cachePlayable);
+  const hasCachedAudio=!!((show.tracks&&show.tracks.length)||(flags&&flags.hasAudio));
+
+  // First install after adding Archive IDs should not wipe useful caches just
+  // because older flags did not know which hint produced them. Treat an
+  // existing cached setlist/audio entry as current unless a different cached
+  // Archive ID is explicitly known.
+  if(!loadedHint&&!loadedArchive&&(hasCachedSetlist||hasCachedAudio)){
     show.archiveIdHintLoaded=hint;
     show._archiveHintRefreshNeeded=false;
     saveShowFlags(show);
+    if(fp)fp[show.id]=fpHint;
     return false;
   }
-  const loadedHint=show.archiveIdHintLoaded || (flags&&flags.archiveIdHintLoaded) || '';
-  const loadedArchive=show.archiveId || (flags&&flags.archiveId) || '';
+
+  if((loadedHint&&loadedHint!==hint)||(loadedArchive&&loadedArchive!==hint)){
+    invalidateShowForArchiveHint(show,hint);
+    show._archiveHintChanged=true;
+    if(fp)fp[show.id]=fpHint;
+    return true;
+  }
+
+  if(!loadedHint&&!loadedArchive){
+    show.archiveIdHintLoaded=hint;
+    show._archiveHintRefreshNeeded=false;
+    saveShowFlags(show);
+    if(fp)fp[show.id]=fpHint;
+    return false;
+  }
+
+  if(fp)fp[show.id]=fpHint;
   if(loadedHint===hint && !show.metaLoaded)return false;
-  if(loadedHint===hint && loadedArchive===hint && show.metaLoaded && !show.notAvail)return false;
+  if((loadedHint===hint||loadedArchive===hint) && show.metaLoaded && !show.notAvail)return false;
   invalidateShowForArchiveHint(show,hint);
+  show._archiveHintChanged=true;
   return true;
 }
 
@@ -1532,15 +1546,14 @@ function onLoaded(list,opts){
       // This lets the app reopen with useful availability state even when we only
       // need cached setlists for immediate browsing/search.
       if(showFlags[s.id]){
-        const flagTrustCurrent=!!(showFlags[s.id].setlistTrusted&&(!s.archiveIdHint||showFlags[s.id].setlistTrustVersion===SETLIST_TRUST_VERSION));
         if(showFlags[s.id].hasAudio){
           s.metaLoaded=true;
           s.notAvail=false;
         }else if(showFlags[s.id].notAvail && !s.archiveIdHint && !s.archiveNoAudioHint){
           s.notAvail=true;
         }
-        if(flagTrustCurrent) s.setlistTrusted=true;
-        if(showFlags[s.id].setlist&&s.setlistTrusted) s.cachePlayable=true;
+        if(showFlags[s.id].setlistTrusted) s.setlistTrusted=true;
+        if(showFlags[s.id].setlist) s.cachePlayable=true;
         if(showFlags[s.id].archiveId) s.archiveId=showFlags[s.id].archiveId;
         if(showFlags[s.id].archiveIdHintLoaded) s.archiveIdHintLoaded=showFlags[s.id].archiveIdHintLoaded;
       }
@@ -1550,8 +1563,8 @@ function onLoaded(list,opts){
       if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint && !showAssumedNoAudioNoSource(s)){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
-        s.setlistTrusted=!!(showFlags[s.id]&&showFlags[s.id].setlistTrusted&&(!s.archiveIdHint||showFlags[s.id].setlistTrustVersion===SETLIST_TRUST_VERSION));
-        s.cachePlayable = !!s.setlistTrusted;
+        s.setlistTrusted=!!(showFlags[s.id]&&showFlags[s.id].setlistTrusted);
+        s.cachePlayable = true;
         s._displayNameMap = null; s._visibleTrackMap = null; s._visibleTrackLabels = null;
         if(s.setlistTrusted)markShowSetlistCached(s);
         // Keep cached setlists searchable immediately on launch.
@@ -1574,7 +1587,7 @@ function onLoaded(list,opts){
         s.relistenDur     = rc.dur||0;
         if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
-      if((s.songs&&s.songs.length&&(!s.archiveIdHint||s.setlistTrusted))||(showFlags[s.id]&&showFlags[s.id].setlist&&s.setlistTrusted)) s.cachePlayable=true;
+      if((s.songs&&s.songs.length)||(showFlags[s.id]&&showFlags[s.id].setlist)) s.cachePlayable=true;
       applyArchiveHintInvalidation(s,showFlags[s.id],archiveHintFp);
     });
     writeArchiveHintFingerprints(archiveHintFp);
@@ -2204,16 +2217,17 @@ function showNeedsFreshSetlistOnOpen(show){
   if(!show)return false;
   const archiveHint=normalizeArchiveId(show.archiveIdHint||'');
   if(!archiveHint)return false;
-  if(show._freshSetlistOpenLoaded===archiveHint&&show.setlistTrusted)return false;
+  if(show._freshSetlistOpenLoaded===archiveHint)return false;
   const cleanSongs=sanitizeSongList(show.songs);
   const rawSongCount=(show.songs&&show.songs.length)||0;
+  const loadedHint=normalizeArchiveId(show.archiveIdHintLoaded||'');
+  const loadedArchive=normalizeArchiveId(show.archiveId||'');
+  if(loadedHint&&loadedHint!==archiveHint)return true;
+  if(loadedArchive&&loadedArchive!==archiveHint)return true;
   return (
-    !show.metaLoaded ||
-    !(show.tracks&&show.tracks.length) ||
-    !cleanSongs.length ||
-    rawSongCount!==cleanSongs.length ||
-    !show.setlistTrusted ||
-    normalizeArchiveId(show.archiveIdHintLoaded||'')!==archiveHint
+    (!show.metaLoaded&&!(show.songs&&show.songs.length)) ||
+    (!(show.tracks&&show.tracks.length)&&!(show.songs&&show.songs.length)) ||
+    rawSongCount!==cleanSongs.length
   );
 }
 
@@ -2470,6 +2484,7 @@ function visibleSetlistPriority(show){
   if(!show)return 0;
   const user=(viewUser&&viewUser!=='all')?viewUser:curUser;
   let score=0;
+  if(show._archiveHintChanged)score+=500;
   if(user&&show.attended&&show.attended[user])score+=100;
   if(filtered&&filtered.some(function(s){return s&&s.id===show.id;}))score+=50;
   if(show.archiveIdHint)score+=35;
@@ -2770,7 +2785,6 @@ function cacheArchiveSourceForShow(show,source){
       setBreaks:(show.setBreaks||[]).slice(),
       songs:(show.songs||[]).slice(0,120),
       setlistTrusted:!!show.setlistTrusted,
-      setlistTrustVersion:show.setlistTrusted?SETLIST_TRUST_VERSION:'',
       totalDur:show.totalDur||0,
       rating:show.rating||0,
       reviews:show.numReviews||0,
@@ -2799,8 +2813,8 @@ function applyCachedArchiveSourceToShow(show,archiveId){
     if(cachedSongs.length){
       show.songs=cachedSongs.slice();
       show.setlistCached=true;
-      show.setlistTrusted=!!(entry.setlistTrusted&&(!show.archiveIdHint||entry.setlistTrustVersion===SETLIST_TRUST_VERSION));
-      show.cachePlayable=!!show.setlistTrusted;
+      show.setlistTrusted=!!entry.setlistTrusted;
+      show.cachePlayable=true;
       removeShowFromSongIndex(show);
       if(show.setlistTrusted){
         indexShowSongs(show,show.songs);
@@ -3266,6 +3280,7 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
   show._archiveTempFail=false;
   show._archivePartialScan=false;
   show._archiveMetaScanOffset=0;
+  show._archiveHintChanged=false;
   show.metaLoaded=true;show.notAvail=show.tracks.length===0;
   if(!show.notAvail) clearMetaLoaded(show);
   saveMetaLoaded(show);
@@ -3325,6 +3340,7 @@ function applyRelistenSourceToShow(show,src,archiveId){
   }
   show._needsArchive=false;
   show._archiveTempFail=false;
+  show._archiveHintChanged=false;
   show.metaLoaded=true;show.notAvail=deduped.length===0;
   if(!show.notAvail) clearMetaLoaded(show);
   saveMetaLoaded(show);
