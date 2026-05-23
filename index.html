@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.0.C">
+  <link rel="manifest" href="manifest.json?v=1.7.0.G">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0.C</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0.G</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -548,7 +548,7 @@ body{display:flex;justify-content:center}
       <div class="stat"><span class="stat-n" id="s-yrs">—</span><span class="stat-l">Years</span></div>
     </div>
     <div class="filters">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';blurActiveInput();applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%"/></div>
       <div class="frow">
         <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
@@ -562,7 +562,7 @@ body{display:flex;justify-content:center}
 
   <div id="tab-songs" style="display:none">
     <div class="song-view">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="songQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('songQ').value='';blurActiveInput();renderFeaturedSongs()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="songQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%"/></div>
       <div class="cntbar" id="songCnt" style="padding:4px 0;border:none">Type a song name to search</div>
     </div>
     <div class="song-results" id="songResults"></div>
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.0.C';
+const APP_BUILD = '1.7.0.G';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1149,14 +1149,14 @@ function bestCachedSetlistForShow(cached, show){
     if(!cached || !show || !show.date) return [];
     if(show.archiveNoAudioHint) return [];
     let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
-    if(show.archiveIdHint) return sanitizeSongList(best);
-    if(sourceLocked(show)) return sanitizeSongList(best);
+    if(show.archiveIdHint) return best.slice();
+    if(isDuplicateDateShow(show) || sourceLocked(show)) return best.slice();
     Object.keys(cached).forEach(function(k){
       if(k.indexOf(show.date + '-') === 0 && Array.isArray(cached[k]) && cached[k].length > best.length){
         best = cached[k];
       }
     });
-    return sanitizeSongList(best);
+    return Array.isArray(best) ? best.slice() : [];
   }catch(e){
     return [];
   }
@@ -1205,7 +1205,7 @@ function indexShowSongs(show,songs){
 }
 
 function applyBestCachedSetlist(show, incomingSongs, cached){
-  const inc = sanitizeSongList(incomingSongs);
+  const inc = Array.isArray(incomingSongs) ? incomingSongs.slice() : [];
   const bestCached = bestCachedSetlistForShow(
     cached || JSON.parse(localStorage.getItem('gd_setlists')||'{}'),
     show
@@ -1226,57 +1226,6 @@ function sanitizeSongList(songs){
     return s&&s.length>2&&!looksLikeTapeId(s)&&!looksLikeArchiveNote(s)&&!/^\d+$/.test(s);
   });
 }
-
-let _setlistCacheMemo=null;
-let _setlistCacheByDateMemo=null;
-function cachedSongListValue(v){
-  return (Array.isArray(v)?v:[]).map(function(s){
-    return String(s||'').trim();
-  }).filter(function(s){
-    return s&&s.length>1&&!/^\d+$/.test(s);
-  });
-}
-function setlistCacheStore(){
-  if(_setlistCacheMemo)return _setlistCacheMemo;
-  try{_setlistCacheMemo=JSON.parse(localStorage.getItem('gd_setlists')||'{}')||{};}
-  catch(e){_setlistCacheMemo={};}
-  return _setlistCacheMemo;
-}
-function setlistCacheByDate(){
-  if(_setlistCacheByDateMemo)return _setlistCacheByDateMemo;
-  const cache=setlistCacheStore();
-  const byDate={};
-  Object.keys(cache||{}).forEach(function(k){
-    const m=String(k).match(/^(\d{4}-\d{2}-\d{2})-/);
-    if(!m)return;
-    const songs=cachedSongListValue(cache[k]);
-    if(!songs.length)return;
-    if(!byDate[m[1]]||songs.length>byDate[m[1]].length)byDate[m[1]]=songs;
-  });
-  _setlistCacheByDateMemo=byDate;
-  return byDate;
-}
-function ensureCachedSetlistForShow(show){
-  if(!show||show.archiveNoAudioHint||(show.songs&&show.songs.length))return;
-  const cache=setlistCacheStore();
-  let songs=[];
-  if(show.archiveIdHint){
-    songs=sanitizeSongList(cache[show.id]||[]);
-  }else if(sourceLocked(show)){
-    songs=cachedSongListValue(cache[show.id]||[]);
-  }else{
-    songs=cachedSongListValue(cache[show.id]||[]);
-    if(!songs.length)songs=(setlistCacheByDate()[show.date]||[]).slice();
-  }
-  if(!songs.length)return;
-  show.songs=songs.slice();
-  show.setlistCached=true;
-  show.cachePlayable=true;
-  show.setlistTrusted=!show.archiveIdHint||!!show.setlistTrusted;
-  show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
-  if(show.setlistTrusted)indexShowSongs(show,songs);
-}
-
 
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
@@ -1593,8 +1542,6 @@ function onLoaded(list,opts){
   shows=list;
   try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
-    _setlistCacheMemo=cached;
-    _setlistCacheByDateMemo=null;
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
     // wiping on every launch.
@@ -1638,27 +1585,20 @@ function onLoaded(list,opts){
       // Restore the best cached setlist for this date into the search index.
       // Some dates exist under multiple show IDs; prefer the longest cached setlist.
       const bestCachedSongs = bestCachedSetlistForShow(cached, s);
-      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint){
+      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint && !showAssumedNoAudioNoSource(s)){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
-        // Older caches predate setlistTrusted. Normal Dead shows can trust the
-        // cached setlist; manual Archive-ID shows stay stricter because Archive
-        // descriptions often contain notes instead of songs.
-        s.setlistTrusted=!s.archiveIdHint||!!(showFlags[s.id]&&showFlags[s.id].setlistTrusted);
         s.cachePlayable = true;
         s._displayNameMap = null; s._visibleTrackMap = null; s._visibleTrackLabels = null;
-        if(s.setlistTrusted)markShowSetlistCached(s);
+        markShowSetlistCached(s);
         // Keep cached setlists searchable immediately on launch.
-        if(s.setlistTrusted){
-          bestCachedSongs.forEach(function(song){
-            const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
-            if(!songIndex[key])songIndex[key]=[];
-            if(!songIndex[key].some(function(e){return e.id===s.id;}))
-              songIndex[key].push({id:s.id,date:s.date,venue:s.venue,city:s.city,song:song});
-          });
-        }
+        bestCachedSongs.forEach(function(song){
+          const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+          if(!songIndex[key])songIndex[key]=[];
+          if(!songIndex[key].some(function(e){return e.id===s.id;}))
+            songIndex[key].push({id:s.id,date:s.date,venue:s.venue,city:s.city,song:song});
+        });
       }
-      ensureCachedSetlistForShow(s);
       // Restore Relisten availability flags
       if(relistenCache[s.date]&&!s.archiveIdHint&&!s.archiveNoAudioHint){
         const rc=relistenCache[s.date];
@@ -2296,13 +2236,11 @@ function updateViewStats(){
 // ── LIST ──────────────────────────────────────────────────────────
 function rowSetlistSummary(show){
   if(!show)return '';
-  ensureCachedSetlistForShow(show);
-  const songs=sanitizeSongList(show.songs);
-  if(songs.length&&(!show.archiveIdHint||show.setlistTrusted))return songs.slice(0,5).join(' · ');
+  if(show.songs&&show.songs.length)return show.songs.slice(0,5).join(' · ');
   const tracks=(show.tracks||[]).map(function(t){
     return getUsableArchiveLabel(t)||cleanTrackLabel((t&&t.name)||'');
   }).filter(function(s){
-    return s&&s.length>1&&!/^Track \d+$/i.test(s)&&!looksLikeArchiveNote(s);
+    return s&&s.length>1&&!/^Track \d+$/i.test(s);
   });
   if(tracks.length)return tracks.slice(0,5).join(' · ');
   return '';
@@ -2397,14 +2335,9 @@ function renderList(){
     let sub='';
     const hasAudio=showLooksPlayable(s);
     const hasCachedSetlist=!!(s.songs&&s.songs.length);
-    if(hasCachedSetlist){
-      const dot='<span style="color:var(--green)">▶ </span>';
-      const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
-      const songs=rowSetlistSummary(s);
-      if(songs)sub=`<div class="row-songs">${dot}${prefix}${esc(songs)}</div>`;
-    }else if(s.archiveNoAudioHint || showAssumedNoAudioNoSource(s) || (s.notAvail&&s.metaLoaded)){
+    if(s.archiveNoAudioHint || showAssumedNoAudioNoSource(s) || (s.notAvail&&s.metaLoaded&&!hasCachedSetlist)){
       sub='<div class="row-na">not on Relisten or archive.org</div>';
-    }else if(hasAudio){
+    }else if(hasAudio||hasCachedSetlist){
       const dot='<span style="color:var(--green)">▶ </span>';
       const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
       const songs=rowSetlistSummary(s);
@@ -3866,7 +3799,6 @@ async function loadShowMeta(show,priority,forceArchiveBg){
 
 
 function renderSetlistBody(show){
-  ensureCachedSetlistForShow(show);
   _setMpStatus(null);
   const _err=document.getElementById('sp-audio-err');
   if(_err){_err.style.display='none';_err.innerHTML='';}
@@ -4535,19 +4467,6 @@ function parseSongs(text){
   }).map(s=>s.replace(/^(set\s*\d+:?|e:|encore:)\s*/i,'').replace(/\*/g,'').trim()).filter(s=>s.length>2&&!/^\d+$/.test(s)))].slice(0,35);
 }
 
-function cacheSetlistDebug(){
-  try{
-    const cache=setlistCacheStore();
-    const byDate=setlistCacheByDate();
-    return {
-      cacheKeys:Object.keys(cache||{}).length,
-      cacheDates:Object.keys(byDate||{}).length,
-      showsWithSongs:shows.filter(function(s){return !!(s.songs&&s.songs.length);}).length,
-      visibleWithSongs:(filtered||[]).filter(function(s){ensureCachedSetlistForShow(s);return !!(s.songs&&s.songs.length);}).length
-    };
-  }catch(e){return {error:String(e&&e.message||e)};}
-}
-window.gdCacheSetlistDebug=cacheSetlistDebug;
 let songTimer=null;
 function songSearch(){clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
