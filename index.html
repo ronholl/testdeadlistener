@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.0.G">
+  <link rel="manifest" href="manifest.json?v=1.7.1">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0.G</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.1</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.0.G';
+const APP_BUILD = '1.7.1';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1362,6 +1362,7 @@ function showLooksUnavailable(show){
 function showAssumedNoAudioNoSource(show){
   if(!show)return false;
   if(show.archiveNoAudioHint)return false;
+  if((show.songs&&show.songs.length)||(show.tracks&&show.tracks.length)||show.cachePlayable||show.setlistCached)return false;
   // Only a sheet-provided Archive ID should force Archive resolution during
   // startup/background scan. A cached/backfilled archiveId by itself should
   // not turn an otherwise unresolved show into scan work for every user.
@@ -1585,7 +1586,7 @@ function onLoaded(list,opts){
       // Restore the best cached setlist for this date into the search index.
       // Some dates exist under multiple show IDs; prefer the longest cached setlist.
       const bestCachedSongs = bestCachedSetlistForShow(cached, s);
-      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint && !showAssumedNoAudioNoSource(s)){
+      if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
         s.cachePlayable = true;
@@ -1625,10 +1626,8 @@ function onLoaded(list,opts){
     });
     writeArchiveHintFingerprints(archiveHintFp);
   }catch(e){}
-  // ── Bulk prefetch all years from Relisten ────────────────────
-  // Fetches 31 years in parallel (~400ms), marks shows as available
-  // instantly so green ▶ indicators appear without waiting for full loads
-  if(!opts.fromCache)prefetchRelistenAvailability();
+  // Sheet Archive ID is now authoritative at startup. Do not prefetch Relisten
+  // availability here; Relisten can still be used later for alternate sources.
   window._gdSheetRefreshPending=!!opts.fromCache;
   restorePendingLocalUser();
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
@@ -4518,7 +4517,7 @@ function doSongSearch(refreshOnly){
   const q=document.getElementById('songQ').value.trim().toLowerCase();
   const cntEl=document.getElementById('songCnt'),resEl=document.getElementById('songResults');
   if(q.length<2){renderFeaturedSongs();return;}
-  if(!refreshOnly)shows.filter(s=>!s.songs&&!s.metaLoaded).slice(0,80).forEach((s,i)=>setTimeout(()=>loadShowMeta(s,false),i*100));
+  if(!refreshOnly)shows.filter(s=>s.archiveIdHint&&!s.songs&&!s.metaLoaded).slice(0,20).forEach((s,i)=>setTimeout(()=>loadShowMeta(s,false),i*150));
   const matches=[],seen=new Set();
   shows.forEach(s=>{
     if(!s.songs)return;
