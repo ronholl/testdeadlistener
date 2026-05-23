@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.8">
+  <link rel="manifest" href="manifest.json?v=1.7.9">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.8</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.9</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.8';
+const APP_BUILD = '1.7.9';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -3619,6 +3619,33 @@ function visibleTrackLabel(show, visibleIdx){
   return (show && show._visibleTrackLabels && show._visibleTrackLabels[visibleIdx]) || ('Track ' + (visibleIdx+1));
 }
 
+function persistDisplayedArchiveSetlist(show){
+  try{
+    if(!show||!show.archiveIdHint||!show.tracks||!show.tracks.length)return;
+    const map=buildVisibleTrackIndexMap(show);
+    const displayed=map.map(function(rawIdx,vi){
+      return visibleTrackLabel(show,vi);
+    }).filter(function(s){
+      return s&&s.length>1&&!/^Track \d+$/i.test(s)&&!looksLikeArchiveNote(s);
+    });
+    const songs=sanitizeSongList(displayed);
+    if(!songs.length)return;
+    show.songs=songs.slice();
+    show.setlistCached=true;
+    show.cachePlayable=true;
+    show.setlistTrusted=true;
+    show.archiveIdHintLoaded=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
+    show._archiveHintRefreshNeeded=false;
+    show._archiveHintChanged=false;
+    show._displayNameMap=null;
+    show._visibleTrackMap=null;
+    show._visibleTrackLabels=null;
+    indexShowSongs(show,show.songs);
+    saveCachedSetlistForShow(show,show.songs);
+    markShowSetlistCached(show);
+  }catch(e){}
+}
+
 function visiblePosForRaw(show, rawIdx){
   const map = buildVisibleTrackIndexMap(show);
   return map.indexOf(rawIdx);
@@ -4035,6 +4062,7 @@ function renderSetlistBody(show){
   // ── Track list ─────────────────────────────────────────────────
   let html='';
   const visibleMap = buildVisibleTrackIndexMap(show);
+  persistDisplayedArchiveSetlist(show);
   visibleMap.forEach(function(rawIdx,vi){
     const t=show.tracks[rawIdx];
     const dur=t.length?fmtT(t.length):'';
