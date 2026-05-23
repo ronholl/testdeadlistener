@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.0.B">
+  <link rel="manifest" href="manifest.json?v=1.7.0.C">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0.B</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0.C</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -548,7 +548,7 @@ body{display:flex;justify-content:center}
       <div class="stat"><span class="stat-n" id="s-yrs">—</span><span class="stat-l">Years</span></div>
     </div>
     <div class="filters">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="text" autocomplete="off" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('q').value='';blurActiveInput();applyFilters()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
       <div class="frow">
         <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
@@ -562,7 +562,7 @@ body{display:flex;justify-content:center}
 
   <div id="tab-songs" style="display:none">
     <div class="song-view">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="songQ" type="text" autocomplete="off" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('songQ').value='';renderFeaturedSongs()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch" id="songQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%;padding-right:32px"/><button onclick="document.getElementById('songQ').value='';blurActiveInput();renderFeaturedSongs()" style="position:absolute;right:8px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px;line-height:1">×</button></div>
       <div class="cntbar" id="songCnt" style="padding:4px 0;border:none">Type a song name to search</div>
     </div>
     <div class="song-results" id="songResults"></div>
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.0.B';
+const APP_BUILD = '1.7.0.C';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -781,6 +781,12 @@ function refreshTrackDurationFromAudio(show,idx,aud){
 }
 function setHdrSt(msg,cls){const el=document.getElementById('hdrSt');el.textContent=msg;el.className='hdr-st '+(cls||'');if(cls==='ok')setTimeout(()=>{el.textContent='';el.className='hdr-st';},4000);}
 function userColor(name){const i=users.indexOf(name);return USER_COLORS[i>=0?i%USER_COLORS.length:0];}
+function blurActiveInput(){
+  const el=document.activeElement;
+  if(el&&/^(INPUT|TEXTAREA|SELECT)$/i.test(el.tagName)){
+    try{el.blur();}catch(e){}
+  }
+}
 
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
@@ -1850,7 +1856,7 @@ function renderLoginScreen(){
 
   // Search box + list
   el.innerHTML='<div style="padding:0 0 8px">'
-    +'<input id="loginSearch" type="search" placeholder="Search Deadheads…" '
+    +'<input id="loginSearch" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search Deadheads…" '
     +'oninput="document.getElementById(\'loginUserList\').innerHTML=buildLoginCards(this.value)" '
     +'style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:8px">'
     +'</div>'
@@ -2475,6 +2481,7 @@ function toggleTheir(){
 
 // ── SETLIST PANEL ─────────────────────────────────────────────────
 async function openSetlist(id){
+  blurActiveInput();
   const show=shows.find(s=>s.id===id);if(!show)return;
   if(archiveAutoRetryShowId&&archiveAutoRetryShowId!==show.id)stopArchiveAutoRetry();
   // Remember which tab was active so Back returns there
@@ -4007,6 +4014,7 @@ function fmtSize(b){const mb=b/1048576;return(mb>100?Math.round(mb):mb.toFixed(1
 
 // ── PLAYBACK ─────────────────────────────────────────────────────
 function playTrack(idx){
+  blurActiveInput();
   if(!curShow?.tracks)return;
   touchFavoritePlayback(curShow);
   const map = buildVisibleTrackIndexMap(curShow);
@@ -4016,6 +4024,7 @@ function playTrack(idx){
   startPlayback(curShow,target);
 }
 function quickPlay(id){
+  blurActiveInput();
   const show=shows.find(s=>s.id===id);if(!show||show.notAvail)return;
   touchFavoritePlayback(show);
   if(curShow?.id===id&&audio){
@@ -4157,6 +4166,7 @@ function cancelPlayback(){
 }
 
 function startPlayback(show,idx,resumeAt){
+  blurActiveInput();
   // Use preloaded audio if available for this exact track (seamless transition)
   // Relisten tracks have direct mp3 URL; archive tracks need base URL + filename
   const track=show.tracks[idx];
@@ -4341,6 +4351,7 @@ function resumeAudio(){
   }
 }
 function togglePlay(){
+  blurActiveInput();
   if(!audio&&curShow){
     const ti=curTrackIdx>=0?curTrackIdx:firstPlayableRawIdx(curShow);
     startPlayback(curShow,ti);
@@ -4611,6 +4622,7 @@ function doSongSearch(refreshOnly){
   resEl.innerHTML=matches.slice(0,200).map(renderSongRow).join('');
 }
 async function openSetlistAndPlay(id,song){
+  blurActiveInput();
   const show=shows.find(s=>s.id===id);
   if(!show)return;
   touchFavoritePlayback(show);
@@ -4800,6 +4812,7 @@ function _tryAirPlay(){
 let prevTab='shows';
 let setlistOriginTab='shows';
 function switchTab(name){
+  blurActiveInput();
   // Close setlist panel if open
   const _spc=document.getElementById('setlistPanel');
   if(_spc&&_spc.classList.contains('open')){
@@ -6950,7 +6963,7 @@ function stopArchiveAutoRetry(){
         </div>
       </div>
       <div style="padding:0 0 10px">
-        <input id="jamSongQ" type="text" placeholder="Type a song name&hellip;"
+        <input id="jamSongQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Type a song name&hellip;"
           oninput="jamSongSearch()"
           style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:11px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
       </div>
