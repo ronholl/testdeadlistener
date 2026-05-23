@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.0">
+  <link rel="manifest" href="manifest.json?v=1.7.0.A">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.0.A</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.0';
+const APP_BUILD = '1.7.0.A';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1221,6 +1221,25 @@ function sanitizeSongList(songs){
   });
 }
 
+let _setlistCacheMemo=null;
+function setlistCacheStore(){
+  if(_setlistCacheMemo)return _setlistCacheMemo;
+  try{_setlistCacheMemo=JSON.parse(localStorage.getItem('gd_setlists')||'{}')||{};}
+  catch(e){_setlistCacheMemo={};}
+  return _setlistCacheMemo;
+}
+function ensureCachedSetlistForShow(show){
+  if(!show||show.archiveNoAudioHint||(show.songs&&show.songs.length))return;
+  const songs=bestCachedSetlistForShow(setlistCacheStore(),show);
+  if(!songs.length)return;
+  show.songs=songs.slice();
+  show.setlistCached=true;
+  show.cachePlayable=true;
+  show.setlistTrusted=!show.archiveIdHint||!!show.setlistTrusted;
+  show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
+  if(show.setlistTrusted)indexShowSongs(show,songs);
+}
+
 
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
@@ -1537,6 +1556,7 @@ function onLoaded(list,opts){
   shows=list;
   try{
     const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    _setlistCacheMemo=cached;
     // One-time migration: wipe gd_meta_loaded if it was written by the buggy build
     // that cached temporary archive.org failures as permanent. Version stamp prevents
     // wiping on every launch.
@@ -2237,6 +2257,7 @@ function updateViewStats(){
 // ── LIST ──────────────────────────────────────────────────────────
 function rowSetlistSummary(show){
   if(!show)return '';
+  ensureCachedSetlistForShow(show);
   const songs=sanitizeSongList(show.songs);
   if(songs.length&&(!show.archiveIdHint||show.setlistTrusted))return songs.slice(0,5).join(' · ');
   const tracks=(show.tracks||[]).map(function(t){
@@ -3805,6 +3826,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
 
 
 function renderSetlistBody(show){
+  ensureCachedSetlistForShow(show);
   _setMpStatus(null);
   const _err=document.getElementById('sp-audio-err');
   if(_err){_err.style.display='none';_err.innerHTML='';}
