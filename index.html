@@ -1341,7 +1341,10 @@ function showLooksUnavailable(show){
 function showAssumedNoAudioNoSource(show){
   if(!show)return false;
   if(show.archiveNoAudioHint)return false;
-  if(plausibleArchiveId(show.archiveIdHint||show.archiveId||''))return false;
+  // Only a sheet-provided Archive ID should force Archive resolution during
+  // startup/background scan. A cached/backfilled archiveId by itself should
+  // not turn an otherwise unresolved show into scan work for every user.
+  if(plausibleArchiveId(show.archiveIdHint||''))return false;
   if(show.relistenAvail)return false;
   return true;
 }
