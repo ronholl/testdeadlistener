@@ -391,7 +391,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.1">
+  <link rel="manifest" href="manifest.json?v=1.7.2">
 </head>
 <body>
 <div id="app">
@@ -518,7 +518,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.1</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.2</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -580,7 +580,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.1';
+const APP_BUILD = '1.7.2';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1484,11 +1484,11 @@ function applyArchiveHintInvalidation(show,flags,fp){
   const hasCachedSetlist=!!((show.songs&&show.songs.length)||(flags&&flags.setlist)||show.setlistCached||show.cachePlayable);
   const hasCachedAudio=!!((show.tracks&&show.tracks.length)||(flags&&flags.hasAudio));
 
-  // First install after adding Archive IDs should not wipe useful caches just
-  // because older flags did not know which hint produced them. Treat an
-  // existing cached setlist/audio entry as current unless a different cached
-  // Archive ID is explicitly known.
-  if(!loadedHint&&!loadedArchive&&(hasCachedSetlist||hasCachedAudio)){
+  // First install after adding sheet Archive IDs should not wipe useful caches
+  // just because older flags only knew an Archive/Relisten source ID, not the
+  // sheet hint that produced the cache. Seed the current sheet hint once; future
+  // sheet Archive ID edits will then compare against archiveIdHintLoaded.
+  if(!loadedHint&&(hasCachedSetlist||hasCachedAudio)){
     show.archiveIdHintLoaded=hint;
     show._archiveHintRefreshNeeded=false;
     saveShowFlags(show);
