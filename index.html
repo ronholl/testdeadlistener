@@ -662,6 +662,20 @@ function modeScopedKey(base,mode){
 }
 function currentModeScopedKey(base){return modeScopedKey(base,activeMode);}
 function modeKeyScopedKey(base,mode){return modeScopedKey(base,mode||activeMode);}
+function modeForShow(show){
+  if(!show)return activeMode||DEFAULT_MODE;
+  const key=show.modeKey||'';
+  const label=show.modeLabel||'';
+  return modes.find(function(m){
+    return (key&&m.key===key)||(label&&sameModeLabel(m.label,label));
+  })||{
+    key:key||DEFAULT_MODE.key,
+    label:label||DEFAULT_MODE.label,
+    sheetName:show.sheetName||'',
+    isDefault:!key||key===DEFAULT_MODE.key
+  };
+}
+function showModeScopedKey(show,base){return modeScopedKey(base,modeForShow(show));}
 function showScopedCacheId(show){
   if(!show)return '';
   return isDefaultMode({key:show.modeKey,isDefault:show.modeKey===DEFAULT_MODE.key})?show.id:(show.modeKey+':'+rawShowId(show.id));
@@ -983,6 +997,7 @@ async function changeMode(){
   const sel=document.getElementById('modeSel');
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(next.key===activeMode.key)return;
+  cancelModeBackgroundWork();
   activeMode=next;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
   document.getElementById('q').value='';
@@ -1069,11 +1084,12 @@ function scheduleInactiveModePreload(){
 async function preloadInactiveModeSheets(){
   const original={mode:activeMode,users:users.slice(),userCols:Object.assign({},userCols),userPins:Object.assign({},userPins),userLimit:userLimit};
   for(const mode of modes){
+    if(!activeMode||activeMode.key!==original.mode.key)return;
     if(mode.key===original.mode.key)continue;
     if(_readModeCache(mode))continue;
     try{
-      activeMode=mode;
       const list=await tryJSONP(mode);
+      if(!activeMode||activeMode.key!==original.mode.key)return;
       if(list&&list.length)writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
     }catch(e){}
     activeMode=original.mode;users=original.users.slice();userCols=Object.assign({},original.userCols);userPins=Object.assign({},original.userPins);userLimit=original.userLimit;
@@ -1514,13 +1530,14 @@ function removeShowFromSongIndex(show){
 function clearCachedSetlistForShow(show){
   try{
     if(!show||!show.id)return;
-    const c=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
+    const key=showModeScopedKey(show,'gd_setlists');
+    const c=JSON.parse(localStorage.getItem(key)||'{}');
     if(c&&Object.prototype.hasOwnProperty.call(c,show.id)){
       delete c[show.id];
     }
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey&&Object.prototype.hasOwnProperty.call(c,archiveKey))delete c[archiveKey];
-    localStorage.setItem(currentModeScopedKey('gd_setlists'),JSON.stringify(c));
+    localStorage.setItem(key,JSON.stringify(c));
   }catch(e){}
 }
 
@@ -1534,18 +1551,19 @@ function saveCachedSetlistForShow(show,songs){
     if(!show||!show.id||!songs||!songs.length)return;
     const savedSongs=songs.slice();
     const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
-    const c=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
+    const key=showModeScopedKey(show,'gd_setlists');
+    const c=JSON.parse(localStorage.getItem(key)||'{}');
     c[show.id]=savedSongs;
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey)c[archiveKey]=savedSongs;
     try{
-      localStorage.setItem(currentModeScopedKey('gd_setlists'),JSON.stringify(c));
+      localStorage.setItem(key,JSON.stringify(c));
       window._gdSetlistsWriteLast={ok:true,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
     }catch(e){
       window._gdSetlistsWriteLast={ok:false,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e&&e.message||e)};
       try{
         localStorage.removeItem(ARCHIVE_SOURCE_CACHE_KEY);
-        localStorage.setItem(currentModeScopedKey('gd_setlists'),JSON.stringify(c));
+        localStorage.setItem(key,JSON.stringify(c));
         window._gdSetlistsWriteLast={ok:true,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
       }catch(e2){
         window._gdSetlistsWriteLast={ok:false,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e2&&e2.message||e2)};
@@ -1553,7 +1571,7 @@ function saveCachedSetlistForShow(show,songs){
     }
     if(archiveId&&Array.isArray(shows)){
       shows.forEach(function(s){
-        if(!s||s===show||normalizeArchiveId(s.archiveIdHint||s.archiveId||'')!==archiveId)return;
+        if(!s||s===show||s.modeKey!==show.modeKey||normalizeArchiveId(s.archiveIdHint||s.archiveId||'')!==archiveId)return;
         if(!(s.songs&&s.songs.length)){
           s.songs=savedSongs.slice();
           s.setlistCached=true;
@@ -1585,7 +1603,7 @@ function indexShowSongs(show,songs){
 function applyBestCachedSetlist(show, incomingSongs, cached){
   const inc = Array.isArray(incomingSongs) ? incomingSongs.slice() : [];
   const bestCached = bestCachedSetlistForShow(
-    cached || JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}'),
+    cached || JSON.parse(localStorage.getItem(showModeScopedKey(show,'gd_setlists'))||'{}'),
     show
   );
   const best = inc.length ? inc : bestCached;
@@ -1608,15 +1626,17 @@ function sanitizeSongList(songs){
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
 const ARCHIVE_HINT_LOGIC_VERSION='tracks-v3';
-function readShowFlags(){
-  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(SHOW_FLAGS_KEY))||'{}')||{};}catch(e){return {};}
+function readShowFlags(modeOrShow){
+  const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,SHOW_FLAGS_KEY):modeScopedKey(SHOW_FLAGS_KEY,modeOrShow||activeMode);
+  try{return JSON.parse(localStorage.getItem(key)||'{}')||{};}catch(e){return {};}
 }
-function writeShowFlags(flags){
-  try{localStorage.setItem(currentModeScopedKey(SHOW_FLAGS_KEY),JSON.stringify(flags||{}));}catch(e){}
+function writeShowFlags(flags,modeOrShow){
+  const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,SHOW_FLAGS_KEY):modeScopedKey(SHOW_FLAGS_KEY,modeOrShow||activeMode);
+  try{localStorage.setItem(key,JSON.stringify(flags||{}));}catch(e){}
 }
 function saveShowFlags(show){
   try{
-    const flags=readShowFlags();
+    const flags=readShowFlags(show);
     const hasArchiveHint=plausibleArchiveId(show.archiveIdHint||show.archiveId||'');
     flags[show.id]={
       hasAudio:!!(show.metaLoaded&&!show.notAvail),
@@ -1626,7 +1646,7 @@ function saveShowFlags(show){
       archiveId:show.archiveId||'',
       archiveIdHintLoaded:show.archiveIdHintLoaded||''
     };
-    writeShowFlags(flags);
+    writeShowFlags(flags,show);
   }catch(e){}
 }
 function readArchiveHintFingerprints(){
@@ -1645,16 +1665,16 @@ function archiveHintFingerprint(show){
 function clearShowFlagsForShow(show){
   try{
     if(!show||!show.id)return;
-    const flags=readShowFlags();
+    const flags=readShowFlags(show);
     if(flags&&Object.prototype.hasOwnProperty.call(flags,show.id)){
       delete flags[show.id];
-      writeShowFlags(flags);
+      writeShowFlags(flags,show);
     }
   }catch(e){}
 }
 function markShowSetlistCached(show){
   try{
-    const flags=readShowFlags();
+    const flags=readShowFlags(show);
     const cur=flags[show.id]||{};
     const hasArchiveHint=plausibleArchiveId(show.archiveIdHint||show.archiveId||'');
     cur.setlist=!!(show.songs&&show.songs.length);
@@ -1664,7 +1684,7 @@ function markShowSetlistCached(show){
     if(show.archiveId) cur.archiveId=show.archiveId;
     if(show.archiveIdHintLoaded) cur.archiveIdHintLoaded=show.archiveIdHintLoaded;
     flags[show.id]=cur;
-    writeShowFlags(flags);
+    writeShowFlags(flags,show);
   }catch(e){}
 }
 
@@ -1901,14 +1921,18 @@ function applyArchiveHintInvalidation(show,flags,fp){
 }
 
 function scheduleArchiveHintRefresh(){
+  const token=bgModeToken;
+  const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
   const hinted=shows.filter(function(s){
     return s.archiveNoAudioHint && (s._archiveHintRefreshNeeded || !s.metaLoaded || !s.archiveIdHintLoaded);
   }).slice(0,4);
   if(!hinted.length)return;
   hinted.forEach(function(s,i){
     setTimeout(function(){
+      if(token!==bgModeToken || !activeMode || activeMode.key!==modeKey)return;
       if((s._archiveHintRefreshNeeded||!s.metaLoaded||!s.archiveIdHintLoaded)&&!activeLoads.has(s.id)){
         loadShowMeta(s,false).then(function(){
+          if(token!==bgModeToken || !activeMode || activeMode.key!==modeKey)return;
           s._archiveHintRefreshNeeded=false;
           updateSongCntProgress();
           renderList();
@@ -2882,6 +2906,22 @@ const BG_BATCH=IS_MOBILE_BG?8:18,BG_DELAY=IS_MOBILE_BG?80:90,BG_ARCHIVE_BATCH=IS
 const APP_STARTED_AT=Date.now();
 let bgRunning=false;
 let bgLastListRender=0;
+let bgModeToken=0;
+function cancelModeBackgroundWork(){
+  bgModeToken++;
+  bgRunning=false;
+  try{
+    activeLoads.clear();
+    activeLoadStarted.clear();
+  }catch(e){}
+  try{stopArchiveAutoRetry();}catch(e){}
+  try{
+    if(_archiveIdSaveTimer){clearTimeout(_archiveIdSaveTimer);_archiveIdSaveTimer=null;}
+    _archiveIdSaveQueue=[];
+    _archiveIdSaveQueuedKeys.clear();
+    _archiveIdSaveRunning=false;
+  }catch(e){}
+}
 function noteBgItemProgress(show){
   try{
     updateSongCntProgress();
@@ -2923,6 +2963,8 @@ function setlistLoadPriority(a,b){
 function bgLoadBatch(){
   if(bgRunning)return;
   if(!shows||!shows.length)return;
+  const token=bgModeToken;
+  const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
   bgRunning=true;
   // Priority queues:
   // Keep startup work targeted. Do not crawl the whole catalog in the
@@ -3050,8 +3092,14 @@ function bgLoadBatch(){
   }
   const promises=batch.map((s,i)=>new Promise(res=>
     setTimeout(function(){
+      if(token!==bgModeToken || !activeMode || activeMode.key!==modeKey){res();return;}
       let done=false;
-      const finish=function(){if(done)return;done=true;noteBgItemProgress(s);res();};
+      const finish=function(){
+        if(done)return;
+        done=true;
+        if(token===bgModeToken && activeMode && activeMode.key===modeKey)noteBgItemProgress(s);
+        res();
+      };
       var p;
       s._bgLastQueuedAt=Date.now();
       const itemTimer=setTimeout(function(){
@@ -3073,6 +3121,10 @@ function bgLoadBatch(){
   ));
   const batchTimeout=new Promise(function(res){setTimeout(function(){res('__timeout__');},45000);});
   Promise.race([Promise.allSettled(promises),batchTimeout]).then(function(result){
+    if(token!==bgModeToken || !activeMode || activeMode.key!==modeKey){
+      bgRunning=false;
+      return;
+    }
     if(result==='__timeout__'){
       batch.forEach(function(s){
         activeLoads.delete(s.id);
@@ -3166,27 +3218,31 @@ function isActiveLoadFresh(id){
 // Persist metaLoaded state so bg-loop progress survives app restarts
 function saveMetaLoaded(show){
   try{
-    const m=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_meta_loaded'))||'{}');
+    const key=showModeScopedKey(show,'gd_meta_loaded');
+    const m=JSON.parse(localStorage.getItem(key)||'{}');
     m[show.id]=show.notAvail;
-    localStorage.setItem(currentModeScopedKey('gd_meta_loaded'),JSON.stringify(m));
+    localStorage.setItem(key,JSON.stringify(m));
   }catch(e){}
   saveShowFlags(show);
 }
 function clearMetaLoaded(show){
   try{
-    const m=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_meta_loaded'))||'{}');
+    const key=showModeScopedKey(show,'gd_meta_loaded');
+    const m=JSON.parse(localStorage.getItem(key)||'{}');
     delete m[show.id];
-    localStorage.setItem(currentModeScopedKey('gd_meta_loaded'),JSON.stringify(m));
+    localStorage.setItem(key,JSON.stringify(m));
   }catch(e){}
   saveShowFlags(show);
 }
 
 const ARCHIVE_SOURCE_CACHE_KEY='gd_archive_source_cache_v1';
-function readArchiveSourceCache(){
-  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY))||'{}')||{};}catch(e){return {};}
+function readArchiveSourceCache(modeOrShow){
+  const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
+  try{return JSON.parse(localStorage.getItem(key)||'{}')||{};}catch(e){return {};}
 }
-function writeArchiveSourceCache(cache){
-  try{localStorage.setItem(currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY),JSON.stringify(cache||{}));}catch(e){}
+function writeArchiveSourceCache(cache,modeOrShow){
+  const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
+  try{localStorage.setItem(key,JSON.stringify(cache||{}));}catch(e){}
 }
 function deriveSetlistFromTracks(tracks){
   return sanitizeSongList((tracks||[]).map(function(t){
@@ -3200,7 +3256,7 @@ function cacheArchiveSourceForShow(show,source){
     if(!show||!show.archiveId||!show.tracks||!show.tracks.length)return;
     const id=normalizeArchiveId(show.archiveId);
     if(!plausibleArchiveId(id))return;
-    const cache=readArchiveSourceCache();
+    const cache=readArchiveSourceCache(show);
     const cachedSongs=(show.songs&&show.songs.length)?sanitizeSongList(show.songs):deriveSetlistFromTracks(show.tracks);
     if(cachedSongs.length&&!(show.songs&&show.songs.length)){
       show.songs=cachedSongs.slice();
@@ -3225,14 +3281,14 @@ function cacheArchiveSourceForShow(show,source){
     };
     const keys=Object.keys(cache).sort(function(a,b){return (cache[b].ts||0)-(cache[a].ts||0);});
     keys.slice(350).forEach(function(k){delete cache[k];});
-    writeArchiveSourceCache(cache);
+    writeArchiveSourceCache(cache,show);
   }catch(e){}
 }
 function applyCachedArchiveSourceToShow(show,archiveId){
   try{
     const id=normalizeArchiveId(archiveId||'');
     if(!id)return false;
-    const entry=readArchiveSourceCache()[id];
+    const entry=readArchiveSourceCache(show)[id];
     if(!entry||!entry.tracks||!entry.tracks.length)return false;
     show.archiveId=id;
     show.tracks=entry.tracks.slice();
