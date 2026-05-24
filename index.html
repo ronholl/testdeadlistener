@@ -35,10 +35,6 @@
 
 
 <title>RonsDeadListener</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -405,7 +401,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.20">
+  <link rel="manifest" href="manifest.json?v=1.7.21">
 </head>
 <body>
 <div id="app">
@@ -532,7 +528,7 @@ body{display:flex;justify-content:center}
     <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.20</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.21</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -594,7 +590,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.20';
+const APP_BUILD = '1.7.21';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -5001,25 +4997,23 @@ function switchTab(name){
   if(name==='others')refreshAttendance(false);
 }
 
-function startAppAfterFirstPaint(){
-  setTimeout(function(){
-    const _gdCachedStartup=shouldUseCachedStartup();
-    if(!_gdCachedStartup)restoreSavedUserShell();
-    else setTimeout(function(){if(!shows.length)restoreSavedUserShell();},1200);
-    loadData();
-    logVisit();
-  },0);
-}
-try{
-  requestAnimationFrame(function(){requestAnimationFrame(startAppAfterFirstPaint);});
-}catch(e){
-  setTimeout(startAppAfterFirstPaint,0);
-}
+const _gdCachedStartup=shouldUseCachedStartup();
+if(!_gdCachedStartup)restoreSavedUserShell();
+loadData();
+setTimeout(logVisit,0);
 // Set poster button visible once DOM is ready (element is below the script tag)
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
   if(pb&&POSTER_URL)pb.style.display='block';
   bindRollDiceControl();
+  setTimeout(function(){
+    try{
+      const f=document.createElement('link');
+      f.rel='stylesheet';
+      f.href='https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap';
+      document.head.appendChild(f);
+    }catch(e){}
+  },1500);
 });
 
 // ── BACKGROUND AUDIO RECOVERY ──────────────────────────────────────────
