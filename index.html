@@ -412,7 +412,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.5</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.6</span></div>
     </div>
     
 
@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.5</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.6</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -592,7 +592,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.5';
+const APP_BUILD = '2.0.6';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -607,7 +607,7 @@ const SHEET_CACHE_SCHEMA_VERSION=3;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false;
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -914,6 +914,7 @@ function blurActiveInput(){
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
   debugLines=[];
+  scheduleStartupLoadGuard();
   await initModes();
   const cached=_readCache();
   if(_canRenderFromSheetCache(cached)){
@@ -927,6 +928,18 @@ async function loadData(){
     return;
   }
   await _fetchSheetFresh();
+}
+
+function scheduleStartupLoadGuard(){
+  setTimeout(function(){
+    try{
+      if(shows&&shows.length)return;
+      const msg=document.getElementById('loginLoadingMsg');
+      if(!msg)return;
+      debugLines.push('startup guard: still loading after 20s on '+APP_BUILD);
+      showErr();
+    }catch(e){}
+  },20000);
 }
 
 async function initModes(){
@@ -1019,14 +1032,48 @@ function renderModeSelect(){
     o.value=m.key;o.textContent=m.label;sel.appendChild(o);
   });
   sel.value=activeMode.key;
+  bindModeSelectControl();
+}
+
+function bindModeSelectControl(){
+  const sel=document.getElementById('modeSel');
+  if(!sel)return;
+  if(!sel.dataset.modeBound){
+    sel.dataset.modeBound='1';
+    ['change','input','blur'].forEach(function(ev){
+      sel.addEventListener(ev,function(){changeMode();});
+    });
+    sel.addEventListener('touchend',function(){setTimeout(checkModeSelectValue,150);},{passive:true});
+    sel.addEventListener('mouseup',function(){setTimeout(checkModeSelectValue,150);});
+  }
+  if(!_modeSelectWatchStarted){
+    _modeSelectWatchStarted=true;
+    setInterval(checkModeSelectValue,300);
+  }
+}
+
+function checkModeSelectValue(){
+  const sel=document.getElementById('modeSel');
+  if(!sel||_modeSwitchBusy)return;
+  if(sel.value&&activeMode&&sel.value!==activeMode.key)changeMode();
+}
+
+function showModeLoadingState(label){
+  setHdrSt('Loading '+label+'…','busy');
+  const cnt=document.getElementById('cntbar');
+  if(cnt)cnt.innerHTML='<span style="color:var(--gold2)">Loading '+esc(label)+'…</span>';
+  const listEl=document.getElementById('list');
+  if(listEl)listEl.innerHTML='<div class="loading"><span class="spinner"></span>Loading '+esc(label)+' shows…</div>';
 }
 
 async function changeMode(){
   const sel=document.getElementById('modeSel');
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
+  if(_modeSwitchBusy)return;
   if(next.key===activeMode.key)return;
   const prev=activeMode;
   const token=++_modeSwitchToken;
+  _modeSwitchBusy=true;
   cancelModeBackgroundWork();
   activeMode=next;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
@@ -1036,17 +1083,21 @@ async function changeMode(){
   curShow=null;filtered=[];songIndex={};myOnly=false;viewUser=curUser||'all';
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
-  setHdrSt('Loading '+activeMode.label+'…','busy');
-  const ok=await _fetchSheetFresh({modeSwitchToken:token});
-  if(token!==_modeSwitchToken)return;
-  if(ok){
-    setHdrSt(activeMode.label,'ok');
-  }else{
-    activeMode=prev||DEFAULT_MODE;
-    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
-    renderModeSelect();
-    if(shows&&shows.length)onLoaded(shows,{fromCache:true});
-    setHdrSt('Could not load '+next.label,'err');
+  showModeLoadingState(activeMode.label);
+  try{
+    const ok=await _fetchSheetFresh({modeSwitchToken:token});
+    if(token!==_modeSwitchToken)return;
+    if(ok){
+      setHdrSt(activeMode.label,'ok');
+    }else{
+      activeMode=prev||DEFAULT_MODE;
+      localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+      renderModeSelect();
+      if(shows&&shows.length)onLoaded(shows,{fromCache:true});
+      setHdrSt('Could not load '+next.label,'err');
+    }
+  }finally{
+    if(token===_modeSwitchToken)_modeSwitchBusy=false;
   }
 }
 
@@ -5511,6 +5562,7 @@ setTimeout(logVisit,0);
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
   if(pb&&POSTER_URL)pb.style.display='block';
+  bindModeSelectControl();
   bindRollDiceControl();
   document.querySelectorAll('.manual-clear').forEach(function(input){
     input.addEventListener('input',function(){
