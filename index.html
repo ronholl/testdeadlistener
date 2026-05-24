@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.2</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.3</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -592,7 +592,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.2';
+const APP_BUILD = '2.0.3';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -605,6 +605,7 @@ const SHOW_META_HEADERS=['archive id','archiveid','archive url','archiveurl'];
 const SOURCE_LOCK_HEADERS=['source lock','sourcelock'];
 const SHEET_CACHE_SCHEMA_VERSION=3;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
+const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
 let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false;
 
@@ -621,6 +622,15 @@ function modeFromSheetName(sheetName){
   const label=sn.replace(/^MODE\s+/i,'').trim();
   if(!label)return null;
   return {key:modeKeyFromLabel(label),label:label,sheetName:sn,isDefault:false};
+}
+function fallbackModes(){
+  const seen={gd:true};
+  const out=[Object.assign({},DEFAULT_MODE)];
+  FALLBACK_MODE_SHEETS.forEach(function(sheetName){
+    const m=modeFromSheetName(sheetName);
+    if(m&&!seen[m.key]){seen[m.key]=true;out.push(m);}
+  });
+  return out;
 }
 function normalizeModeLabel(label){
   const s=(label||'').toString().trim();
@@ -922,30 +932,41 @@ async function loadData(){
 async function initModes(){
   const saved=localStorage.getItem(ACTIVE_MODE_KEY)||DEFAULT_MODE.key;
   let loadedModes=false;
-  let liveModesLoaded=false;
   let cachedModePayload=null;
   try{cachedModePayload=JSON.parse(localStorage.getItem('gd_modes_cache')||'null');}catch(e){}
   try{loadedModes=applyModesPayload(cachedModePayload,true);}catch(e){}
-  try{
-    const r=await fetch(SCRIPT_URL+'?action=getModes',{signal:AbortSignal.timeout(7000)});
-    if(r.ok){
-      const d=await r.json();
-      loadedModes=applyModesPayload(d);
-      liveModesLoaded=!!(d&&Array.isArray(d.modes)&&d.modes.length>1);
-    }
-  }catch(e){}
-  if(!liveModesLoaded){
-    try{loadedModes=applyModesPayload(await tryModesJSONP());}catch(e){}
+  if(!loadedModes || !modes || modes.length<2){
+    modes=fallbackModes();
+    allModeShowTotal=modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
+    loadedModes=true;
   }
-  if((!modes||modes.length<2)&&cachedModePayload&&Array.isArray(cachedModePayload.modes)&&cachedModePayload.modes.length>1){
-    try{loadedModes=applyModesPayload(cachedModePayload,true);}catch(e){}
-  }
-  if(!loadedModes)modes=[DEFAULT_MODE];
   if(!modes.some(function(m){return m.key===DEFAULT_MODE.key;}))modes.unshift(DEFAULT_MODE);
   if(!allModeShowTotal)allModeShowTotal=modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
   activeMode=modes.find(function(m){return m.key===saved||m.label===saved;})||DEFAULT_MODE;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
   renderModeSelect();
+  discoverModesInBackground();
+}
+
+async function discoverModesInBackground(){
+  let liveLoaded=false;
+  try{
+    const r=await fetch(SCRIPT_URL+'?action=getModes',{signal:AbortSignal.timeout(3000)});
+    if(r.ok){
+      const d=await r.json();
+      liveLoaded=applyModesPayload(d)&&!!(d&&Array.isArray(d.modes)&&d.modes.length>1);
+    }
+  }catch(e){}
+  if(!liveLoaded){
+    try{liveLoaded=applyModesPayload(await tryModesJSONP());}catch(e){}
+  }
+  if(!liveLoaded && (!modes||modes.length<2)){
+    modes=fallbackModes();
+  }
+  if(!modes.some(function(m){return m.key===DEFAULT_MODE.key;}))modes.unshift(DEFAULT_MODE);
+  if(activeMode&&!modes.some(function(m){return m.key===activeMode.key}))activeMode=DEFAULT_MODE;
+  renderModeSelect();
+  updateGlobalShowCount();
 }
 
 function applyModesPayload(d){
