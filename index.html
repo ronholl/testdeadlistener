@@ -412,7 +412,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.8</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.11</span></div>
     </div>
     
 
@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.8</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.11</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -592,7 +592,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.8';
+const APP_BUILD = '2.0.11';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -607,7 +607,7 @@ const SHEET_CACHE_SCHEMA_VERSION=3;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0;
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -967,11 +967,22 @@ async function discoverModesInBackground(){
     const r=await fetch(SCRIPT_URL+'?action=getModes',{signal:AbortSignal.timeout(3000)});
     if(r.ok){
       const d=await r.json();
-      liveLoaded=applyModesPayload(d)&&!!(d&&Array.isArray(d.modes)&&d.modes.length>1);
+      if(d&&Array.isArray(d.modes)&&d.modes.length>1){
+        liveLoaded=applyModesPayload(d);
+      }else if(d&&Array.isArray(d.modes)){
+        debugLines.push('ignored one-mode discovery response on '+APP_BUILD);
+      }
     }
   }catch(e){}
   if(!liveLoaded){
-    try{liveLoaded=applyModesPayload(await tryModesJSONP());}catch(e){}
+    try{
+      const d=await tryModesJSONP();
+      if(d&&Array.isArray(d.modes)&&d.modes.length>1){
+        liveLoaded=applyModesPayload(d);
+      }else if(d&&Array.isArray(d.modes)){
+        debugLines.push('ignored one-mode JSONP discovery response on '+APP_BUILD);
+      }
+    }catch(e){}
   }
   if(!liveLoaded && (!modes||modes.length<2)){
     modes=fallbackModes();
@@ -1072,12 +1083,19 @@ function tryScriptCatalogJSONP(mode){
 function renderModeSelect(){
   const sel=document.getElementById('modeSel');
   if(!sel)return;
+  const wanted=(_modeSwitchBusy&&sel.value)?sel.value:(loadedCatalogModeKey||activeMode.key);
+  if(wanted&&!modes.some(function(m){return m.key===wanted;})){
+    const fm=fallbackModes();
+    fm.forEach(function(m){
+      if(!modes.some(function(existing){return existing.key===m.key;}))modes.push(m);
+    });
+  }
   sel.innerHTML='';
   modes.forEach(function(m){
     const o=document.createElement('option');
     o.value=m.key;o.textContent=m.label;sel.appendChild(o);
   });
-  sel.value=activeMode.key;
+  sel.value=wanted;
   bindModeSelectControl();
 }
 
@@ -1100,7 +1118,16 @@ function bindModeSelectControl(){
 
 function checkModeSelectValue(){
   const sel=document.getElementById('modeSel');
-  if(!sel||_modeSwitchBusy)return;
+  if(!sel)return;
+  if(_modeSwitchBusy){
+    if(_modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt>22000){
+      debugLines.push('mode switch watchdog released stuck switch on '+APP_BUILD);
+      _modeSwitchBusy=false;
+      _modeSwitchStartedAt=0;
+    }else{
+      return;
+    }
+  }
   if(sel.value&&((activeMode&&sel.value!==activeMode.key)||sel.value!==loadedCatalogModeKey))changeMode();
 }
 
@@ -1115,25 +1142,35 @@ function showModeLoadingState(label){
 async function changeMode(){
   const sel=document.getElementById('modeSel');
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
-  if(_modeSwitchBusy)return;
-  if(next.key===activeMode.key&&next.key===loadedCatalogModeKey)return;
+  if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
+  if(next.key===loadedCatalogModeKey)return;
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
+  _modeSwitchStartedAt=Date.now();
   cancelModeBackgroundWork();
-  activeMode=next;
-  localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
   document.getElementById('q').value='';
   document.getElementById('songQ').value='';
   const jq=document.getElementById('jamSongQ');if(jq)jq.value='';
   curShow=null;filtered=[];songIndex={};myOnly=false;viewUser=curUser||'all';
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
-  showModeLoadingState(activeMode.label);
+  showModeLoadingState(next.label);
   try{
-    const ok=await _fetchSheetFresh({modeSwitchToken:token});
+    const ok=await Promise.race([
+      _fetchSheetFresh({modeSwitchToken:token,mode:next}),
+      new Promise(function(resolve){
+        setTimeout(function(){
+          debugLines.push('mode switch timeout '+next.label+' on '+APP_BUILD);
+          resolve(false);
+        },20000);
+      })
+    ]);
     if(token!==_modeSwitchToken)return;
     if(ok){
+      activeMode=next;
+      localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+      renderModeSelect();
       setHdrSt(activeMode.label,'ok');
     }else{
       activeMode=prev||DEFAULT_MODE;
@@ -1143,7 +1180,9 @@ async function changeMode(){
       setHdrSt('Could not load '+next.label,'err');
     }
   }finally{
-    if(token===_modeSwitchToken)_modeSwitchBusy=false;
+    _modeSwitchBusy=false;
+    _modeSwitchStartedAt=0;
+    setTimeout(checkModeSelectValue,0);
   }
 }
 
@@ -1335,7 +1374,7 @@ function restoreSavedUserShell(){
 
 async function _fetchSheetFresh(opts){
   opts=opts||{};
-  const requestedMode=activeMode||DEFAULT_MODE;
+  const requestedMode=opts.mode||activeMode||DEFAULT_MODE;
   const switchToken=opts.modeSwitchToken||0;
   function stale(){return switchToken&&switchToken!==_modeSwitchToken;}
   debugLines.push('fetch '+requestedMode.label+' start');
@@ -1343,26 +1382,26 @@ async function _fetchSheetFresh(opts){
   if(stale())return false;
   if(scriptCatalog&&scriptCatalog.length>5){
     if(opts.background){writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;}
-    onLoaded(scriptCatalog,opts);writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;
+    activeMode=requestedMode;onLoaded(scriptCatalog,opts);writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;
   }
   // 1. Try JSONP (fastest, direct from Google)
   const r=await tryJSONP(requestedMode);
   if(stale())return false;
   if(r&&r.length>5){
     if(opts.background){_writeCacheSoon(r);return true;}
-    onLoaded(r,opts);_writeCacheSoon(r);return true;
+    activeMode=requestedMode;onLoaded(r,opts);_writeCacheSoon(r);return true;
   }
   if(!isDefaultMode(requestedMode)){
     const csvModeRows=await fetchModeSheetCSV(requestedMode);
     if(stale())return false;
     if(csvModeRows&&csvModeRows.length>5){
       if(opts.background){writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;}
-      onLoaded(csvModeRows,opts);writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;
+      activeMode=requestedMode;onLoaded(csvModeRows,opts);writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;
     }
     const cached=_readCache();
     if(cached&&cached.shows&&cached.shows.length>0){
       if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
-      onLoaded(cached.shows,opts);
+      activeMode=requestedMode;onLoaded(cached.shows,opts);
       setTimeout(function(){setHdrSt('Using cached '+activeMode.label+' data','warn');},1500);
       return true;
     }
@@ -1380,7 +1419,7 @@ async function _fetchSheetFresh(opts){
     if(stale())return false;
     if(t){const r2=parseCSV(t);if(r2&&r2.length>5){
       if(opts.background){_writeCacheSoon(r2);return true;}
-      onLoaded(r2,opts);_writeCacheSoon(r2);return true;
+      activeMode=requestedMode;onLoaded(r2,opts);_writeCacheSoon(r2);return true;
     }}
   }
   if(opts.background){
@@ -1391,7 +1430,7 @@ async function _fetchSheetFresh(opts){
   const cached=_readCache();
   if(cached&&cached.shows&&cached.shows.length>5){
     if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
-    onLoaded(cached.shows);
+    activeMode=requestedMode;onLoaded(cached.shows);
     setTimeout(function(){setHdrSt('Using cached data — sheet unavailable','warn');},1500);
     return true;
   }
