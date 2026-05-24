@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.23</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -549,7 +549,8 @@ body{display:flex;justify-content:center}
 
   <div id="tab-shows">
     <div class="ubar">
-      <label>Viewing:</label>
+      <label>Mode:</label>
+      <select class="usel" id="modeSel" onchange="changeMode()"><option value="gd">Grateful Dead</option></select>
       <select class="usel" id="usel" onchange="changeViewUser()"><option value="all">All shows</option></select>
       <div class="ucnt" id="ucnt"></div>
     </div>
@@ -591,7 +592,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.23';
+const APP_BUILD = '2.0';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -603,6 +604,67 @@ const USER_COLORS=['#c44040','#4a7fc1','#c8a84b','#52b788','#9b6dbd','#e87d3e','
 const SHOW_META_HEADERS=['archive id','archiveid','archive url','archiveurl'];
 const SOURCE_LOCK_HEADERS=['source lock','sourcelock'];
 const SHEET_CACHE_SCHEMA_VERSION=3;
+const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
+const ACTIVE_MODE_KEY='gd_active_mode';
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={};
+
+function modeKeyFromLabel(label){
+  const s=(label||'').toString().trim().toLowerCase()
+    .replace(/&/g,' and ')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'');
+  return s||'mode';
+}
+function modeFromSheetName(sheetName){
+  const sn=(sheetName||'').toString().trim();
+  if(!/^MODE\s+/i.test(sn))return null;
+  const label=sn.replace(/^MODE\s+/i,'').trim();
+  if(!label)return null;
+  return {key:modeKeyFromLabel(label),label:label,sheetName:sn,isDefault:false};
+}
+function normalizeModeLabel(label){
+  const s=(label||'').toString().trim();
+  return s||DEFAULT_MODE.label;
+}
+function modeForLabel(label){
+  const wanted=normalizeModeLabel(label).toLowerCase();
+  return modes.find(function(m){return m.label.toLowerCase()===wanted||m.key===wanted;})||DEFAULT_MODE;
+}
+function storageModeLabel(label){
+  return normalizeModeLabel(label||activeMode.label);
+}
+function isDefaultMode(mode){
+  return !mode||mode.isDefault||mode.key===DEFAULT_MODE.key;
+}
+function rawShowId(id){
+  const s=String(id||'');
+  const idx=s.indexOf(':');
+  return idx>0?s.slice(idx+1):s;
+}
+function makeModeShowId(mode,rawId){
+  return isDefaultMode(mode)?rawId:(mode.key+':'+rawId);
+}
+function showStorageId(show){
+  return rawShowId((show&&show.id)||'');
+}
+function showModeLabel(show){
+  return storageModeLabel(show&&show.modeLabel);
+}
+function favoriteModeLabel(f){
+  return storageModeLabel(f&&f.mode);
+}
+function sameModeLabel(a,b){
+  return storageModeLabel(a).toLowerCase()===storageModeLabel(b).toLowerCase();
+}
+function modeScopedKey(base,mode){
+  const m=mode||activeMode||DEFAULT_MODE;
+  return isDefaultMode(m)?base:(base+'_'+m.key);
+}
+function currentModeScopedKey(base){return modeScopedKey(base,activeMode);}
+function showScopedCacheId(show){
+  if(!show)return '';
+  return isDefaultMode({key:show.modeKey,isDefault:show.modeKey===DEFAULT_MODE.key})?show.id:(show.modeKey+':'+rawShowId(show.id));
+}
 
 function hasExistingAppStorage(){
   try{
@@ -756,7 +818,8 @@ function saveHistoryPosition(show, trackIdx, pos){
   if(!show||!show.id)return;
   try{
     let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    const i=hist.findIndex(h=>h.id===show.id);
+    const sid=showStorageId(show), mode=showModeLabel(show);
+    const i=hist.findIndex(h=>h.id===sid&&sameModeLabel(h.mode,mode));
     if(i<0)return; // only update shows already in history
     const entry=hist[i];
     entry.lastTrackIdx=trackIdx;
@@ -777,7 +840,7 @@ function savePos(id,t){
     // Always save playingShow/playingTrackIdx, not curShow/curTrackIdx
     // curShow is whatever is open in the setlist panel — could be a different show
     if(playingShow&&audio){
-      localStorage.setItem('gd_restore',JSON.stringify({showId:playingShow.id,trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()}));
+      localStorage.setItem('gd_restore',JSON.stringify({showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()}));
       // Keep the Recently Played entry in sync (throttled — history write is cheap but runs often)
       saveHistoryPosition(playingShow, playingTrackIdx, t);
     }
@@ -822,6 +885,7 @@ function blurActiveInput(){
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
   debugLines=[];
+  await initModes();
   const cached=_readCache();
   if(_canRenderFromSheetCache(cached)){
     users=cached.users;
@@ -834,6 +898,55 @@ async function loadData(){
     return;
   }
   await _fetchSheetFresh();
+}
+
+async function initModes(){
+  const saved=localStorage.getItem(ACTIVE_MODE_KEY)||DEFAULT_MODE.key;
+  try{
+    const r=await fetch(SCRIPT_URL+'?action=getModes',{signal:AbortSignal.timeout(7000)});
+    if(r.ok){
+      const d=await r.json();
+      const discovered=(d.modes||[]).map(function(m){
+        if(m&&m.isDefault)return Object.assign({},DEFAULT_MODE,m);
+        return {key:m.key||modeKeyFromLabel(m.label),label:m.label,sheetName:m.sheetName,isDefault:false};
+      }).filter(function(m){return m&&m.label&&m.sheetName;});
+      if(discovered.length)modes=discovered;
+    }
+  }catch(e){
+    modes=[DEFAULT_MODE];
+  }
+  if(!modes.some(function(m){return m.key===DEFAULT_MODE.key;}))modes.unshift(DEFAULT_MODE);
+  activeMode=modes.find(function(m){return m.key===saved||m.label===saved;})||DEFAULT_MODE;
+  localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+  renderModeSelect();
+}
+
+function renderModeSelect(){
+  const sel=document.getElementById('modeSel');
+  if(!sel)return;
+  sel.innerHTML='';
+  modes.forEach(function(m){
+    const o=document.createElement('option');
+    o.value=m.key;o.textContent=m.label;sel.appendChild(o);
+  });
+  sel.value=activeMode.key;
+}
+
+async function changeMode(){
+  const sel=document.getElementById('modeSel');
+  const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
+  if(next.key===activeMode.key)return;
+  activeMode=next;
+  localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+  document.getElementById('q').value='';
+  document.getElementById('songQ').value='';
+  const jq=document.getElementById('jamSongQ');if(jq)jq.value='';
+  curShow=null;filtered=[];songIndex={};myOnly=false;viewUser=curUser||'all';
+  const sp=document.getElementById('setlistPanel');
+  if(sp&&sp.classList.contains('open'))closeSetlist();
+  setHdrSt('Loading '+activeMode.label+'…','busy');
+  await _fetchSheetFresh();
+  setHdrSt(activeMode.label,'ok');
 }
 
 function scheduleSheetRefreshAfterStartup(){
@@ -849,7 +962,7 @@ function scheduleSheetRefreshAfterStartup(){
 function _readCache(){
   // Returns {shows, users, pins} or null. Handles both old and new cache format.
   try{
-    const raw=localStorage.getItem('gd_sheet_cache');
+    const raw=localStorage.getItem(currentModeScopedKey('gd_sheet_cache'));
     if(!raw)return null;
     const parsed=JSON.parse(raw);
     if(parsed&&Array.isArray(parsed.shows)&&parsed.users&&parsed.users.length)
@@ -861,7 +974,7 @@ function _readCache(){
 }
 
 function _writeCache(list){
-  try{localStorage.setItem('gd_sheet_cache',JSON.stringify({
+  try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify({
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
     shows:_sheetCacheShows(list||shows),
     users:users,
@@ -880,7 +993,7 @@ function _writeCacheSoon(list){
     userLimit:userLimit,
     ts:Date.now()
   };
-  const run=function(){try{localStorage.setItem('gd_sheet_cache',JSON.stringify(snapshot));}catch(e){}};
+  const run=function(){try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify(snapshot));}catch(e){}};
   try{
     if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
     else setTimeout(run,250);
@@ -895,6 +1008,9 @@ function _sheetCacheShows(list){
     });
     return {
       id:s.id,
+      rawId:s.rawId||rawShowId(s.id),
+      modeKey:s.modeKey||activeMode.key,
+      modeLabel:s.modeLabel||activeMode.label,
       date:s.date,
       year:s.year,
       venue:s.venue,
@@ -912,7 +1028,7 @@ function _hydrateSheetCacheShows(list){
     if(s&&Array.isArray(s.attendedUsers)){
       const att={};
       s.attendedUsers.forEach(function(u){att[u]=true;});
-      return mkShow(s.date,s.venue,s.city,att,Number(String(s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'');
+      return mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',activeMode);
     }
     return s;
   });
@@ -977,10 +1093,21 @@ function restoreSavedUserShell(){
 async function _fetchSheetFresh(opts){
   opts=opts||{};
   // 1. Try JSONP (fastest, direct from Google)
-  const r=await tryJSONP();
+  const r=await tryJSONP(activeMode);
   if(r&&r.length>5){
     if(opts.background){_writeCacheSoon(r);return;}
     onLoaded(r,opts);_writeCacheSoon(r);return;
+  }
+  if(!isDefaultMode(activeMode)){
+    const cached=_readCache();
+    if(cached&&cached.shows&&cached.shows.length>0){
+      if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
+      onLoaded(cached.shows,opts);
+      setTimeout(function(){setHdrSt('Using cached '+activeMode.label+' data','warn');},1500);
+      return;
+    }
+    showErr();
+    return;
   }
   // 2. Try CORS proxies in sequence
   for(const url of [
@@ -1012,7 +1139,8 @@ async function _fetchSheetFresh(opts){
 }
 
 
-function tryJSONP(){
+function tryJSONP(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
   return new Promise(res=>{
     const old=document.getElementById('gviz-s');if(old)old.remove();
     const timer=setTimeout(()=>{debugLines.push('JSONP timeout');res(null);},7000);
@@ -1029,13 +1157,13 @@ function tryJSONP(){
         if(!resp||!resp.table){debugLines.push('JSONP: no table');res(null);return;}
         if(!resp.table.rows||resp.table.rows.length<2){debugLines.push('JSONP: too few rows');res(null);return;}
         debugLines.push('JSONP: got '+resp.table.rows.length+' rows');
-        const r=parseGviz(resp.table);
+        const r=isDefaultMode(mode)?parseGviz(resp.table,mode):parseModeGviz(resp.table,mode);
         debugLines.push('JSONP parsed: '+r.length+' shows, users: '+users.join(','));
         res(r.length>0?r:null);
       }catch(e){debugLines.push('JSONP err: '+e.message);res(null);}
     };
     const s=document.createElement('script');s.id='gviz-s';
-    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sheet1&headers=2&callback=__gdCB&t=${Date.now()}`;
+    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(mode.sheetName)}&headers=${isDefaultMode(mode)?2:1}&callback=__gdCB&t=${Date.now()}`;
     s.onerror=()=>{clearTimeout(timer);debugLines.push('JSONP script err');res(null);};
     document.head.appendChild(s);
   });
@@ -1050,7 +1178,8 @@ async function tryFetch(url,ms=10000){
   }catch(e){debugLines.push('err:'+e.message);return null;}
 }
 
-function parseGviz(table){
+function parseGviz(table,mode){
+  mode=mode||DEFAULT_MODE;
   const rows=table.rows;
   const cols=table.cols||[];
   users=[];userCols={};userPins={};
@@ -1104,11 +1233,78 @@ function parseGviz(table){
     const archiveNoAudioHint=isArchiveNoAudioHint(archiveRaw);
     const sourceLockHint=sourceLockCol>=0&&row.c[sourceLockCol]?normalizeSourceLock(row.c[sourceLockCol].v||row.c[sourceLockCol].f||''):'';
     const att={};users.forEach(u=>{const cell=row.c[userCols[u]];const v=cell?.v;const f=cell?.f;att[u]=isAttended(v)||(f!=null&&isAttended(f));});
-    list.push(mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint));
+    list.push(mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,mode));
   }
   // Cache users+pins for file:// testing and fast reload
   try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols}));}catch(e){}
   return list;
+}
+
+function parseModeGviz(table,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const rows=table.rows||[];
+  const cols=table.cols||[];
+  users=[];userCols={};userPins={};
+  let archiveCol=-1;
+  for(let i=3;i<cols.length;i++){
+    const label=cols[i]&&cols[i].label?String(cols[i].label).trim():'';
+    if(isArchiveIdColumnLabel(label)){archiveCol=i;continue;}
+    if(isSheetMetadataColumnLabel(label))continue;
+    let n=label.replace(/^Attended\s*\(Y\)\s*/i,'').trim();
+    if(n&&n!=='Name'&&n!=='Notes'){users.push(n);userCols[n]=i;}
+  }
+  const list=[];
+  const byShowKey={};
+  for(let r=0;r<rows.length;r++){
+    const row=rows[r];if(!row||!row.c)continue;
+    const dc=row.c[0];if(!dc||dc.v==null)continue;
+    const d=String(dc.f||dc.v||'').trim();
+    if(!/^\d{4}-\d{2}-\d{2}/.test(d))continue;
+    const v=row.c[1]&&row.c[1].v?String(row.c[1].v).trim():'Unknown Venue';
+    const c=row.c[2]&&row.c[2].v?String(row.c[2].v).trim():'';
+    const archiveRaw=archiveCol>=0&&row.c[archiveCol]?(row.c[archiveCol].v||row.c[archiveCol].f||''):'';
+    const att={};users.forEach(function(u){const cell=row.c[userCols[u]];const v=cell&&cell.v;const f=cell&&cell.f;att[u]=isAttended(v)||(f!=null&&isAttended(f));});
+    const key=[d,v,c].map(function(x){return String(x||'').trim().toLowerCase();}).join('|');
+    const archiveId=normalizeArchiveId(archiveRaw);
+    if(byShowKey[key]){
+      mergeModeDuplicateShow(byShowKey[key],att,archiveId,r+2);
+      continue;
+    }
+    const show=mkShow(d,v,c,att,r+2,archiveRaw,false,'',mode);
+    byShowKey[key]=show;
+    list.push(show);
+  }
+  hydrateModeAuthUsers();
+  return list;
+}
+
+function mergeModeDuplicateShow(show,att,archiveId,rowNum){
+  if(!show)return;
+  Object.keys(att||{}).forEach(function(u){
+    if(att[u])show.attended[u]=true;
+  });
+  archiveId=normalizeArchiveId(archiveId||'');
+  if(!archiveId||archiveId===normalizeArchiveId(show.archiveIdHint||''))return;
+  show.recordings=mergeSourceRecords(show.recordings,[{
+    id:archiveId,
+    rating:0,
+    reviews:0,
+    sbd:false,
+    restricted:false,
+    manual:true,
+    sheetAlt:true,
+    row:rowNum
+  }]);
+}
+
+function hydrateModeAuthUsers(){
+  try{
+    const cached=JSON.parse(localStorage.getItem('gd_users_cache')||'{}');
+    if(cached&&cached.pins)Object.keys(cached.pins).forEach(function(u){if(!userPins[u])userPins[u]=cached.pins[u];});
+    if(cached&&Array.isArray(cached.users)){
+      cached.users.forEach(function(u){if(u&&!users.includes(u))users.push(u);});
+    }
+  }catch(e){}
 }
 
 function parseCSV(csv){
@@ -1155,7 +1351,7 @@ function parseCSV(csv){
     const archiveNoAudioHint=isArchiveNoAudioHint(archiveRaw);
     const sourceLockHint=sourceLockCol>=0?normalizeSourceLock(c[sourceLockCol]||''):'';
     const att={};users.forEach(u=>{const v=(c[userCols[u]]||'').trim().toUpperCase();att[u]=isAttended(v)||v==='V';});
-    list.push(mkShow(d,(c[1]||'').trim()||'Unknown Venue',(c[2]||'').trim(),att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint));
+    list.push(mkShow(d,(c[1]||'').trim()||'Unknown Venue',(c[2]||'').trim(),att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,activeMode));
   }
   return list;
 }
@@ -1174,8 +1370,10 @@ function isAttended(val){
   const v = String(val).trim().toLowerCase();
   return v === 'y' || v === '1' || v === 'yes' || v === 'true';
 }
-function mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint){
-  return{id:`${d}-${r}`,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
+function mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const rawId=`${d}-${r}`;
+  return{id:makeModeShowId(mode,rawId),rawId:rawId,modeKey:mode.key,modeLabel:mode.label,sheetName:mode.sheetName,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
     songs:null,archiveId:null,archiveIdHint:normalizeArchiveId(archiveIdHint||''),archiveNoAudioHint:!!archiveNoAudioHint,sourceLockHint:normalizeSourceLock(sourceLockHint||''),tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
@@ -1228,13 +1426,13 @@ function removeShowFromSongIndex(show){
 function clearCachedSetlistForShow(show){
   try{
     if(!show||!show.id)return;
-    const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const c=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
     if(c&&Object.prototype.hasOwnProperty.call(c,show.id)){
       delete c[show.id];
     }
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey&&Object.prototype.hasOwnProperty.call(c,archiveKey))delete c[archiveKey];
-    localStorage.setItem('gd_setlists',JSON.stringify(c));
+    localStorage.setItem(currentModeScopedKey('gd_setlists'),JSON.stringify(c));
   }catch(e){}
 }
 
@@ -1248,18 +1446,18 @@ function saveCachedSetlistForShow(show,songs){
     if(!show||!show.id||!songs||!songs.length)return;
     const savedSongs=songs.slice();
     const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
-    const c=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const c=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
     c[show.id]=savedSongs;
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey)c[archiveKey]=savedSongs;
     try{
-      localStorage.setItem('gd_setlists',JSON.stringify(c));
+      localStorage.setItem(currentModeScopedKey('gd_setlists'),JSON.stringify(c));
       window._gdSetlistsWriteLast={ok:true,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
     }catch(e){
       window._gdSetlistsWriteLast={ok:false,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e&&e.message||e)};
       try{
         localStorage.removeItem(ARCHIVE_SOURCE_CACHE_KEY);
-        localStorage.setItem('gd_setlists',JSON.stringify(c));
+        localStorage.setItem(currentModeScopedKey('gd_setlists'),JSON.stringify(c));
         window._gdSetlistsWriteLast={ok:true,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
       }catch(e2){
         window._gdSetlistsWriteLast={ok:false,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e2&&e2.message||e2)};
@@ -1299,7 +1497,7 @@ function indexShowSongs(show,songs){
 function applyBestCachedSetlist(show, incomingSongs, cached){
   const inc = Array.isArray(incomingSongs) ? incomingSongs.slice() : [];
   const bestCached = bestCachedSetlistForShow(
-    cached || JSON.parse(localStorage.getItem('gd_setlists')||'{}'),
+    cached || JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}'),
     show
   );
   const best = inc.length ? inc : bestCached;
@@ -1323,10 +1521,10 @@ const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
 const ARCHIVE_HINT_LOGIC_VERSION='tracks-v3';
 function readShowFlags(){
-  try{return JSON.parse(localStorage.getItem(SHOW_FLAGS_KEY)||'{}')||{};}catch(e){return {};}
+  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(SHOW_FLAGS_KEY))||'{}')||{};}catch(e){return {};}
 }
 function writeShowFlags(flags){
-  try{localStorage.setItem(SHOW_FLAGS_KEY,JSON.stringify(flags||{}));}catch(e){}
+  try{localStorage.setItem(currentModeScopedKey(SHOW_FLAGS_KEY),JSON.stringify(flags||{}));}catch(e){}
 }
 function saveShowFlags(show){
   try{
@@ -1344,10 +1542,10 @@ function saveShowFlags(show){
   }catch(e){}
 }
 function readArchiveHintFingerprints(){
-  try{return JSON.parse(localStorage.getItem(ARCHIVE_HINT_FP_KEY)||'{}')||{};}catch(e){return {};}
+  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(ARCHIVE_HINT_FP_KEY))||'{}')||{};}catch(e){return {};}
 }
 function writeArchiveHintFingerprints(fp){
-  try{localStorage.setItem(ARCHIVE_HINT_FP_KEY,JSON.stringify(fp||{}));}catch(e){}
+  try{localStorage.setItem(currentModeScopedKey(ARCHIVE_HINT_FP_KEY),JSON.stringify(fp||{}));}catch(e){}
 }
 function archiveHintFingerprint(show){
   if(!show)return '';
@@ -1636,8 +1834,10 @@ function scheduleArchiveHintRefresh(){
 function onLoaded(list,opts){
   opts=opts||{};
   shows=list;
+  songIndex={};
+  renderModeSelect();
   try{
-    const cached=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const cached=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
     // One-time migration marker. Older builds sometimes cached temporary archive.org
     // failures as permanent, but the restore logic below now ignores notAvail=true
     // entries, so we do not need to wipe the good meta cache and trigger a full scan.
@@ -1645,11 +1845,11 @@ function onLoaded(list,opts){
       localStorage.setItem('gd_meta_loaded_v','8');
     }
     // gd_meta_loaded stores {id: notAvail} for every show that completed a full fetch
-    const metaLoaded=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
+    const metaLoaded=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_meta_loaded'))||'{}');
     const showFlags=readShowFlags();
     const archiveHintFp=readArchiveHintFingerprints();
     // Restore Relisten availability cache (avoids re-fetching 31 years every launch)
-    const relistenCache=JSON.parse(localStorage.getItem('gd_relisten_avail')||'{}');
+    const relistenCache=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_relisten_avail'))||'{}');
     shows.forEach(function(s){
       // Restore metaLoaded + notAvail so bg loop skips already-fetched shows.
       // Only mark metaLoaded=true for shows confirmed to have audio (notAvail===false).
@@ -1726,6 +1926,7 @@ function onLoaded(list,opts){
   // availability here; Relisten can still be used later for alternate sources.
   window._gdSheetRefreshPending=!!opts.fromCache;
   restorePendingLocalUser();
+  if(curUser&&!users.includes(curUser))users.push(curUser);
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
   users.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;usel.appendChild(o);});
   const yrSel=document.getElementById('yrSel');while(yrSel.options.length>1)yrSel.remove(1);
@@ -1737,7 +1938,9 @@ function onLoaded(list,opts){
     const el=document.getElementById(id);
     if(el)el.textContent=list.length.toLocaleString();
   });
-  document.getElementById('s-yrs').textContent=yrs[0]+'–'+yrs[yrs.length-1];
+  const yrRange=(yrs[0]&&yrs[yrs.length-1])?(yrs[0]+'–'+yrs[yrs.length-1]):'—';
+  document.getElementById('s-yrs').textContent=yrRange;
+  const hyr=document.getElementById('hdr-year-range');if(hyr)hyr.textContent=yrRange;
 
   // Apply any locally-cached attendance changes on top of sheet data first
   // so rebuildAttCache() is correct before loginAs() reads attCount()
@@ -2878,27 +3081,27 @@ function isActiveLoadFresh(id){
 // Persist metaLoaded state so bg-loop progress survives app restarts
 function saveMetaLoaded(show){
   try{
-    const m=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
+    const m=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_meta_loaded'))||'{}');
     m[show.id]=show.notAvail;
-    localStorage.setItem('gd_meta_loaded',JSON.stringify(m));
+    localStorage.setItem(currentModeScopedKey('gd_meta_loaded'),JSON.stringify(m));
   }catch(e){}
   saveShowFlags(show);
 }
 function clearMetaLoaded(show){
   try{
-    const m=JSON.parse(localStorage.getItem('gd_meta_loaded')||'{}');
+    const m=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_meta_loaded'))||'{}');
     delete m[show.id];
-    localStorage.setItem('gd_meta_loaded',JSON.stringify(m));
+    localStorage.setItem(currentModeScopedKey('gd_meta_loaded'),JSON.stringify(m));
   }catch(e){}
   saveShowFlags(show);
 }
 
 const ARCHIVE_SOURCE_CACHE_KEY='gd_archive_source_cache_v1';
 function readArchiveSourceCache(){
-  try{return JSON.parse(localStorage.getItem(ARCHIVE_SOURCE_CACHE_KEY)||'{}')||{};}catch(e){return {};}
+  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY))||'{}')||{};}catch(e){return {};}
 }
 function writeArchiveSourceCache(cache){
-  try{localStorage.setItem(ARCHIVE_SOURCE_CACHE_KEY,JSON.stringify(cache||{}));}catch(e){}
+  try{localStorage.setItem(currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY),JSON.stringify(cache||{}));}catch(e){}
 }
 function deriveSetlistFromTracks(tracks){
   return sanitizeSongList((tracks||[]).map(function(t){
@@ -2980,7 +3183,7 @@ function applyCachedArchiveSourceToShow(show,archiveId){
 function gdDiag(query){
   try{
     const q=String(query||'').toLowerCase();
-    const setlists=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+    const setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
     const sourceCache=readArchiveSourceCache();
     const flags=readShowFlags();
     const fps=readArchiveHintFingerprints();
@@ -3042,7 +3245,7 @@ function renderHelpDiagSummary(){
     el.innerHTML='<div style="color:var(--muted);font-size:11px">No diagnostic match.</div>';
     return;
   }
-  const setlists=JSON.parse(localStorage.getItem('gd_setlists')||'{}');
+  const setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
   const sourceCache=readArchiveSourceCache();
   let storageEstimate='';
   try{
@@ -3159,7 +3362,9 @@ function maybeQueueArchiveIdSave(show,source,allowCached){
       venue:show.venue,
       archiveId:archiveId,
       trackCount:trackCount,
-      source:source||''
+      source:source||'',
+      mode:showModeLabel(show),
+      sheetName:show.sheetName||activeMode.sheetName
     });
     rememberArchiveIdSaveDebug({queuedAt:Date.now(),date:show.date,venue:show.venue,archiveId:archiveId,source:source||'',queue:_archiveIdSaveQueue.length});
     bumpArchiveIdSaveGate('queued',show,archiveId);
@@ -3183,7 +3388,7 @@ async function drainArchiveIdSaveQueue(){
     await fetch(SCRIPT_URL,{
       method:'POST',
       mode:'no-cors',
-      body:JSON.stringify({action:'saveArchiveId',date:item.date,venue:item.venue,archiveId:item.archiveId,trackCount:item.trackCount,source:item.source}),
+      body:JSON.stringify({action:'saveArchiveId',date:item.date,venue:item.venue,archiveId:item.archiveId,trackCount:item.trackCount,source:item.source,mode:item.mode,sheetName:item.sheetName}),
       headers:{'Content-Type':'text/plain;charset=utf-8'}
     });
   }catch(e){}
@@ -4330,7 +4535,7 @@ function currentPlaybackResumePosition(show,idx){
   if(playingShow&&show&&playingShow.id===show.id&&playingTrackIdx===idx&&saved>pos)pos=saved;
   try{
     const restore=JSON.parse(localStorage.getItem('gd_restore')||'{}');
-    if(restore&&show&&restore.showId===show.id&&restore.trackIdx===idx&&Number(restore.pos)>pos){
+    if(restore&&show&&sameModeLabel(restore.mode,showModeLabel(show))&&(restore.showId===show.id||restore.showId===showStorageId(show))&&restore.trackIdx===idx&&Number(restore.pos)>pos){
       pos=Number(restore.pos)||pos;
     }
   }catch(e){}
@@ -4454,7 +4659,7 @@ function startPlayback(show,idx,resumeAt){
     if('mediaSession' in navigator){
       const _s=sourceTrackTitle(show,idx);
       navigator.mediaSession.metadata=new MediaMetadata({
-        title:_s,artist:'Grateful Dead',
+        title:_s,artist:showModeLabel(show),
         album:(show.venue||'')+(show.date?' · '+show.date:''),
         artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]
       });
@@ -4502,7 +4707,8 @@ function pauseAudio(){
   if(playingShow&&audio){
     try{
       localStorage.setItem('gd_restore',JSON.stringify({
-        showId:playingShow.id,
+        showId:showStorageId(playingShow),
+        mode:showModeLabel(playingShow),
         trackIdx:playingTrackIdx,
         pos:Math.floor(audio.currentTime||0),
         ts:Date.now()
@@ -4915,7 +5121,7 @@ function _castLoadCurrent(){
   const mediaInfo = new chrome.cast.media.MediaInfo(url, 'audio/mpeg');
   mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
   mediaInfo.metadata.title   = track.title || ('Track ' + (playingTrackIdx + 1));
-  mediaInfo.metadata.artist  = 'Grateful Dead';
+  mediaInfo.metadata.artist  = showModeLabel(playingShow);
   mediaInfo.metadata.albumName = playingShow.date + ' · ' + playingShow.venue;
 
   const req = new chrome.cast.media.LoadRequest(mediaInfo);
@@ -5110,12 +5316,12 @@ function pruneExpiredFavorites(list) {
     const today = new Date().toISOString().slice(0,10);
     const sent = JSON.parse(localStorage.getItem('gd_fav_expire_sent') || '{}');
     expired.forEach(function(f){
-      const key = f.user + '|' + f.showId;
+      const key = f.user + '|' + favoriteModeLabel(f) + '|' + f.showId;
       if (sent[key] === today) return;
       sent[key] = today;
       fetch(SCRIPT_URL, {
         method: 'POST', mode: 'no-cors',
-        body: JSON.stringify({action: 'removeFavorite', user: f.user, showId: f.showId}),
+        body: JSON.stringify({action: 'removeFavorite', user: f.user, showId: f.showId, mode: favoriteModeLabel(f)}),
         headers: {'Content-Type': 'text/plain;charset=utf-8'}
       });
     });
@@ -5126,7 +5332,7 @@ function pruneExpiredFavorites(list) {
 
 function favoriteForShow(showId,user) {
   const show = shows.find(function(s){ return s.id === showId; });
-  return activeFavorites(allFavorites).find(function(f){ return (!user || f.user === user) && (f.showId === showId || favoriteMatchesShow(f,show)); }) || null;
+  return activeFavorites(allFavorites).find(function(f){ return sameModeLabel(favoriteModeLabel(f),activeMode.label) && (!user || f.user === user) && (f.showId === showId || favoriteMatchesShow(f,show)); }) || null;
 }
 
 function favoriteClassForShow(showId,user) {
@@ -5158,7 +5364,7 @@ async function loadFavorites() {
       // Keep local removals authoritative for this session
       const localRemoved = JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
       if(localRemoved.length){
-        fresh = fresh.filter(f=>!localRemoved.some(r=>r.user===f.user&&r.showId===f.showId));
+        fresh = fresh.filter(f=>!localRemoved.some(r=>r.user===f.user&&r.showId===f.showId&&sameModeLabel(r.mode,favoriteModeLabel(f))));
       }
       // Only re-render if data actually changed
       if (JSON.stringify(fresh) !== JSON.stringify(allFavorites)) {
@@ -5187,7 +5393,7 @@ function isFavorited(showId) {
 }
 
 function favoriteMatchesShow(f,show) {
-  return !!(f && show && (f.showId === show.id || (favoriteDateKey(f.date) === favoriteDateKey(show.date) && String(f.venue||'') === String(show.venue||''))));
+  return !!(f && show && sameModeLabel(favoriteModeLabel(f),showModeLabel(show)) && (f.showId === show.id || f.showId===showStorageId(show) || (favoriteDateKey(f.date) === favoriteDateKey(show.date) && String(f.venue||'') === String(show.venue||''))));
 }
 
 function touchFavoritePlayback(show) {
@@ -5196,11 +5402,12 @@ function touchFavoritePlayback(show) {
   try {
     const shouldWriteNow = matching.some(function(f){ return favoriteState(f) === 'stale'; });
     const touches = JSON.parse(localStorage.getItem('gd_fav_touch') || '{}');
-    const last = touches[show.id] || 0;
+    const tkey=showModeLabel(show)+'|'+showStorageId(show);
+    const last = touches[tkey] || 0;
     const nowMs = Date.now();
     if (!shouldWriteNow && nowMs - last < FAVORITE_TOUCH_INTERVAL) return;
 
-    touches[show.id] = nowMs;
+    touches[tkey] = nowMs;
     localStorage.setItem('gd_fav_touch', JSON.stringify(touches));
     const localStamp = new Date().toISOString();
     allFavorites.forEach(function(f){ if (favoriteMatchesShow(f,show)) f.lastPlayedAt = localStamp; });
@@ -5210,7 +5417,7 @@ function touchFavoritePlayback(show) {
     const writeTouch = function(){
       fetch(SCRIPT_URL, {
         method: 'POST', mode: 'no-cors',
-        body: JSON.stringify({action: 'touchFavoriteShow', showId: show.id, date: show.date, venue: show.venue}),
+      body: JSON.stringify({action: 'touchFavoriteShow', showId: showStorageId(show), date: show.date, venue: show.venue, mode: showModeLabel(show)}),
         headers: {'Content-Type': 'text/plain;charset=utf-8'}
       });
     };
@@ -5223,19 +5430,20 @@ async function addFavoriteForUser(id,user){
   const show = shows.find(s => s.id === id);
   if (!show || !user) return false;
   const nowStamp = new Date().toISOString();
-  if(!allFavorites.some(f => f.user === user && f.showId === id)){
-    allFavorites.push({user: user, showId: id, date: show.date, venue: show.venue, addedAt: nowStamp, lastPlayedAt: nowStamp});
+  const sid=showStorageId(show), mode=showModeLabel(show);
+  if(!allFavorites.some(f => f.user === user && f.showId === sid && sameModeLabel(favoriteModeLabel(f),mode))){
+    allFavorites.push({user: user, showId: sid, date: show.date, venue: show.venue, addedAt: nowStamp, lastPlayedAt: nowStamp, mode: mode});
   }
   try{
     const removed=JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
-    const filtered=removed.filter(r=>!(r.user===user&&r.showId===id));
+    const filtered=removed.filter(r=>!(r.user===user&&r.showId===sid&&sameModeLabel(r.mode,mode)));
     localStorage.setItem('gd_fav_removed',JSON.stringify(filtered));
   }catch(e){}
   localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
   renderList(); renderJamFavorites();
   await fetch(SCRIPT_URL, {
     method: 'POST', mode: 'no-cors',
-    body: JSON.stringify({action: 'addFavorite', user: user, showId: id, date: show.date, venue: show.venue}),
+    body: JSON.stringify({action: 'addFavorite', user: user, showId: sid, date: show.date, venue: show.venue, mode: mode}),
     headers: {'Content-Type': 'text/plain;charset=utf-8'}
   });
   return true;
@@ -5257,12 +5465,15 @@ async function toggleFavorite(id) {
 
   if (alreadyFav) {
     // Remove
-    allFavorites = allFavorites.filter(f => !(f.user === curUser && f.showId === id));
+    const rmShow=shows.find(s => s.id === id);
+    const rmId=rmShow?showStorageId(rmShow):rawShowId(id);
+    const rmMode=rmShow?showModeLabel(rmShow):activeMode.label;
+    allFavorites = allFavorites.filter(f => !(f.user === curUser && f.showId === rmId && sameModeLabel(favoriteModeLabel(f),rmMode)));
     localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
     // Track this removal so background fetch doesn't restore it
     try{
       const removed=JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
-      removed.push({user:curUser,showId:id});
+      removed.push({user:curUser,showId:rmId,mode:rmMode});
       localStorage.setItem('gd_fav_removed',JSON.stringify(removed));
     }catch(e){}
     document.querySelectorAll('.fav-btn[data-id="'+id+'"]').forEach(b=>{b.classList.remove('fav-on','fav-fresh','fav-stale');b.title='Add favorite';});
@@ -5272,7 +5483,7 @@ async function toggleFavorite(id) {
     setTimeout(() => setHdrSt('', ''), 2500);
     fetch(SCRIPT_URL, {
       method: 'POST', mode: 'no-cors',
-      body: JSON.stringify({action: 'removeFavorite', user: curUser, showId: id}),
+      body: JSON.stringify({action: 'removeFavorite', user: curUser, showId: rmId, mode: rmMode}),
       headers: {'Content-Type': 'text/plain;charset=utf-8'}
     });
   } else {
@@ -5309,10 +5520,11 @@ function addToHistory(show,trackIdx,trackTitle){
   const fromPlayback=(trackIdx!=null);
   try{
     let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    const existing=hist.find(h=>h.id===show.id)||{};
-    hist=hist.filter(h=>h.id!==show.id);
+    const sid=showStorageId(show), mode=showModeLabel(show);
+    const existing=hist.find(h=>h.id===sid&&sameModeLabel(h.mode,mode))||{};
+    hist=hist.filter(h=>!(h.id===sid&&sameModeLabel(h.mode,mode)));
     hist.unshift({
-      id:show.id,date:show.date,venue:show.venue,city:show.city,ts:Date.now(),
+      id:sid,mode:mode,date:show.date,venue:show.venue,city:show.city,ts:Date.now(),
       // On playback: reset to current track (position will update via saveHistoryPosition)
       // On view-only: this path no longer runs (addToHistory only called from startPlayback)
       lastTrackIdx:fromPlayback?trackIdx:(existing.lastTrackIdx!=null?existing.lastTrackIdx:null),
@@ -5345,10 +5557,11 @@ function renderJamRecent(){
     return;
   }
   el.innerHTML=hist.map(function(h){
-    const s=resolveRecentShow(h);
+    const s=sameModeLabel(h.mode,activeMode.label)?resolveRecentShow(h):null;
     const venue=s?s.venue:h.venue;
     const city=s?s.city:h.city;
     const clickId=escJs(h.id||'');
+    const clickMode=escJs(favoriteModeLabel({mode:h.mode}));
     const hasPos=h.lastTrackIdx!=null&&h.lastPos!=null&&h.lastPos>0;
     // Progress line: track title + timestamp
     let progressLine='';
@@ -5362,12 +5575,12 @@ function renderJamRecent(){
         +'</div>';
     }
     return '<div style="display:flex;align-items:center;gap:0;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:0;transition:border-color .15s" class="jam-recent-row">'
-      +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openRecentShow(\''+clickId+'\',false)">'
+      +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openRecentShow(\''+clickId+'\',false,\''+clickMode+'\')">'
         +'<div class="jam-show-date">'+h.date+'</div>'
-        +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+'</div>'
+        +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+(!sameModeLabel(h.mode,activeMode.label)?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(clickMode)+'</span>':'')+'</div>'
         +progressLine
       +'</div>'
-      +'<div role="button" tabindex="0" onclick="event.stopPropagation();openRecentShow(\''+clickId+'\',true)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'||event.key===\'Spacebar\'){event.preventDefault();event.stopPropagation();openRecentShow(\''+clickId+'\',true)}" '
+      +'<div role="button" tabindex="0" onclick="event.stopPropagation();openRecentShow(\''+clickId+'\',true,\''+clickMode+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'||event.key===\'Spacebar\'){event.preventDefault();event.stopPropagation();openRecentShow(\''+clickId+'\',true,\''+clickMode+'\')}" '
         +'title="'+(hasPos?'Resume from '+fmtT(h.lastPos):'Play from start')+'" '
         +'style="flex-shrink:0;width:38px;height:38px;border-radius:50%;background:'+(hasPos?'rgba(200,168,75,.13)':'transparent')+';border:1.5px solid '+(hasPos?'rgba(200,168,75,.45)':'rgba(255,255,255,.15)')+';color:'+(hasPos?'var(--gold)':'var(--muted)')+';font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;margin-right:10px;transition:all .15s;touch-action:manipulation;-webkit-user-select:none;user-select:none" '
         +'onmouseenter="this.style.borderColor=\'var(--gold)\';this.style.color=\'var(--gold)\'" '
@@ -5383,7 +5596,7 @@ function escJs(s){
 function resolveRecentShow(entryOrId){
   const entry=typeof entryOrId==='string'?recentEntryForShow(entryOrId):entryOrId;
   if(!entry)return null;
-  let show=shows.find(function(s){return s.id===entry.id;});
+  let show=shows.find(function(s){return s.id===entry.id||showStorageId(s)===entry.id;});
   if(show)return show;
   const sameDate=shows.filter(function(s){return s.date===entry.date;});
   if(!sameDate.length)return null;
@@ -5434,7 +5647,12 @@ async function resumeRecentShow(id){
   return openRecentShow(id,true);
 }
 
-async function openRecentShow(id,shouldPlay){
+async function openRecentShow(id,shouldPlay,modeLabel){
+  if(modeLabel&&!sameModeLabel(modeLabel,activeMode.label)){
+    const m=modeForLabel(modeLabel);
+    activeMode=m;localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);renderModeSelect();
+    await _fetchSheetFresh();
+  }
   const entry=recentEntryForShow(id);
   const show=resolveRecentShow(entry||id);
   if(!show)return;
@@ -5551,8 +5769,8 @@ function renderJamFavorites() {
     favs.forEach(function(f) {
       let show = shows.find(function(s){return s.id===f.showId;});
       if (!show) show = shows.find(function(s){return s.id.startsWith(f.showId.substring(0,10))&&s.venue===f.venue;});
-      if (!show) return;
-      out += jamFavoriteShowRow(show, user, f);
+      if (!show) out += jamFavoriteBareRow(user,f);
+      else out += jamFavoriteShowRow(show, user, f);
     });
     out += '</div></div>';
   });
@@ -5577,6 +5795,51 @@ function renderJamFavorites() {
       if(arrow)arrow.textContent='▾';
     }
   }
+}
+
+function jamFavoriteBareRow(user,fav){
+  const mode=favoriteModeLabel(fav);
+  const canEditFav=!!(curUser&&curUser===user);
+  const safeShow=escJs(fav.showId||'');
+  const safeMode=escJs(mode);
+  const favAction=canEditFav
+    ? "toggleFavoriteRecord('"+safeShow+"','"+safeMode+"')"
+    : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
+  return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
+    +'<div class="row-date">'+esc(fav.date||'')+'</div>'
+    +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+'</div></div>'
+    +'<div class="row-right"><div class="row-btns">'
+      +'<button class="fav-btn'+favoriteClass(fav)+'" data-id="'+esc(fav.showId||'')+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
+      +'<button class="pbtn" onclick="event.stopPropagation();openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">↗</button>'
+    +'</div></div></div>';
+}
+
+async function openFavoriteRecord(showId,modeLabel){
+  const m=modeForLabel(modeLabel);
+  if(m.key!==activeMode.key){
+    activeMode=m;
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    renderModeSelect();
+    await _fetchSheetFresh();
+  }
+  const show=shows.find(function(s){return s.id===showId||showStorageId(s)===showId;});
+  if(show)openSetlist(show.id);
+}
+
+async function toggleFavoriteRecord(showId,modeLabel){
+  const f=activeFavorites(allFavorites).find(function(x){return x.user===curUser&&x.showId===showId&&sameModeLabel(favoriteModeLabel(x),modeLabel);});
+  if(!f)return;
+  allFavorites=allFavorites.filter(function(x){return !(x.user===curUser&&x.showId===showId&&sameModeLabel(favoriteModeLabel(x),modeLabel));});
+  localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
+  try{
+    const removed=JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
+    removed.push({user:curUser,showId:showId,mode:modeLabel});
+    localStorage.setItem('gd_fav_removed',JSON.stringify(removed));
+  }catch(e){}
+  renderList();renderJamFavorites();updateSpFavBtn();
+  fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
+    body:JSON.stringify({action:'removeFavorite',user:curUser,showId:showId,mode:modeLabel}),
+    headers:{'Content-Type':'text/plain;charset=utf-8'}});
 }
 
 function jamFavoriteShowRow(s,user,fav){
@@ -5766,11 +6029,11 @@ function isRollDiceInstant(show, flagsMap){
 }
 
 function readRollHistory(){
-  try{return JSON.parse(localStorage.getItem(ROLL_HISTORY_KEY)||'[]').map(function(x){return typeof x==='string'?x:x&&x.id;}).filter(Boolean);}catch(e){return [];}
+  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(ROLL_HISTORY_KEY))||'[]').map(function(x){return typeof x==='string'?x:x&&x.id;}).filter(Boolean);}catch(e){return [];}
 }
 
 function readRollDateHistory(){
-  try{return JSON.parse(localStorage.getItem(ROLL_DATE_HISTORY_KEY)||'[]').filter(Boolean);}catch(e){return [];}
+  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(ROLL_DATE_HISTORY_KEY))||'[]').filter(Boolean);}catch(e){return [];}
 }
 
 function rememberRolledShow(show){
@@ -5778,11 +6041,11 @@ function rememberRolledShow(show){
     const id=show&&show.id;if(!id)return;
     const hist=readRollHistory().filter(function(x){return x!==id;});
     hist.unshift(id);
-    localStorage.setItem(ROLL_HISTORY_KEY,JSON.stringify(hist.slice(0,ROLL_HISTORY_MAX)));
+    localStorage.setItem(currentModeScopedKey(ROLL_HISTORY_KEY),JSON.stringify(hist.slice(0,ROLL_HISTORY_MAX)));
     if(show.date){
       const dates=readRollDateHistory().filter(function(x){return x!==show.date;});
       dates.unshift(show.date);
-      localStorage.setItem(ROLL_DATE_HISTORY_KEY,JSON.stringify(dates.slice(0,ROLL_HISTORY_MAX)));
+      localStorage.setItem(currentModeScopedKey(ROLL_DATE_HISTORY_KEY),JSON.stringify(dates.slice(0,ROLL_HISTORY_MAX)));
     }
   }catch(e){}
 }
@@ -6046,9 +6309,10 @@ function openSetlistFromJam(id){
 
 
 async function prefetchRelistenAvailability(){
+  if(!isDefaultMode(activeMode))return;
   // ── Check cache first — skip network if data is less than 7 days old ──
-  const CACHE_KEY = 'gd_relisten_avail';
-  const CACHE_TS  = 'gd_relisten_avail_ts';
+  const CACHE_KEY = currentModeScopedKey('gd_relisten_avail');
+  const CACHE_TS  = currentModeScopedKey('gd_relisten_avail_ts');
   const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
   try{
     const ts = parseInt(localStorage.getItem(CACHE_TS)||'0', 10);
@@ -6302,7 +6566,7 @@ async function switchRecording(showId,newId){
             applyBestCachedSetlist(show,trackSongs);
             if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
               var _ms=sourceTrackTitle(show,curTrackIdx);
-              navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:'Grateful Dead',album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
+              navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:showModeLabel(show),album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
             }
             renderSetlistBody(show);return;
           }
@@ -6437,7 +6701,7 @@ async function doMarkAttended(show,user,attended){
     const resp=await fetch(SCRIPT_URL,{
       method:'POST',
       mode:'no-cors',
-      body:JSON.stringify({action:'markAttended',date:show.date,venue:show.venue,user:user,attended:attended}),
+      body:JSON.stringify({action:'markAttended',date:show.date,venue:show.venue,user:user,attended:attended,mode:showModeLabel(show),sheetName:show.sheetName||activeMode.sheetName}),
       headers:{'Content-Type':'text/plain;charset=utf-8'}
     });
     // no-cors always "succeeds" - verify via GET ping
@@ -6466,11 +6730,11 @@ function verifySheetSave(show,user,attended){
 
 function saveAttendedLocal(showId,user,attended){
   try{
-    const cache=JSON.parse(localStorage.getItem('gd_attended')||'{}');
+    const cache=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_attended'))||'{}');
     if(!cache[user])cache[user]={};
     if(attended) cache[user][showId]=1;
     else delete cache[user][showId];
-    localStorage.setItem('gd_attended',JSON.stringify(cache));
+    localStorage.setItem(currentModeScopedKey('gd_attended'),JSON.stringify(cache));
   }catch(e){}
 }
 
@@ -6482,7 +6746,7 @@ function loadAttendedLocal(){
       fresh[u]={};
       shows.forEach(function(s){if(s.attended[u])fresh[u][s.id]=1;});
     });
-    localStorage.setItem('gd_attended',JSON.stringify(fresh));
+    localStorage.setItem(currentModeScopedKey('gd_attended'),JSON.stringify(fresh));
   }catch(e){}
 }
 
@@ -6574,7 +6838,8 @@ function restoreLastPosition(){
     if(!saved)return;
     // Only restore if saved within last 24 hours
     if(Date.now()-saved.ts > 86400000){localStorage.removeItem('gd_restore');return;}
-    const show=shows.find(s=>s.id===saved.showId);
+    if(saved.mode&&!sameModeLabel(saved.mode,activeMode.label))return;
+    const show=shows.find(s=>s.id===saved.showId||showStorageId(s)===saved.showId);
     if(!show)return;
     // If the show isn't visible (myOnly filter excludes it), temporarily show all
     // so the user can see what's being restored
@@ -6641,7 +6906,7 @@ function pauseAtPosition(show,trackIdx,pos){
   if('mediaSession' in navigator&&track){
     const sName=sourceTrackTitle(show,trackIdx);
     navigator.mediaSession.metadata=new MediaMetadata({
-      title:sName,artist:'Grateful Dead',
+      title:sName,artist:showModeLabel(show),
       album:(show.venue||'')+(show.date?' · '+show.date:''),
       artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]
     });
@@ -6673,8 +6938,8 @@ function fullReindexAction(){
   closeReloadOptions();
   try{
     [
-      'gd_setlists','gd_meta_loaded','gd_meta_loaded_v','gd_relisten_avail',
-      'gd_relisten_avail_ts',SHOW_FLAGS_KEY
+      currentModeScopedKey('gd_setlists'),currentModeScopedKey('gd_meta_loaded'),'gd_meta_loaded_v',currentModeScopedKey('gd_relisten_avail'),
+      currentModeScopedKey('gd_relisten_avail_ts'),currentModeScopedKey(SHOW_FLAGS_KEY)
     ].forEach(function(k){ localStorage.removeItem(k); });
     setFullReindexRebuilding(true);
   }catch(e){}
@@ -6748,7 +7013,7 @@ async function refreshAttendance(force){
     // Fetch only user columns (D onwards) + date column (A) for matching
     // Using select A,D,E,F,G,H,I to cover all user columns
     const url = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+
-      '/gviz/tq?tqx=out:json&sheet=Sheet1&headers=0&nocache='+now;
+      '/gviz/tq?tqx=out:json&sheet='+encodeURIComponent(activeMode.sheetName)+'&headers=0&nocache='+now;
     const r = await fetch(url, {signal: AbortSignal.timeout(8000)});
     if(!r.ok) return;
     const text = await r.text();
@@ -6765,10 +7030,10 @@ async function refreshAttendance(force){
       if(n && n!=='Name' && n!=='') newUserCols[n] = i;
     }
 
-    // Update attendance on all shows from row index 4 onwards
-    // rows[0]=headers, rows[1]=names, rows[2]=pins, rows[3]=totals, rows[4+]=shows
+    // Update attendance on all shows from row index 4 onwards for GD,
+    // row index 2 onwards for MODE tabs.
     let changed = 0;
-    rows.slice(4).forEach(function(row, ri){
+    rows.slice(isDefaultMode(activeMode)?4:2).forEach(function(row, ri){
       const show = shows[ri];
       if(!show || !row.c) return;
       users.forEach(function(u){
