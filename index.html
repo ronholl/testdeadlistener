@@ -401,7 +401,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.21">
+  <link rel="manifest" href="manifest.json?v=1.7.22">
 </head>
 <body>
 <div id="app">
@@ -409,7 +409,7 @@ body{display:flex;justify-content:center}
   <!-- ── LOGIN SCREEN ── -->
   <div id="loginScreen">
     <div class="login-hero">
-      <img src="deadhead_logo.jpg" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="async"/>
+      <img src="deadhead_logo.jpg" class="login-logo" alt="Ron's Deadhead Listener" loading="lazy" decoding="async"/>
       <div class="login-title">Ron's Deadhead Listener</div>
       <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows</div>
     </div>
@@ -525,10 +525,10 @@ body{display:flex;justify-content:center}
 
   <!-- ── MAIN APP ── -->
   <div class="hdr">
-    <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="eager" decoding="async"/>
+    <img src="deadhead_logo.jpg" class="hdr-logo" alt="logo" loading="lazy" decoding="async"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.21</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)">1965 – 1995 · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V1.7.22</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -590,7 +590,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '1.7.21';
+const APP_BUILD = '1.7.22';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -7236,6 +7236,7 @@ function stopArchiveAutoRetry(){
 // Load the Capacitor JS bridge injected by the native shell.
 // Safe no-op when running as a regular web page (script just won't exist).
 (function() {
+  if (!/^capacitor:/i.test(window.location.protocol)) return;
   var s = document.createElement('script');
   s.src = '/capacitor.js';
   s.async = false;
