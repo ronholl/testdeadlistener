@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.3</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.4</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -592,7 +592,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.3';
+const APP_BUILD = '2.0.4';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1104,6 +1104,9 @@ function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
 }
 
 function scheduleInactiveModePreload(){
+  // Keep V2 mode switching stable first. Full background setlist warming across
+  // inactive modes can come back once the cross-mode loader is proven quiet.
+  return;
   if(_inactiveModePreloadStarted||!modes||modes.length<2)return;
   _inactiveModePreloadStarted=true;
   setTimeout(preloadInactiveModeSheets,2500);
@@ -1274,29 +1277,43 @@ async function _fetchSheetFresh(opts){
 function tryJSONP(mode){
   mode=mode||activeMode||DEFAULT_MODE;
   return new Promise(res=>{
-    const old=document.getElementById('gviz-s');if(old)old.remove();
-    const timer=setTimeout(()=>{debugLines.push('JSONP timeout');res(null);},7000);
+    const cb='__gdSheetCB_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+    const scriptId='gviz-s-'+cb;
+    let settled=false;
+    function cleanup(){
+      const s=document.getElementById(scriptId);if(s)s.remove();
+      try{delete window[cb];}catch(e){window[cb]=undefined;}
+    }
+    function done(value){
+      if(settled)return;
+      settled=true;
+      clearTimeout(timer);
+      cleanup();
+      res(value);
+    }
+    const timer=setTimeout(()=>{debugLines.push('JSONP timeout '+mode.label);done(null);},7000);
     // Google gviz wraps response in google.visualization.Query.setResponse()
-    // Define it as a pass-through so our callback still fires
+    // Define it as a pass-through so our callback still fires.
     if(!window.google){
       window.google={visualization:{Query:{setResponse:function(resp){
-        if(window.__gdCB)window.__gdCB(resp);
+        const h=window.__gdActiveGvizCallback;
+        if(h&&window[h])window[h](resp);
       }}}};
     }
-    window.__gdCB=resp=>{
-      clearTimeout(timer);
+    window.__gdActiveGvizCallback=cb;
+    window[cb]=resp=>{
       try{
-        if(!resp||!resp.table){debugLines.push('JSONP: no table');res(null);return;}
-        if(!resp.table.rows||resp.table.rows.length<2){debugLines.push('JSONP: too few rows');res(null);return;}
-        debugLines.push('JSONP: got '+resp.table.rows.length+' rows');
+        if(!resp||!resp.table){debugLines.push('JSONP: no table '+mode.label);done(null);return;}
+        if(!resp.table.rows||resp.table.rows.length<2){debugLines.push('JSONP: too few rows '+mode.label);done(null);return;}
+        debugLines.push('JSONP '+mode.label+': got '+resp.table.rows.length+' rows');
         const r=isDefaultMode(mode)?parseGviz(resp.table,mode):parseModeGviz(resp.table,mode);
-        debugLines.push('JSONP parsed: '+r.length+' shows, users: '+users.join(','));
-        res(r.length>0?r:null);
-      }catch(e){debugLines.push('JSONP err: '+e.message);res(null);}
+        debugLines.push('JSONP '+mode.label+' parsed: '+r.length+' shows, users: '+users.join(','));
+        done(r.length>0?r:null);
+      }catch(e){debugLines.push('JSONP err '+mode.label+': '+e.message);done(null);}
     };
-    const s=document.createElement('script');s.id='gviz-s';
-    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(mode.sheetName)}&headers=${isDefaultMode(mode)?2:1}&callback=__gdCB&t=${Date.now()}`;
-    s.onerror=()=>{clearTimeout(timer);debugLines.push('JSONP script err');res(null);};
+    const s=document.createElement('script');s.id=scriptId;
+    s.src=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(mode.sheetName)}&headers=${isDefaultMode(mode)?2:1}&callback=${encodeURIComponent(cb)}&t=${Date.now()}`;
+    s.onerror=()=>{debugLines.push('JSONP script err '+mode.label);done(null);};
     document.head.appendChild(s);
   });
 }
