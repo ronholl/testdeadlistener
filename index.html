@@ -412,7 +412,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows</div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.5</span></div>
     </div>
     
 
@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.4</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.5</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -550,7 +550,7 @@ body{display:flex;justify-content:center}
   <div id="tab-shows">
     <div class="ubar">
       <label>Mode:</label>
-      <select class="usel" id="modeSel" onchange="changeMode()"><option value="gd">Grateful Dead</option></select>
+      <select class="usel" id="modeSel" onchange="changeMode()" oninput="changeMode()"><option value="gd">Grateful Dead</option></select>
       <select class="usel" id="usel" onchange="changeViewUser()"><option value="all">All shows</option></select>
       <div class="ucnt" id="ucnt"></div>
     </div>
@@ -592,7 +592,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.4';
+const APP_BUILD = '2.0.5';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -607,7 +607,7 @@ const SHEET_CACHE_SCHEMA_VERSION=3;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0;
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -1025,6 +1025,8 @@ async function changeMode(){
   const sel=document.getElementById('modeSel');
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(next.key===activeMode.key)return;
+  const prev=activeMode;
+  const token=++_modeSwitchToken;
   cancelModeBackgroundWork();
   activeMode=next;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
@@ -1035,8 +1037,17 @@ async function changeMode(){
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
   setHdrSt('Loading '+activeMode.label+'…','busy');
-  await _fetchSheetFresh();
-  setHdrSt(activeMode.label,'ok');
+  const ok=await _fetchSheetFresh({modeSwitchToken:token});
+  if(token!==_modeSwitchToken)return;
+  if(ok){
+    setHdrSt(activeMode.label,'ok');
+  }else{
+    activeMode=prev||DEFAULT_MODE;
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    renderModeSelect();
+    if(shows&&shows.length)onLoaded(shows,{fromCache:true});
+    setHdrSt('Could not load '+next.label,'err');
+  }
 }
 
 function scheduleSheetRefreshAfterStartup(){
@@ -1227,22 +1238,32 @@ function restoreSavedUserShell(){
 
 async function _fetchSheetFresh(opts){
   opts=opts||{};
+  const requestedMode=activeMode||DEFAULT_MODE;
+  const switchToken=opts.modeSwitchToken||0;
+  function stale(){return switchToken&&switchToken!==_modeSwitchToken;}
   // 1. Try JSONP (fastest, direct from Google)
-  const r=await tryJSONP(activeMode);
+  const r=await tryJSONP(requestedMode);
+  if(stale())return false;
   if(r&&r.length>5){
-    if(opts.background){_writeCacheSoon(r);return;}
-    onLoaded(r,opts);_writeCacheSoon(r);return;
+    if(opts.background){_writeCacheSoon(r);return true;}
+    onLoaded(r,opts);_writeCacheSoon(r);return true;
   }
-  if(!isDefaultMode(activeMode)){
+  if(!isDefaultMode(requestedMode)){
+    const csvModeRows=await fetchModeSheetCSV(requestedMode);
+    if(stale())return false;
+    if(csvModeRows&&csvModeRows.length>5){
+      if(opts.background){writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;}
+      onLoaded(csvModeRows,opts);writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;
+    }
     const cached=_readCache();
     if(cached&&cached.shows&&cached.shows.length>0){
       if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
       onLoaded(cached.shows,opts);
       setTimeout(function(){setHdrSt('Using cached '+activeMode.label+' data','warn');},1500);
-      return;
+      return true;
     }
     showErr();
-    return;
+    return false;
   }
   // 2. Try CORS proxies in sequence
   for(const url of [
@@ -1252,14 +1273,15 @@ async function _fetchSheetFresh(opts){
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`
   ]){
     const t=await tryFetch(url,12000);
+    if(stale())return false;
     if(t){const r2=parseCSV(t);if(r2&&r2.length>5){
-      if(opts.background){_writeCacheSoon(r2);return;}
-      onLoaded(r2,opts);_writeCacheSoon(r2);return;
+      if(opts.background){_writeCacheSoon(r2);return true;}
+      onLoaded(r2,opts);_writeCacheSoon(r2);return true;
     }}
   }
   if(opts.background){
     setTimeout(function(){setHdrSt('Could not refresh sheet — using cached data','warn');},1500);
-    return;
+    return false;
   }
   // 3. All network sources failed — use cache as last resort
   const cached=_readCache();
@@ -1267,10 +1289,11 @@ async function _fetchSheetFresh(opts){
     if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
     onLoaded(cached.shows);
     setTimeout(function(){setHdrSt('Using cached data — sheet unavailable','warn');},1500);
-    return;
+    return true;
   }
   // 4. Nothing worked
   showErr();
+  return false;
 }
 
 
@@ -1325,6 +1348,23 @@ async function tryFetch(url,ms=10000){
     const t=await r.text();
     return t.length>200?t:null;
   }catch(e){debugLines.push('err:'+e.message);return null;}
+}
+
+async function fetchModeSheetCSV(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const sheetUrl=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(mode.sheetName)}&headers=1`;
+  const urls=[
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(sheetUrl),
+    'https://corsproxy.io/?'+encodeURIComponent(sheetUrl),
+    sheetUrl
+  ];
+  for(const url of urls){
+    const t=await tryFetch(url,6500);
+    if(!t)continue;
+    const rows=parseModeCSV(t,mode);
+    if(rows&&rows.length>0)return rows;
+  }
+  return null;
 }
 
 function parseGviz(table,mode){
@@ -1420,6 +1460,49 @@ function parseModeGviz(table,mode){
       continue;
     }
     const show=mkShow(d,v,c,att,r+2,archiveRaw,false,'',mode);
+    byShowKey[key]=show;
+    list.push(show);
+  }
+  hydrateModeAuthUsers();
+  return list;
+}
+
+function parseModeCSV(csv,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const lines=csv.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const headerRow=parseRow(lines[0]||'');
+  const nameRow=parseRow(lines[1]||'');
+  users=[];userCols={};userPins={};
+  let archiveCol=-1;
+  for(let i=3;i<headerRow.length;i++){
+    if(isArchiveIdColumnLabel(headerRow[i])){archiveCol=i;continue;}
+    if(isSheetMetadataColumnLabel(headerRow[i]))continue;
+    const n=(nameRow[i]||headerRow[i]||'').replace(/^Attended\s*\(Y\)\s*/i,'').trim();
+    if(n&&n!=='Name'&&n!=='Notes'&&!isArchiveIdColumnLabel(n)){users.push(n);userCols[n]=i;}
+  }
+  const list=[];
+  const byShowKey={};
+  for(let r=2;r<lines.length;r++){
+    const c=parseRow(lines[r]||'');
+    let d=(c[0]||'').trim();
+    if(!d)continue;
+    if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)){
+      const p=d.split('/');
+      d=p[2]+'-'+p[0].padStart(2,'0')+'-'+p[1].padStart(2,'0');
+    }
+    d=displayDate(d);
+    if(!/^\d{4}-\d{2}-\d{2}/.test(d))continue;
+    const v=(c[1]||'').trim()||'Unknown Venue';
+    const city=(c[2]||'').trim();
+    const archiveRaw=archiveCol>=0?(c[archiveCol]||''):'';
+    const archiveId=normalizeArchiveId(archiveRaw);
+    const att={};users.forEach(function(u){att[u]=isAttended((c[userCols[u]]||'').trim());});
+    const key=[d,v,city].map(function(x){return String(x||'').trim().toLowerCase();}).join('|');
+    if(byShowKey[key]){
+      mergeModeDuplicateShow(byShowKey[key],att,archiveId,r+1);
+      continue;
+    }
+    const show=mkShow(d,v,city,att,r+1,archiveRaw,false,'',mode);
     byShowKey[key]=show;
     list.push(show);
   }
