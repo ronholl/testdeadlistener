@@ -606,7 +606,7 @@ const SOURCE_LOCK_HEADERS=['source lock','sourcelock'];
 const SHEET_CACHE_SCHEMA_VERSION=3;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={};
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false;
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -661,9 +661,14 @@ function modeScopedKey(base,mode){
   return isDefaultMode(m)?base:(base+'_'+m.key);
 }
 function currentModeScopedKey(base){return modeScopedKey(base,activeMode);}
+function modeKeyScopedKey(base,mode){return modeScopedKey(base,mode||activeMode);}
 function showScopedCacheId(show){
   if(!show)return '';
   return isDefaultMode({key:show.modeKey,isDefault:show.modeKey===DEFAULT_MODE.key})?show.id:(show.modeKey+':'+rawShowId(show.id));
+}
+
+function displayDate(value){
+  return favoriteDateKey(value)||String(value||'').slice(0,10);
 }
 
 function hasExistingAppStorage(){
@@ -902,23 +907,65 @@ async function loadData(){
 
 async function initModes(){
   const saved=localStorage.getItem(ACTIVE_MODE_KEY)||DEFAULT_MODE.key;
+  let loadedModes=false;
+  try{loadedModes=applyModesPayload(JSON.parse(localStorage.getItem('gd_modes_cache')||'null'),true);}catch(e){}
   try{
     const r=await fetch(SCRIPT_URL+'?action=getModes',{signal:AbortSignal.timeout(7000)});
     if(r.ok){
       const d=await r.json();
-      const discovered=(d.modes||[]).map(function(m){
-        if(m&&m.isDefault)return Object.assign({},DEFAULT_MODE,m);
-        return {key:m.key||modeKeyFromLabel(m.label),label:m.label,sheetName:m.sheetName,isDefault:false};
-      }).filter(function(m){return m&&m.label&&m.sheetName;});
-      if(discovered.length)modes=discovered;
+      loadedModes=applyModesPayload(d);
     }
-  }catch(e){
-    modes=[DEFAULT_MODE];
+  }catch(e){}
+  if(!loadedModes){
+    try{loadedModes=applyModesPayload(await tryModesJSONP());}catch(e){}
   }
+  if(!loadedModes)modes=[DEFAULT_MODE];
   if(!modes.some(function(m){return m.key===DEFAULT_MODE.key;}))modes.unshift(DEFAULT_MODE);
+  if(!allModeShowTotal)allModeShowTotal=modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
   activeMode=modes.find(function(m){return m.key===saved||m.label===saved;})||DEFAULT_MODE;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
   renderModeSelect();
+}
+
+function applyModesPayload(d){
+  if(!d||!Array.isArray(d.modes)||!d.modes.length)return false;
+  const discovered=(d.modes||[]).map(function(m){
+    if(m&&m.isDefault)return Object.assign({},DEFAULT_MODE,m);
+    return {key:m.key||modeKeyFromLabel(m.label),label:m.label,sheetName:m.sheetName,isDefault:false,showCount:m.showCount||0,yearStart:m.yearStart||'',yearEnd:m.yearEnd||''};
+  }).filter(function(m){return m&&m.label&&m.sheetName;});
+  if(!discovered.length)return false;
+  modes=discovered;
+  allModeShowTotal=Number(d.totalShows||0)||modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
+  try{localStorage.setItem('gd_modes_cache',JSON.stringify({modes:modes,totalShows:allModeShowTotal,ts:Date.now()}));}catch(e){}
+  updateGlobalShowCount();
+  return true;
+}
+
+function updateGlobalShowCount(){
+  const total=allModeShowTotal||modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0)||((shows&&shows.length)||0);
+  ['hdr-show-count','login-show-count','help-show-count','help-show-count2'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el)el.textContent=total.toLocaleString();
+  });
+}
+
+function tryModesJSONP(){
+  return new Promise(function(resolve){
+    const cb='__gdModesCB_'+Date.now();
+    const old=document.getElementById('gd-modes-s');if(old)old.remove();
+    const timer=setTimeout(function(){cleanup();resolve(null);},7000);
+    function cleanup(){
+      clearTimeout(timer);
+      const s=document.getElementById('gd-modes-s');if(s)s.remove();
+      try{delete window[cb];}catch(e){window[cb]=undefined;}
+    }
+    window[cb]=function(data){cleanup();resolve(data||null);};
+    const s=document.createElement('script');
+    s.id='gd-modes-s';
+    s.src=SCRIPT_URL+'?action=getModes&callback='+encodeURIComponent(cb)+'&t='+Date.now();
+    s.onerror=function(){cleanup();resolve(null);};
+    document.head.appendChild(s);
+  });
 }
 
 function renderModeSelect(){
@@ -998,6 +1045,47 @@ function _writeCacheSoon(list){
     if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
     else setTimeout(run,250);
   }catch(e){setTimeout(run,250);}
+}
+
+function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
+  try{
+    localStorage.setItem(modeKeyScopedKey('gd_sheet_cache',mode),JSON.stringify({
+      schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
+      shows:_sheetCacheShows(list||[]),
+      users:cacheUsers||[],
+      pins:cachePins||{},
+      userLimit:cacheLimit||0,
+      ts:Date.now()
+    }));
+  }catch(e){}
+}
+
+function scheduleInactiveModePreload(){
+  if(_inactiveModePreloadStarted||!modes||modes.length<2)return;
+  _inactiveModePreloadStarted=true;
+  setTimeout(preloadInactiveModeSheets,2500);
+}
+
+async function preloadInactiveModeSheets(){
+  const original={mode:activeMode,users:users.slice(),userCols:Object.assign({},userCols),userPins:Object.assign({},userPins),userLimit:userLimit};
+  for(const mode of modes){
+    if(mode.key===original.mode.key)continue;
+    if(_readModeCache(mode))continue;
+    try{
+      activeMode=mode;
+      const list=await tryJSONP(mode);
+      if(list&&list.length)writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
+    }catch(e){}
+    activeMode=original.mode;users=original.users.slice();userCols=Object.assign({},original.userCols);userPins=Object.assign({},original.userPins);userLimit=original.userLimit;
+    await new Promise(function(r){setTimeout(r,600);});
+  }
+}
+
+function _readModeCache(mode){
+  try{
+    const raw=localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode));
+    return raw?JSON.parse(raw):null;
+  }catch(e){return null;}
 }
 
 function _sheetCacheShows(list){
@@ -1785,7 +1873,7 @@ function applyArchiveHintInvalidation(show,flags,fp){
     return false;
   }
 
-  if((loadedHint&&loadedHint!==hint)||(loadedArchive&&loadedArchive!==hint)){
+  if((loadedHint&&loadedHint!==hint)||(!loadedHint&&loadedArchive&&loadedArchive!==hint)){
     invalidateShowForArchiveHint(show,hint);
     show._archiveHintChanged=true;
     if(fp)fp[show.id]=fpHint;
@@ -1933,14 +2021,11 @@ function onLoaded(list,opts){
   const yrs=[...new Set(list.map(s=>s.year))].sort();
   yrs.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;yrSel.appendChild(o);});
   document.getElementById('s-total').textContent=list.length.toLocaleString();
-  // Update all hardcoded show count references dynamically
-  ['hdr-show-count','login-show-count','help-show-count','help-show-count2'].forEach(function(id){
-    const el=document.getElementById(id);
-    if(el)el.textContent=list.length.toLocaleString();
-  });
+  updateGlobalShowCount();
   const yrRange=(yrs[0]&&yrs[yrs.length-1])?(yrs[0]+'–'+yrs[yrs.length-1]):'—';
   document.getElementById('s-yrs').textContent=yrRange;
   const hyr=document.getElementById('hdr-year-range');if(hyr)hyr.textContent=yrRange;
+  scheduleInactiveModePreload();
 
   // Apply any locally-cached attendance changes on top of sheet data first
   // so rebuildAttCache() is correct before loginAs() reads attCount()
@@ -4944,6 +5029,24 @@ function showSongIndexStats(matchCount,q){
 
 // Featured songs for pre-loaded Songs tab display
 const FEATURED_SONGS=['Dark Star','Scarlet Begonias','Fire on the Mountain','Terrapin Station','Eyes of the World','Franklin\'s Tower','Sugar Magnolia','Friend of the Devil','Estimated Prophet','Cassidy','Cumberland Blues','Wharf Rat','St. Stephen','The Other One','Truckin\'','Casey Jones','Jack Straw','Ramble On Rose','Brokedown Palace','Ripple','China Cat Sunflower','I Know You Rider','Playing in the Band','Ship of Fools','Loser','Row Jimmy','Brown Eyed Women','Weather Report Suite','Stella Blue','High Time'];
+const MODE_FEATURED_SONGS={
+  'jerry-garcia':['How Sweet It Is','Sugaree','Mission in the Rain','Cats Under the Stars','The Harder They Come','After Midnight','Tore Up Over You','Run for the Roses','Deal','Midnight Moonlight','I Shall Be Released','Dear Prudence','That Lucky Old Sun','Tangled Up in Blue','Simple Twist of Fate','Sisters and Brothers','They Love Each Other','Don\'t Let Go','The Way You Do the Things You Do','Waiting for a Miracle'],
+  'bob-weir':['Playing in the Band','Cassidy','Looks Like Rain','One More Saturday Night','Sugar Magnolia','Estimated Prophet','The Music Never Stopped','Black-Throated Wind','Mexicali Blues','Me and My Uncle','Victim or the Crime','Throwing Stones','Lost Sailor','Saint of Circumstance','Easy to Slip','Ashes and Glass','Two Djinn','October Queen'],
+  'phil-lesh':['Box of Rain','Unbroken Chain','Pride of Cucamonga','New Potato Caboose','Passenger','Just a Little Light','Broken Arrow','Mason\'s Children','Celebration','Patchwork Quilt','Night of a Thousand Stars','Low Spark of High-Heeled Boys','Again and Again','No More Do I','Into the Mystic','Midnight Train']
+};
+
+function featuredSongsForActiveMode(){
+  const counts={};
+  Object.keys(songIndex||{}).forEach(function(k){
+    (songIndex[k]||[]).forEach(function(e){
+      const song=e&&e.song;if(!song)return;
+      counts[song]=(counts[song]||0)+1;
+    });
+  });
+  const indexed=Object.keys(counts).sort(function(a,b){return counts[b]-counts[a]||a.localeCompare(b);}).slice(0,24);
+  if(indexed.length>=8)return indexed;
+  return (MODE_FEATURED_SONGS[activeMode.key]||FEATURED_SONGS).slice();
+}
 
 function renderSongRow(m){
   const showObj=shows.find(s=>s.id===m.id);
@@ -4963,7 +5066,8 @@ function renderFeaturedSongs(){
   const cntEl=document.getElementById('songCnt');
   if(!resEl)return;
   // Show clickable song name chips - tap fills search box
-  const shuffled=FEATURED_SONGS.slice().sort(()=>Math.random()-0.5).slice(0,20);
+  updateSongSearchClear();
+  const shuffled=featuredSongsForActiveMode().slice().sort(()=>Math.random()-0.5).slice(0,20);
   updateSongCntProgress(); // show load progress, falls back gracefully if not started yet
   resEl.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 0">'
     +shuffled.map(function(song){
@@ -4976,6 +5080,7 @@ function fillSongSearch(song){
   if(!q)return;
   q.value=song;
   q.focus();
+  updateSongSearchClear();
   doSongSearch();
 }
 
@@ -5210,7 +5315,7 @@ function switchTab(name){
     document.getElementById('tab-btn-'+t).classList.toggle('on',t===name);
   });
   if(name==='jam')initJamTab();
-  if(name==='songs'){const q=document.getElementById('songQ');if(q&&q.value.trim().length>=2)doSongSearch(true);else renderFeaturedSongs();}
+  if(name==='songs'){updateSongSearchClear();const q=document.getElementById('songQ');if(q&&q.value.trim().length>=2)doSongSearch(true);else renderFeaturedSongs();}
   if(name==='others')refreshAttendance(false);
 }
 
@@ -5223,6 +5328,12 @@ document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
   if(pb&&POSTER_URL)pb.style.display='block';
   bindRollDiceControl();
+  document.querySelectorAll('.manual-clear').forEach(function(input){
+    input.addEventListener('input',function(){
+      const btn=input.parentElement&&input.parentElement.querySelector('.search-clear');
+      if(btn)btn.classList.toggle('show',!!input.value);
+    });
+  });
   setTimeout(function(){
     try{
       const f=document.createElement('link');
@@ -5440,6 +5551,7 @@ async function addFavoriteForUser(id,user){
     localStorage.setItem('gd_fav_removed',JSON.stringify(filtered));
   }catch(e){}
   localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
+  try{localStorage.setItem('gd_fav_last_write',JSON.stringify({action:'addFavorite',user:user,showId:sid,mode:mode,at:Date.now()}));}catch(e){}
   renderList(); renderJamFavorites();
   await fetch(SCRIPT_URL, {
     method: 'POST', mode: 'no-cors',
@@ -5576,8 +5688,8 @@ function renderJamRecent(){
     }
     return '<div style="display:flex;align-items:center;gap:0;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:0;transition:border-color .15s" class="jam-recent-row">'
       +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openRecentShow(\''+clickId+'\',false,\''+clickMode+'\')">'
-        +'<div class="jam-show-date">'+h.date+'</div>'
-        +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+(!sameModeLabel(h.mode,activeMode.label)?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(clickMode)+'</span>':'')+'</div>'
+        +'<div class="jam-show-date">'+displayDate(h.date)+'</div>'
+        +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(clickMode)+'</span></div>'
         +progressLine
       +'</div>'
       +'<div role="button" tabindex="0" onclick="event.stopPropagation();openRecentShow(\''+clickId+'\',true,\''+clickMode+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'||event.key===\'Spacebar\'){event.preventDefault();event.stopPropagation();openRecentShow(\''+clickId+'\',true,\''+clickMode+'\')}" '
@@ -5623,11 +5735,11 @@ function resolveRecentShow(entryOrId){
   return show;
 }
 
-function recentEntryForShow(id){
+function recentEntryForShow(id,modeLabel){
   try{
     const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    return hist.find(function(h){return h.id===id;})||hist.find(function(h){
-      return h.id&&String(h.id)===String(id);
+    return hist.find(function(h){return h.id===id&&(!modeLabel||sameModeLabel(h.mode,modeLabel));})||hist.find(function(h){
+      return h.id&&String(h.id)===String(id)&&(!modeLabel||sameModeLabel(h.mode,modeLabel));
     })||null;
   }catch(e){return null;}
 }
@@ -5653,7 +5765,7 @@ async function openRecentShow(id,shouldPlay,modeLabel){
     activeMode=m;localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);renderModeSelect();
     await _fetchSheetFresh();
   }
-  const entry=recentEntryForShow(id);
+  const entry=recentEntryForShow(id,modeLabel);
   const show=resolveRecentShow(entry||id);
   if(!show)return;
 
@@ -5767,8 +5879,7 @@ function renderJamFavorites() {
     out += '<div onclick="toggleJamFavSection(\''+uid+'\',this)" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 0;user-select:none">'      + '<div style="width:22px;height:22px;border-radius:50%;background:'+col+'22;color:'+col+';font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1px solid '+col+'">'+user[0]+'</div>'      + '<b style="color:'+col+';font-size:13px">'+esc(user)+'</b>'      + '<span style="font-size:10px;color:var(--muted)">'+favs.length+' show'+(favs.length>1?'s':'')+'</span>'      + '<span class="jfav-arrow" style="margin-left:auto;color:var(--muted);font-size:12px">'+(isOpen?'▾':'▸')+'</span>'      + '</div>';
     out += '<div id="'+uid+'" style="display:'+(isOpen?'block':'none')+'">';
     favs.forEach(function(f) {
-      let show = shows.find(function(s){return s.id===f.showId;});
-      if (!show) show = shows.find(function(s){return s.id.startsWith(f.showId.substring(0,10))&&s.venue===f.venue;});
+      let show = findShowForFavorite(f);
       if (!show) out += jamFavoriteBareRow(user,f);
       else out += jamFavoriteShowRow(show, user, f);
     });
@@ -5797,6 +5908,32 @@ function renderJamFavorites() {
   }
 }
 
+function findShowForFavorite(f){
+  if(!f||!sameModeLabel(favoriteModeLabel(f),activeMode.label))return null;
+  return shows.find(function(s){return showStorageId(s)===f.showId||s.id===f.showId;}) ||
+    shows.find(function(s){return showStorageId(s).startsWith(String(f.showId||'').substring(0,10))&&s.venue===f.venue;}) ||
+    null;
+}
+
+function modeForFavorite(f){
+  return modeForLabel(favoriteModeLabel(f));
+}
+
+function favoriteCachedSummary(f){
+  try{
+    const mode=modeForFavorite(f);
+    const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
+    const setlists=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_setlists',mode))||'{}');
+    const rows=(sheetCache&&sheetCache.shows)||[];
+    const match=rows.find(function(s){return rawShowId(s.id)===String(f.showId||'')||String(s.id||'')===String(f.showId||'');})||
+      rows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(f.date)&&String(s.venue||'')===String(f.venue||'');});
+    if(!match)return '';
+    const songs=setlists[match.id]||setlists[rawShowId(match.id)]||setlists[archiveSetlistCacheKey(match.archiveIdHint||'')];
+    if(Array.isArray(songs)&&songs.length)return songs.slice(0,4).join(' · ');
+  }catch(e){}
+  return '';
+}
+
 function jamFavoriteBareRow(user,fav){
   const mode=favoriteModeLabel(fav);
   const canEditFav=!!(curUser&&curUser===user);
@@ -5805,9 +5942,11 @@ function jamFavoriteBareRow(user,fav){
   const favAction=canEditFav
     ? "toggleFavoriteRecord('"+safeShow+"','"+safeMode+"')"
     : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
+  const songs=favoriteCachedSummary(fav);
+  const sub=songs?'<div class="row-songs"><span style="color:var(--green)">▶ </span>'+esc(songs)+'</div>':'';
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
-    +'<div class="row-date">'+esc(fav.date||'')+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+'</div></div>'
+    +'<div class="row-date">'+esc(displayDate(fav.date||''))+'</div>'
+    +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+' favorite</div>'+sub+'</div>'
     +'<div class="row-right"><div class="row-btns">'
       +'<button class="fav-btn'+favoriteClass(fav)+'" data-id="'+esc(fav.showId||'')+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
       +'<button class="pbtn" onclick="event.stopPropagation();openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">↗</button>'
@@ -5844,6 +5983,7 @@ async function toggleFavoriteRecord(showId,modeLabel){
 
 function jamFavoriteShowRow(s,user,fav){
   const favShowId = fav && fav.showId;
+  const mode=favoriteModeLabel(fav);
   const myUser=curUser||viewUser;
   const myAtt=myUser&&myUser!=='all'&&s.attended&&s.attended[myUser];
   const canEditFav=!!(curUser&&curUser===user);
@@ -5859,8 +5999,8 @@ function jamFavoriteShowRow(s,user,fav){
     ? "toggleFavorite('"+safeFavId+"')"
     : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openSetlistFromJam(\''+s.id+'\')">'
-    +'<div class="row-date">'+s.date+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(s.city)+'</div>'+sub+'</div>'
+    +'<div class="row-date">'+displayDate(s.date)+'</div>'
+    +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(mode)+' · '+esc(s.city)+'</div>'+sub+'</div>'
     +'<div class="row-right">'
       +'<div class="row-btns">'
         +'<button class="fav-btn'+favoriteClass(fav)+'" data-id="'+(favShowId||s.id)+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
@@ -5956,7 +6096,7 @@ function loadTodayShows(){
 
   const months = ['January','February','March','April','May','June',
                   'July','August','September','October','November','December'];
-  dateEl.textContent = months[today.getMonth()]+' '+today.getDate()+' in Dead history';
+  dateEl.textContent = months[today.getMonth()]+' '+today.getDate()+' in '+activeMode.label+' history';
 
   // Find every show on this month/day. Availability flags are learned per device
   // through local cache/background scans, so they must not decide count or order.
@@ -6532,7 +6672,11 @@ function cancelLogin(){
 
 async function switchRecording(showId,newId){
   const show=shows.find(function(s){return s.id===showId;});
-  if(!show||show.archiveId===newId)return;
+  newId=normalizeArchiveId(newId||'');
+  if(!show||normalizeArchiveId(show.archiveId||'')===newId)return;
+  const prevId=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
+  if(prevId)show.recordings=mergeSourceRecords(show.recordings,[{id:prevId,rating:show.rating||0,reviews:show.numReviews||0,sbd:!!show.isSoundboard,restricted:false,manual:true,sheetDefault:prevId===normalizeArchiveId(show.archiveIdHint||'')}]);
+  if(newId)show.recordings=mergeSourceRecords(show.recordings,[{id:newId,restricted:false,manual:true}]);
   if(audio){audio.pause();audio=null;playing=false;renderMiniPlayer();}
   if(preloadAudio){preloadAudio.src='';preloadAudio=null;}
   show.archiveId=newId;show.tracks=null;show.totalDur=0;show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
