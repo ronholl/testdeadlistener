@@ -134,13 +134,16 @@ body{display:flex;justify-content:center}
 .tab.on{color:var(--gold);border-bottom-color:var(--gold)}
   #tab-shows,#tab-songs,#tab-others{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
 #tab-jam{display:flex;flex-direction:column;flex:1;overflow-y:auto;min-height:0}
-.ubar{background:#0f0f0f;padding:7px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
-.mode-label{font-size:11px;color:var(--gold);white-space:nowrap;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.ubar{background:#0f0f0f;padding:8px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.mode-label{font-size:13px;color:var(--gold);white-space:nowrap;font-weight:800;text-transform:uppercase;letter-spacing:1.5px}
 .ubar label:not(.mode-label){font-size:10px;color:var(--muted);white-space:nowrap}
 .usel{background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:11px;flex:1}
 .usel:focus{outline:none;border-color:var(--gold)}
-#modeSel{border:2px solid var(--gold);box-shadow:0 0 0 1px rgba(200,168,75,.15),0 0 14px rgba(200,168,75,.12);background:#17130b;color:#fff;min-height:34px;font-size:13px;font-weight:700}
-.ucnt{font-size:10px;color:var(--muted);white-space:nowrap}
+#modeSel{border:2px solid var(--gold);box-shadow:0 0 0 1px rgba(200,168,75,.18),0 0 16px rgba(200,168,75,.14);background:#17130b;color:#fff;min-height:42px;font-size:14px;font-weight:800;width:100%;padding:7px 86px 7px 12px}
+.mode-control{position:relative;flex:1;min-width:0}
+.mode-count{position:absolute;right:36px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--gold);pointer-events:none;white-space:nowrap;font-weight:700}
+#usel{display:none}
+.ucnt{display:none;font-size:10px;color:var(--muted);white-space:nowrap}
 .ucnt b{color:var(--gold)}
 .stats{display:flex;gap:1px;background:var(--border)}
 .stat{flex:1;background:var(--surf);padding:9px 6px;text-align:center}
@@ -414,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.13</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.14</span></div>
     </div>
     
 
@@ -531,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.13</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.14</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -552,7 +555,10 @@ body{display:flex;justify-content:center}
   <div id="tab-shows">
     <div class="ubar">
       <label class="mode-label" for="modeSel">Mode</label>
-      <select class="usel" id="modeSel" onchange="changeMode()" oninput="changeMode()"><option value="gd">Grateful Dead</option></select>
+      <div class="mode-control">
+        <select class="usel" id="modeSel" onchange="changeMode()" oninput="changeMode()"><option value="gd">Grateful Dead</option></select>
+        <span class="mode-count" id="modeCount">— shows</span>
+      </div>
       <select class="usel" id="usel" onchange="changeViewUser()"><option value="all">All shows</option></select>
       <div class="ucnt" id="ucnt"></div>
     </div>
@@ -594,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.13';
+const APP_BUILD = '2.0.14';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1017,6 +1023,14 @@ function updateGlobalShowCount(){
   });
 }
 
+function updateModeControlCount(){
+  const el=document.getElementById('modeCount');
+  if(!el)return;
+  const mode=modes.find(function(m){return activeMode&&m.key===activeMode.key;})||activeMode||DEFAULT_MODE;
+  const count=(shows&&shows.length)||Number(mode&&mode.showCount)||0;
+  el.textContent=count.toLocaleString()+' show'+(count===1?'':'s');
+}
+
 function tryModesJSONP(){
   return new Promise(function(resolve){
     const cb='__gdModesCB_'+Date.now();
@@ -1099,6 +1113,7 @@ function renderModeSelect(){
   });
   sel.value=wanted;
   bindModeSelectControl();
+  updateModeControlCount();
 }
 
 function bindModeSelectControl(){
@@ -1188,9 +1203,16 @@ async function changeMode(){
   }
 }
 
-async function ensureModeCatalog(mode){
+async function ensureModeCatalog(mode,opts){
+  opts=opts||{};
   mode=mode||activeMode||DEFAULT_MODE;
   if(loadedCatalogModeKey===mode.key)return true;
+  if(opts.preferCache&&useModeCache(mode,{fromFastOpen:true})){
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    renderModeSelect();
+    setHdrSt(activeMode.label,'ok');
+    return true;
+  }
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
@@ -1320,6 +1342,16 @@ function _readModeCache(mode){
   }catch(e){return null;}
 }
 
+function useModeCache(mode,opts){
+  opts=opts||{};
+  const cached=_readModeCache(mode);
+  if(!cached||!cached.shows||cached.shows.length<=5)return false;
+  if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
+  activeMode=mode||activeMode||DEFAULT_MODE;
+  onLoaded(_hydrateSheetCacheShows(cached.shows,activeMode),Object.assign({fromCache:true},opts));
+  return true;
+}
+
 function _sheetCacheShows(list){
   return (list||[]).map(function(s){
     const attendedUsers=[];
@@ -1343,12 +1375,13 @@ function _sheetCacheShows(list){
   });
 }
 
-function _hydrateSheetCacheShows(list){
+function _hydrateSheetCacheShows(list,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
   return (list||[]).map(function(s){
     if(s&&Array.isArray(s.attendedUsers)){
       const att={};
       s.attendedUsers.forEach(function(u){att[u]=true;});
-      return mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',activeMode);
+      return mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',mode);
     }
     return s;
   });
@@ -1436,10 +1469,10 @@ async function _fetchSheetFresh(opts){
       if(opts.background){writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;}
       activeMode=requestedMode;onLoaded(csvModeRows,opts);writeModeSheetCache(requestedMode,csvModeRows,users.slice(),Object.assign({},userPins),userLimit);return true;
     }
-    const cached=_readCache();
+    const cached=_readModeCache(requestedMode);
     if(cached&&cached.shows&&cached.shows.length>0){
       if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
-      activeMode=requestedMode;onLoaded(cached.shows,opts);
+      activeMode=requestedMode;onLoaded(_hydrateSheetCacheShows(cached.shows,requestedMode),Object.assign({fromCache:true},opts));
       setTimeout(function(){setHdrSt('Using cached '+activeMode.label+' data','warn');},1500);
       return true;
     }
@@ -2119,7 +2152,7 @@ function showLooksStartupReady(show){
 function showNeedsStartupWork(show){
   if(!show)return false;
   if(show._archiveHintChanged)return true;
-  if(show.archiveNoAudioHint)return !!(!show.metaLoaded || !show.archiveIdHintLoaded || show._archiveHintRefreshNeeded);
+  if(show.archiveNoAudioHint)return !!(show._archiveHintChanged || show._archiveHintRefreshNeeded);
   if(show.archiveIdHint){
     if(show._archiveHintChanged || show._archiveHintRefreshNeeded)return true;
     return false;
@@ -2346,7 +2379,7 @@ function scheduleArchiveHintRefresh(){
   const token=bgModeToken;
   const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
   const hinted=shows.filter(function(s){
-    return s.archiveNoAudioHint && (s._archiveHintRefreshNeeded || !s.metaLoaded || !s.archiveIdHintLoaded);
+    return s.archiveNoAudioHint && s._archiveHintRefreshNeeded;
   }).slice(0,4);
   if(!hinted.length)return;
   hinted.forEach(function(s,i){
@@ -2470,6 +2503,7 @@ function onLoaded(list,opts){
   yrs.forEach(y=>{const o=document.createElement('option');o.value=y;o.textContent=y;yrSel.appendChild(o);});
   document.getElementById('s-total').textContent=list.length.toLocaleString();
   updateGlobalShowCount();
+  updateModeControlCount();
   const yrRange=(yrs[0]&&yrs[yrs.length-1])?(yrs[0]+'–'+yrs[yrs.length-1]):'—';
   document.getElementById('s-yrs').textContent=yrRange;
   const hyr=document.getElementById('hdr-year-range');if(hyr)hyr.textContent=yrRange;
@@ -2938,9 +2972,7 @@ async function ensureUserRowForAction(user){
   const pendingName=localStorage.getItem('gd_pending_user');
   const pendingPin=localStorage.getItem('gd_pending_pin')||userPins[user]||localStorage.getItem('gd_pin')||'';
   if(pendingName!==user)return true;
-  await fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
-    body:JSON.stringify({action:'addUser',name:user,pin:pendingPin}),
-    headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  await postScriptAction({action:'addUser',name:user,pin:pendingPin},3500);
   if(!users.includes(user)){
     users.push(user);
     userCols[user]=3+users.length-1;
@@ -6041,11 +6073,7 @@ async function addFavoriteForUser(id,user){
   localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
   try{localStorage.setItem('gd_fav_last_write',JSON.stringify({action:'addFavorite',user:user,showId:sid,mode:mode,at:Date.now()}));}catch(e){}
   renderList(); renderJamFavorites();
-  await fetch(SCRIPT_URL, {
-    method: 'POST', mode: 'no-cors',
-    body: JSON.stringify({action: 'addFavorite', user: user, showId: sid, date: show.date, venue: show.venue, mode: mode}),
-    headers: {'Content-Type': 'text/plain;charset=utf-8'}
-  });
+  postScriptAction({action:'addFavorite',user:user,showId:sid,date:show.date,venue:show.venue,mode:mode},3500);
   return true;
 }
 
@@ -6081,11 +6109,7 @@ async function toggleFavorite(id) {
     renderList(); renderJamFavorites();
     setHdrSt('Removed from favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
-    fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      body: JSON.stringify({action: 'removeFavorite', user: curUser, showId: rmId, mode: rmMode}),
-      headers: {'Content-Type': 'text/plain;charset=utf-8'}
-    });
+    postScriptAction({action:'removeFavorite',user:curUser,showId:rmId,mode:rmMode},2500);
   } else {
     if (!show) return;
     // Check limit
@@ -6174,8 +6198,8 @@ function renderJamRecent(){
         +' <span style="opacity:.55">@ '+posStr+'</span>'
         +'</div>';
     }
-    return '<div style="display:flex;align-items:center;gap:0;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:0;transition:border-color .15s" class="jam-recent-row">'
-      +'<div style="flex:1;min-width:0;padding:11px 12px;cursor:pointer" onclick="openRecentShow(\''+clickId+'\',false,\''+clickMode+'\')">'
+    return '<div style="display:flex;align-items:center;gap:0;border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:0;transition:border-color .15s;cursor:pointer" class="jam-recent-row" onclick="openRecentShow(\''+clickId+'\',false,\''+clickMode+'\')">'
+      +'<div style="flex:1;min-width:0;padding:11px 12px">'
         +'<div class="jam-show-date">'+displayDate(h.date)+'</div>'
         +'<div class="jam-show-venue" style="font-size:13px">'+(venue||'')+(city?'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(city)+'</span>':'')+'<span class="jam-show-city" style="font-size:11px;color:var(--muted)"> · '+esc(clickMode)+'</span></div>'
         +progressLine
@@ -6191,6 +6215,25 @@ function renderJamRecent(){
 
 function escJs(s){
   return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+}
+
+function postScriptAction(data,timeoutMs){
+  timeoutMs=timeoutMs||3500;
+  const payload=JSON.stringify(data||{});
+  let sent=false;
+  const send=function(){
+    sent=true;
+    return fetch(SCRIPT_URL,{
+      method:'POST',mode:'no-cors',
+      body:payload,
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      keepalive:payload.length<60000
+    });
+  };
+  return Promise.race([
+    send().then(function(){return true;}).catch(function(){return false;}),
+    new Promise(function(resolve){setTimeout(function(){resolve(sent);},timeoutMs);})
+  ]);
 }
 
 function resolveRecentShow(entryOrId){
@@ -6250,8 +6293,8 @@ async function resumeRecentShow(id){
 async function openRecentShow(id,shouldPlay,modeLabel){
   if(modeLabel&&!sameModeLabel(modeLabel,activeMode.label)){
     const m=modeForLabel(modeLabel);
-    activeMode=m;localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);renderModeSelect();
-    await _fetchSheetFresh();
+    const ok=await ensureModeCatalog(m,{preferCache:true});
+    if(!ok)return;
   }
   const entry=recentEntryForShow(id,modeLabel);
   const show=resolveRecentShow(entry||id);
@@ -6443,8 +6486,13 @@ function jamFavoriteBareRow(user,fav){
 
 async function openFavoriteRecord(showId,modeLabel){
   const m=modeForLabel(modeLabel);
-  if(m.key!==loadedCatalogModeKey)await ensureModeCatalog(m);
-  const show=shows.find(function(s){return s.id===showId||showStorageId(s)===showId;});
+  const fav=activeFavorites(allFavorites).find(function(x){return x.showId===showId&&sameModeLabel(favoriteModeLabel(x),modeLabel);});
+  if(m.key!==loadedCatalogModeKey){
+    const ok=await ensureModeCatalog(m,{preferCache:true});
+    if(!ok)return;
+  }
+  const show=shows.find(function(s){return s.id===showId||showStorageId(s)===showId;})||
+    (fav&&shows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(fav.date)&&String(s.venue||'')===String(fav.venue||'');}));
   if(show)openSetlist(show.id);
 }
 
@@ -6459,9 +6507,7 @@ async function toggleFavoriteRecord(showId,modeLabel){
     localStorage.setItem('gd_fav_removed',JSON.stringify(removed));
   }catch(e){}
   renderList();renderJamFavorites();updateSpFavBtn();
-  fetch(SCRIPT_URL,{method:'POST',mode:'no-cors',
-    body:JSON.stringify({action:'removeFavorite',user:curUser,showId:showId,mode:modeLabel}),
-    headers:{'Content-Type':'text/plain;charset=utf-8'}});
+  postScriptAction({action:'removeFavorite',user:curUser,showId:showId,mode:modeLabel},2500);
 }
 
 function jamFavoriteShowRow(s,user,fav){
