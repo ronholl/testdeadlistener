@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.17</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.19</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.17</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.19</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.17';
+const APP_BUILD = '2.0.19';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -935,6 +935,12 @@ async function loadData(){
     });
     return;
   }
+  if(useModeCache(activeMode,{fromFastOpen:true,fromStartup:true})){
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    renderModeSelect();
+    scheduleSheetRefreshAfterStartup();
+    return;
+  }
   await _fetchSheetFresh();
 }
 
@@ -1165,6 +1171,7 @@ async function changeMode(){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
     setHdrSt(next.label+' from cache','ok');
+    scheduleSheetRefreshAfterStartup();
     return;
   }
   const prev=activeMode;
@@ -1217,6 +1224,7 @@ async function ensureModeCatalog(mode,opts){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
     setHdrSt(activeMode.label,'ok');
+    scheduleSheetRefreshAfterStartup();
     return true;
   }
   const prev=activeMode;
@@ -1253,9 +1261,26 @@ function findLoadedEquivalentShow(show){
 }
 
 function scheduleSheetRefreshAfterStartup(){
-  // The catalog sheets are intentionally treated as stable. Cached startup
-  // should stay instant; use the sync button for an explicit sheet refresh.
-  window._gdSheetRefreshPending=false;
+  if(window._gdSheetRefreshPending)return;
+  window._gdSheetRefreshPending=true;
+  setTimeout(function(){
+    const mode=activeMode||DEFAULT_MODE;
+    _fetchSheetFresh({background:true,mode:mode}).then(function(ok){
+      window._gdSheetRefreshPending=false;
+      if(ok&&activeMode&&activeMode.key===mode.key){
+        const cached=_readModeCache(mode);
+        if(cached&&cached.shows&&cached.shows.length){
+          setTimeout(function(){
+            if(activeMode&&activeMode.key===mode.key){
+              onLoaded(_hydrateSheetCacheShows(cached.shows,mode),{fromCache:true,fromSheetRefresh:true});
+            }
+          },200);
+        }
+      }
+    },function(){
+      window._gdSheetRefreshPending=false;
+    });
+  },2200);
 }
 
 function _readCache(){
@@ -1313,12 +1338,9 @@ function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
 }
 
 function scheduleInactiveModePreload(){
-  // Keep V2 mode switching stable first. Full background setlist warming across
-  // inactive modes can come back once the cross-mode loader is proven quiet.
-  return;
   if(_inactiveModePreloadStarted||!modes||modes.length<2)return;
   _inactiveModePreloadStarted=true;
-  setTimeout(preloadInactiveModeSheets,2500);
+  setTimeout(preloadInactiveModeSheets,4500);
 }
 
 async function preloadInactiveModeSheets(){
@@ -1351,6 +1373,9 @@ function useModeCache(mode,opts){
   if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
   activeMode=mode||activeMode||DEFAULT_MODE;
   onLoaded(_hydrateSheetCacheShows(cached.shows,activeMode),Object.assign({fromCache:true},opts));
+  setTimeout(function(){
+    if(activeMode&&activeMode.key===mode.key)setHdrSt('', '');
+  },0);
   return true;
 }
 
@@ -1372,6 +1397,11 @@ function _sheetCacheShows(list){
       archiveIdHint:s.archiveIdHint||'',
       archiveNoAudioHint:!!s.archiveNoAudioHint,
       sourceLockHint:s.sourceLockHint||'',
+      songs:Array.isArray(s.songs)&&s.songs.length?s.songs.slice(0,80):[],
+      setlistCached:!!(s.setlistCached||(s.songs&&s.songs.length)),
+      cachePlayable:!!(s.cachePlayable||(s.songs&&s.songs.length)),
+      setlistTrusted:!!s.setlistTrusted,
+      archiveIdHintLoaded:s.archiveIdHintLoaded||'',
       attendedUsers:attendedUsers
     };
   });
@@ -1383,7 +1413,15 @@ function _hydrateSheetCacheShows(list,mode){
     if(s&&Array.isArray(s.attendedUsers)){
       const att={};
       s.attendedUsers.forEach(function(u){att[u]=true;});
-      return mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',mode);
+      const show=mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',mode);
+      if(Array.isArray(s.songs)&&s.songs.length){
+        show.songs=s.songs.slice();
+        show.setlistCached=true;
+        show.cachePlayable=true;
+        show.setlistTrusted=!!s.setlistTrusted;
+        show.archiveIdHintLoaded=s.archiveIdHintLoaded||show.archiveIdHintLoaded||'';
+      }
+      return show;
     }
     return s;
   });
@@ -1461,7 +1499,7 @@ async function _fetchSheetFresh(opts){
   const r=await tryJSONP(requestedMode);
   if(stale())return false;
   if(r&&r.length>5){
-    if(opts.background){_writeCacheSoon(r);return true;}
+    if(opts.background){writeModeSheetCache(requestedMode,r,users.slice(),Object.assign({},userPins),userLimit);return true;}
     activeMode=requestedMode;onLoaded(r,opts);_writeCacheSoon(r);return true;
   }
   if(!isDefaultMode(requestedMode)){
@@ -1491,7 +1529,7 @@ async function _fetchSheetFresh(opts){
     const t=await tryFetch(url,12000);
     if(stale())return false;
     if(t){const r2=parseCSV(t);if(r2&&r2.length>5){
-      if(opts.background){_writeCacheSoon(r2);return true;}
+      if(opts.background){writeModeSheetCache(requestedMode,r2,users.slice(),Object.assign({},userPins),userLimit);return true;}
       activeMode=requestedMode;onLoaded(r2,opts);_writeCacheSoon(r2);return true;
     }}
   }
@@ -1914,6 +1952,9 @@ function bestCachedSetlistForShow(cached, show){
     if(archiveKey&&Array.isArray(cached[archiveKey])&&cached[archiveKey].length)return cached[archiveKey].slice();
     let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
     if(best.length) return best.slice();
+    const rawId=rawShowId(show.id);
+    if(rawId&&Array.isArray(cached[rawId])&&cached[rawId].length)return cached[rawId].slice();
+    if(rawId&&Array.isArray(cached[show.modeKey+':'+rawId])&&cached[show.modeKey+':'+rawId].length)return cached[show.modeKey+':'+rawId].slice();
     if(isDuplicateDateShow(show) || sourceLocked(show)) return best.slice();
     Object.keys(cached).forEach(function(k){
       if(k.indexOf(show.date + '-') === 0 && Array.isArray(cached[k]) && cached[k].length > best.length){
@@ -1949,6 +1990,10 @@ function removeShowFromSongIndex(show){
 function clearCachedSetlistForShow(show){
   try{
     if(!show||!show.id)return;
+    if(!show._allowSetlistCacheClear){
+      window._gdSetlistClearBlocked={at:Date.now(),id:show.id,date:show.date,venue:show.venue,reason:'protected'};
+      return;
+    }
     const key=showModeScopedKey(show,'gd_setlists');
     const c=JSON.parse(localStorage.getItem(key)||'{}');
     if(c&&Object.prototype.hasOwnProperty.call(c,show.id)){
@@ -1965,6 +2010,35 @@ function archiveSetlistCacheKey(archiveId){
   return id?'archive:'+id:'';
 }
 
+function updateSheetCacheShowSongs(show,songs){
+  try{
+    if(!show||!show.id||!songs||!songs.length)return;
+    const mode=modeForShow(show);
+    const cacheKey=modeKeyScopedKey('gd_sheet_cache',mode);
+    const raw=localStorage.getItem(cacheKey);
+    if(!raw)return;
+    const cache=JSON.parse(raw);
+    if(!cache||!Array.isArray(cache.shows))return;
+    const sid=showStorageId(show);
+    const target=cache.shows.find(function(s){
+      return s && (
+        String(s.id||'')===String(show.id) ||
+        String(s.rawId||'')===sid ||
+        rawShowId(s.id)===sid ||
+        (favoriteDateKey(s.date)===favoriteDateKey(show.date)&&String(s.venue||'')===String(show.venue||'')&&String(s.city||'')===String(show.city||''))
+      );
+    });
+    if(!target)return;
+    target.songs=songs.slice(0,80);
+    target.setlistCached=true;
+    target.cachePlayable=true;
+    target.setlistTrusted=!!show.setlistTrusted;
+    target.archiveIdHintLoaded=show.archiveIdHintLoaded||target.archiveIdHintLoaded||'';
+    cache.ts=Date.now();
+    localStorage.setItem(cacheKey,JSON.stringify(cache));
+  }catch(e){}
+}
+
 function saveCachedSetlistForShow(show,songs){
   try{
     if(!show||!show.id||!songs||!songs.length)return;
@@ -1973,6 +2047,8 @@ function saveCachedSetlistForShow(show,songs){
     const key=showModeScopedKey(show,'gd_setlists');
     const c=JSON.parse(localStorage.getItem(key)||'{}');
     c[show.id]=savedSongs;
+    const rawId=rawShowId(show.id);
+    if(rawId)c[rawId]=savedSongs;
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey)c[archiveKey]=savedSongs;
     try{
@@ -1988,6 +2064,7 @@ function saveCachedSetlistForShow(show,songs){
         window._gdSetlistsWriteLast={ok:false,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e2&&e2.message||e2)};
       }
     }
+    updateSheetCacheShowSongs(show,savedSongs);
     if(archiveId&&Array.isArray(shows)){
       shows.forEach(function(s){
         if(!s||s===show||s.modeKey!==show.modeKey||normalizeArchiveId(s.archiveIdHint||s.archiveId||'')!==archiveId)return;
@@ -2308,7 +2385,9 @@ function invalidateShowForArchiveHint(show,hint){
   show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
   show._archiveHintRefreshNeeded=true;
   removeShowFromSongIndex(show);
+  show._allowSetlistCacheClear=true;
   clearCachedSetlistForShow(show);
+  show._allowSetlistCacheClear=false;
   clearShowFlagsForShow(show);
   clearMetaLoaded(show);
   console.log('[GD] Archive ID hint changed for '+show.date+' '+show.venue+': '+hint);
@@ -2612,12 +2691,16 @@ function onLoaded(list,opts){
   }
 
   renderOthers();applyFilters();
-  if(opts.fromCache){
+  if(opts.fromSheetRefresh){
+    updateSongCntProgress();
+  }else if(opts.fromCache){
     setTimeout(scheduleArchiveHintRefresh,250);
-    setTimeout(bgLoadBatch,350);
+    if(!scanCompleteStillValid())setTimeout(bgLoadBatch,1200);
+    else setTimeout(updateSongCntProgress,250);
   }else{
     scheduleArchiveHintRefresh();
-    bgLoadBatch();
+    if(!scanCompleteStillValid())bgLoadBatch();
+    else updateSongCntProgress();
   }
   // Restore last playback position after a short delay
   if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
@@ -3123,8 +3206,10 @@ function applyFilters(){
   if(_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
-  setTimeout(bgLoadBatch,50);
-  setTimeout(kickVisibleSetlistLoads,75);
+  if(!scanCompleteStillValid()){
+    setTimeout(bgLoadBatch,150);
+    setTimeout(kickVisibleSetlistLoads,250);
+  }
 }
 function updateAttCount(){
   if(viewUser==='all'){document.getElementById('s-att').textContent='—';return;}
@@ -3152,6 +3237,23 @@ function updateViewStats(){
 function rowSetlistSummary(show){
   if(!show)return '';
   if(show.songs&&show.songs.length)return show.songs.slice(0,5).join(' · ');
+  try{
+    const cached=JSON.parse(localStorage.getItem(showModeScopedKey(show,'gd_setlists'))||'{}');
+    const songs=bestCachedSetlistForShow(cached,show);
+    if(songs&&songs.length){
+      show.songs=songs.slice();
+      show.setlistCached=true;
+      show.cachePlayable=true;
+      songs.forEach(function(song){
+        const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+        if(!songIndex[key])songIndex[key]=[];
+        if(!songIndex[key].some(function(e){return e.id===show.id;}))
+          songIndex[key].push({id:show.id,date:show.date,venue:show.venue,city:show.city,song:song});
+      });
+      updateSheetCacheShowSongs(show,songs);
+      return songs.slice(0,5).join(' · ');
+    }
+  }catch(e){}
   const tracks=(show.tracks||[]).map(function(t){
     return getUsableArchiveLabel(t)||cleanTrackLabel((t&&t.name)||'');
   }).filter(function(s){
@@ -3440,6 +3542,18 @@ function newestShowFirst(a,b){
   if(ad!==bd)return bd.localeCompare(ad);
   return String(b&&b.id||'').localeCompare(String(a&&a.id||''));
 }
+function oldestShowFirst(a,b){
+  const ad=(a&&a.date)||'',bd=(b&&b.date)||'';
+  if(ad!==bd)return ad.localeCompare(bd);
+  return String(a&&a.id||'').localeCompare(String(b&&b.id||''));
+}
+function visibleShowIndex(show){
+  if(!show||!filtered||!filtered.length)return 999999;
+  for(let i=0;i<filtered.length;i++){
+    if(filtered[i]&&filtered[i].id===show.id)return i;
+  }
+  return 999999;
+}
 function visibleSetlistPriority(show){
   if(!show)return 0;
   const user=(viewUser&&viewUser!=='all')?viewUser:curUser;
@@ -3453,7 +3567,9 @@ function visibleSetlistPriority(show){
 function setlistLoadPriority(a,b){
   const ap=visibleSetlistPriority(a),bp=visibleSetlistPriority(b);
   if(ap!==bp)return bp-ap;
-  return newestShowFirst(a,b);
+  const ai=visibleShowIndex(a),bi=visibleShowIndex(b);
+  if(ai!==bi)return ai-bi;
+  return oldestShowFirst(a,b);
 }
 function bgLoadBatch(){
   if(bgRunning)return;
@@ -3470,7 +3586,7 @@ function bgLoadBatch(){
   // 4) archiveIdBackfillCandidates: disabled during startup
   const hintedCandidates=shows.filter(function(s){
     return !isActiveLoadFresh(s.id) && s.archiveNoAudioHint && s._archiveHintRefreshNeeded;
-  }).sort(newestShowFirst);
+  }).sort(setlistLoadPriority);
   const archiveIdBackfillCandidates=[];
   try{
     window._gdArchiveIdBackfillStats={
@@ -3502,7 +3618,7 @@ function bgLoadBatch(){
   }).sort(setlistLoadPriority);
   const archiveCandidates=shows.filter(function(s){
     return !isActiveLoadFresh(s.id)&&!showLooksIndexed(s)&&s._needsArchive&&s.archiveIdHint&&(!s._archiveBgTried||s._archiveTempFail&&bgArchiveRetryReady(s));
-  }).sort(newestShowFirst);
+  }).sort(setlistLoadPriority);
   const exhaustedArchive=shows.filter(function(s){
     return !showLooksIndexed(s)&&s._needsArchive&&s._archiveBgTried&&!s._archiveTempFail;
   });
