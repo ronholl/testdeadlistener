@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.26</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.27</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.26</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.27</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.26';
+const APP_BUILD = '2.0.27';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1188,9 +1188,10 @@ async function changeMode(){
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
   if(next.key===loadedCatalogModeKey){
-    clearSwitchStatusFor(next);
+    setHdrSt(next.label+' from cache','ok');
     return;
   }
+  const hasCachedMode=!!(_readModeCache(next)&&_readModeCache(next).shows&&_readModeCache(next).shows.length>5);
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
@@ -1198,10 +1199,10 @@ async function changeMode(){
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
   cancelModeBackgroundWork();
-  setHdrSt('Switching to '+next.label+'…','busy');
+  setHdrSt(hasCachedMode?(next.label+' from cache'):('Loading '+next.label+'…'),hasCachedMode?'ok':'busy');
   if(sel)sel.value=next.key;
   const switchCnt=document.getElementById('cntbar');
-  if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">Switching to '+esc(next.label)+'…</span>';
+  if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">'+(hasCachedMode?esc(next.label+' from cache'):('Loading '+esc(next.label)+'…'))+'</span>';
   await new Promise(function(resolve){
     requestAnimationFrame(function(){setTimeout(resolve,0);});
   });
@@ -2074,12 +2075,8 @@ function bestCachedSetlistForShow(cached, show){
     }
     if(best.length&&modeKey){
       try{
-        const cur=JSON.parse(localStorage.getItem(modeKey)||'{}');
-        const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
-        cur[show.id]=best.slice();
-        const rawId=rawShowId(show.id);
-        if(rawId)cur[rawId]=best.slice();
-        if(archiveKey)cur[archiveKey]=best.slice();
+        const cur=compactSetlistCacheForMode(modeForShow(show),JSON.parse(localStorage.getItem(modeKey)||'{}'));
+        cur[primarySetlistCacheKey(show)]=best.slice(0,80);
         localStorage.setItem(modeKey,JSON.stringify(cur));
       }
       catch(e){}
@@ -2132,6 +2129,49 @@ function archiveSetlistCacheKey(archiveId){
   const id=normalizeArchiveId(archiveId||'');
   return id?'archive:'+id:'';
 }
+function primarySetlistCacheKey(show){
+  if(!show)return '';
+  return archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'')||rawShowId(show.id)||show.id;
+}
+function directCachedSetlistForShow(cache,show){
+  if(!cache||!show||show.archiveNoAudioHint)return [];
+  const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
+  const rawId=rawShowId(show.id);
+  const keys=[archiveKey,show.id,rawId,rawId&&show.modeKey?show.modeKey+':'+rawId:''].filter(Boolean);
+  for(let i=0;i<keys.length;i++){
+    if(Array.isArray(cache[keys[i]])&&cache[keys[i]].length)return cache[keys[i]].slice();
+  }
+  if(isDuplicateDateShow(show)||sourceLocked(show))return [];
+  let best=[];
+  Object.keys(cache).forEach(function(k){
+    if(k.indexOf(show.date+'-')===0&&Array.isArray(cache[k])&&cache[k].length>best.length)best=cache[k];
+  });
+  return best.slice();
+}
+function compactSetlistCacheForMode(mode,cache){
+  cache=cache||{};
+  const out={};
+  const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+  const sourceShows=(shows&&shows.length?shows:[]).filter(function(s){return !modeKey || s.modeKey===modeKey;});
+  sourceShows.forEach(function(s){
+    const songs=directCachedSetlistForShow(cache,s);
+    if(!songs.length)return;
+    const key=primarySetlistCacheKey(s);
+    if(key)out[key]=songs.slice(0,80);
+  });
+  if(!Object.keys(out).length){
+    const seen={};
+    Object.keys(cache).forEach(function(k){
+      const songs=Array.isArray(cache[k])?cache[k]:[];
+      if(!songs.length)return;
+      const sig=JSON.stringify(songs.slice(0,80));
+      if(seen[sig])return;
+      seen[sig]=1;
+      out[k]=songs.slice(0,80);
+    });
+  }
+  return out;
+}
 
 function updateSheetCacheShowSongs(show,songs){
   try{
@@ -2177,22 +2217,26 @@ function updateSheetCacheShowSongs(show,songs){
 function saveCachedSetlistForShow(show,songs){
   try{
     if(!show||!show.id||!songs||!songs.length)return;
-    const savedSongs=songs.slice();
+    const savedSongs=songs.slice(0,80);
     const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
     const key=showModeScopedKey(show,'gd_setlists');
-    const c=JSON.parse(localStorage.getItem(key)||'{}');
-    c[show.id]=savedSongs;
+    let c=compactSetlistCacheForMode(modeForShow(show),JSON.parse(localStorage.getItem(key)||'{}'));
     const rawId=rawShowId(show.id);
-    if(rawId)c[rawId]=savedSongs;
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
-    if(archiveKey)c[archiveKey]=savedSongs;
+    delete c[show.id];
+    if(rawId)delete c[rawId];
+    if(rawId&&show.modeKey)delete c[show.modeKey+':'+rawId];
+    if(archiveKey)delete c[archiveKey];
+    c[primarySetlistCacheKey(show)]=savedSongs;
     try{
       localStorage.setItem(key,JSON.stringify(c));
       window._gdSetlistsWriteLast={ok:true,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
     }catch(e){
       window._gdSetlistsWriteLast={ok:false,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e&&e.message||e)};
       try{
+        localStorage.removeItem(showModeScopedKey(show,ARCHIVE_SOURCE_CACHE_KEY));
         localStorage.removeItem(ARCHIVE_SOURCE_CACHE_KEY);
+        c=compactSetlistCacheForMode(modeForShow(show),c);
         localStorage.setItem(key,JSON.stringify(c));
         window._gdSetlistsWriteLast={ok:true,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
       }catch(e2){
@@ -2654,7 +2698,13 @@ function onLoaded(list,opts){
   _legacyArchiveSourceCacheList=null;
   renderModeSelect();
   try{
-    const cached=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
+    const setlistCacheKey=currentModeScopedKey('gd_setlists');
+    let cached=JSON.parse(localStorage.getItem(setlistCacheKey)||'{}');
+    const compactedCached=compactSetlistCacheForMode(activeMode,cached);
+    if(Object.keys(compactedCached).length&&JSON.stringify(compactedCached).length<JSON.stringify(cached).length){
+      cached=compactedCached;
+      try{localStorage.setItem(setlistCacheKey,JSON.stringify(cached));}catch(e){}
+    }
     // One-time migration marker. Older builds sometimes cached temporary archive.org
     // failures as permanent, but the restore logic below now ignores notAvail=true
     // entries, so we do not need to wipe the good meta cache and trigger a full scan.
@@ -4145,7 +4195,14 @@ function readArchiveSourceCache(modeOrShow){
 }
 function writeArchiveSourceCache(cache,modeOrShow){
   const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
-  try{localStorage.setItem(key,JSON.stringify(cache||{}));}catch(e){}
+  try{localStorage.setItem(key,JSON.stringify(cache||{}));}catch(e){
+    try{
+      const c=cache||{};
+      const keys=Object.keys(c).sort(function(a,b){return (c[b].ts||0)-(c[a].ts||0);});
+      keys.slice(40).forEach(function(k){delete c[k];});
+      localStorage.setItem(key,JSON.stringify(c));
+    }catch(e2){}
+  }
 }
 function readArchiveSourceEntryForShow(show,archiveId){
   const id=normalizeArchiveId(archiveId||'');
@@ -4200,9 +4257,9 @@ function cacheArchiveSourceForShow(show,source){
     cache[id]={
       ts:Date.now(),
       source:source||'',
-      tracks:show.tracks.slice(0,120).map(function(t){return {name:t.name||'',title:t.title||'',mp3:t.mp3||'',length:t.length||'',size:t.size||''};}),
+      tracks:show.tracks.slice(0,40).map(function(t){return {name:t.name||'',title:t.title||'',mp3:t.mp3||'',length:t.length||''};}),
       setBreaks:(show.setBreaks||[]).slice(),
-      songs:cachedSongs.slice(0,120),
+      songs:cachedSongs.slice(0,80),
       setlistTrusted:!!(show.setlistTrusted||cachedSongs.length),
       totalDur:show.totalDur||0,
       rating:show.rating||0,
@@ -4210,7 +4267,7 @@ function cacheArchiveSourceForShow(show,source){
       sbd:!!show.isSoundboard
     };
     const keys=Object.keys(cache).sort(function(a,b){return (cache[b].ts||0)-(cache[a].ts||0);});
-    keys.slice(350).forEach(function(k){delete cache[k];});
+    keys.slice(90).forEach(function(k){delete cache[k];});
     writeArchiveSourceCache(cache,show);
   }catch(e){}
 }
@@ -4241,6 +4298,8 @@ function applyCachedArchiveSourceToShow(show,archiveId){
       markShowSetlistCached(show);
     }else if(show.archiveIdHint&&!(show.songs&&show.songs.length)){
       show.songs=null;show.setlistCached=false;show.cachePlayable=false;show.setlistTrusted=false;
+      show.metaLoaded=false;show.notAvail=false;show._needsArchive=true;show._archiveTempFail=false;show._archiveHintRefreshNeeded=true;
+      return false;
     }
     show.metaLoaded=true;show.notAvail=false;show._needsArchive=false;show._archiveTempFail=false;show._archiveHintRefreshNeeded=false;
     show.archiveIdHintLoaded=id;
