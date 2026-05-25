@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.25</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.26</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.25</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.26</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.25';
+const APP_BUILD = '2.0.26';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -913,6 +913,13 @@ function refreshTrackDurationFromAudio(show,idx,aud){
   }
 }
 function setHdrSt(msg,cls){const el=document.getElementById('hdrSt');el.textContent=msg;el.className='hdr-st '+(cls||'');if(cls==='ok')setTimeout(()=>{el.textContent='';el.className='hdr-st';},4000);}
+function clearSwitchStatusFor(mode,replacement,cls){
+  const el=document.getElementById('hdrSt');
+  const label=(mode&&mode.label)||'';
+  if(!el)return;
+  if(!el.textContent || !/^Switching to /.test(el.textContent) || (label&&el.textContent.indexOf(label)<0))return;
+  setHdrSt(replacement||'',cls||'');
+}
 function userColor(name){const i=users.indexOf(name);return USER_COLORS[i>=0?i%USER_COLORS.length:0];}
 function blurActiveInput(){
   const el=document.activeElement;
@@ -1180,7 +1187,10 @@ async function changeMode(){
   const sel=document.getElementById('modeSel');
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
-  if(next.key===loadedCatalogModeKey)return;
+  if(next.key===loadedCatalogModeKey){
+    clearSwitchStatusFor(next);
+    return;
+  }
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
@@ -1198,10 +1208,15 @@ async function changeMode(){
   if(useModeCache(next,{fromFastOpen:true})){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
-    setHdrSt(next.label+' from cache','ok');
-    scheduleSheetRefreshAfterStartup();
     _modeSwitchBusy=false;
     _modeSwitchStartedAt=0;
+    setHdrSt(next.label+' from cache','ok');
+    markSetlistHydrationQueued();
+    setTimeout(kickVisibleSetlistLoads,50);
+    setTimeout(function(){
+      if(activeMode&&activeMode.key===next.key)clearSwitchStatusFor(next,next.label+' from cache','ok');
+    },0);
+    scheduleSheetRefreshAfterStartup();
     return;
   }
   document.getElementById('q').value='';
@@ -1237,6 +1252,15 @@ async function changeMode(){
   }finally{
     _modeSwitchBusy=false;
     _modeSwitchStartedAt=0;
+    if(token===_modeSwitchToken){
+      if(activeMode&&activeMode.key===next.key&&loadedCatalogModeKey===next.key){
+        clearSwitchStatusFor(next,next.label,'ok');
+        updateSetlistHydrationProgress();
+        setTimeout(kickVisibleSetlistLoads,50);
+      }else{
+        clearSwitchStatusFor(next);
+      }
+    }
     setTimeout(checkModeSelectValue,0);
   }
 }
