@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.19</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.20</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.19</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.20</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.19';
+const APP_BUILD = '2.0.20';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -615,7 +615,7 @@ const SHEET_CACHE_SCHEMA_VERSION=3;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0;
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -778,6 +778,8 @@ let archiveAutoRetryTimer=null, archiveAutoRetryShowId=null, archiveAutoRetryCou
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=false;
 let positions={}, songIndex={}, metaCache={};
+let _legacySetlistCacheList=null,_legacyArchiveSourceCacheList=null;
+let _visibleSetlistHydrateRunning=false,_visibleSetlistHydrateLastAt=0;
 let preloadAudio=null; // preloaded next track for seamless playback
 let playIntent=false;
 let _bufferTimer=null; // tracks elapsed seconds while buffering/stalled
@@ -1105,7 +1107,7 @@ function tryScriptCatalogJSONP(mode){
 function renderModeSelect(){
   const sel=document.getElementById('modeSel');
   if(!sel)return;
-  const wanted=(_modeSwitchBusy&&sel.value)?sel.value:(loadedCatalogModeKey||activeMode.key);
+  const wanted=(_modeSwitchBusy&&sel.value)?sel.value:((activeMode&&activeMode.key)||loadedCatalogModeKey||DEFAULT_MODE.key);
   if(wanted&&!modes.some(function(m){return m.key===wanted;})){
     const fm=fallbackModes();
     fm.forEach(function(m){
@@ -1154,8 +1156,18 @@ function checkModeSelectValue(){
   if(sel.value&&((activeMode&&sel.value!==activeMode.key)||sel.value!==loadedCatalogModeKey))changeMode();
 }
 
-function showModeLoadingState(label){
+function showModeLoadingState(mode){
+  const label=(mode&&mode.label)||mode||'';
   setHdrSt('Loading '+label+'…','busy');
+  const count=Number(mode&&mode.showCount)||0;
+  const yrRange=(mode&&mode.yearStart&&mode.yearEnd)?(mode.yearStart+'–'+mode.yearEnd):'—';
+  if(count){
+    const totalEl=document.getElementById('s-total');if(totalEl)totalEl.textContent=count.toLocaleString();
+    const modeCount=document.getElementById('modeCount');if(modeCount)modeCount.textContent=count.toLocaleString()+' shows';
+  }
+  const attEl=document.getElementById('s-att');if(attEl)attEl.textContent='—';
+  const yrsEl=document.getElementById('s-yrs');if(yrsEl)yrsEl.textContent=yrRange;
+  const hyr=document.getElementById('hdr-year-range');if(hyr&&yrRange!=='—')hyr.textContent=yrRange;
   const cnt=document.getElementById('cntbar');
   if(cnt)cnt.innerHTML='<span style="color:var(--gold2)">Loading '+esc(label)+'…</span>';
   const listEl=document.getElementById('list');
@@ -1167,6 +1179,8 @@ async function changeMode(){
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
   if(next.key===loadedCatalogModeKey)return;
+  _sheetRefreshToken++;
+  window._gdSheetRefreshPending=false;
   if(useModeCache(next,{fromFastOpen:true})){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
@@ -1185,7 +1199,7 @@ async function changeMode(){
   curShow=null;filtered=[];songIndex={};myOnly=false;viewUser=curUser||'all';
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
-  showModeLoadingState(next.label);
+  showModeLoadingState(next);
   try{
     const ok=await Promise.race([
       _fetchSheetFresh({modeSwitchToken:token,mode:next}),
@@ -1229,10 +1243,12 @@ async function ensureModeCatalog(mode,opts){
   }
   const prev=activeMode;
   const token=++_modeSwitchToken;
+  _sheetRefreshToken++;
+  window._gdSheetRefreshPending=false;
   _modeSwitchBusy=true;
   _modeSwitchStartedAt=Date.now();
   cancelModeBackgroundWork();
-  showModeLoadingState(mode.label);
+  showModeLoadingState(mode);
   try{
     const ok=await _fetchSheetFresh({modeSwitchToken:token,mode:mode});
     if(ok){
@@ -1263,20 +1279,17 @@ function findLoadedEquivalentShow(show){
 function scheduleSheetRefreshAfterStartup(){
   if(window._gdSheetRefreshPending)return;
   window._gdSheetRefreshPending=true;
+  const token=++_sheetRefreshToken;
   setTimeout(function(){
     const mode=activeMode||DEFAULT_MODE;
+    if(token!==_sheetRefreshToken || _modeSwitchBusy){
+      window._gdSheetRefreshPending=false;
+      return;
+    }
     _fetchSheetFresh({background:true,mode:mode}).then(function(ok){
       window._gdSheetRefreshPending=false;
-      if(ok&&activeMode&&activeMode.key===mode.key){
-        const cached=_readModeCache(mode);
-        if(cached&&cached.shows&&cached.shows.length){
-          setTimeout(function(){
-            if(activeMode&&activeMode.key===mode.key){
-              onLoaded(_hydrateSheetCacheShows(cached.shows,mode),{fromCache:true,fromSheetRefresh:true});
-            }
-          },200);
-        }
-      }
+      if(token!==_sheetRefreshToken || !activeMode || activeMode.key!==mode.key)return;
+      if(ok)updateModeControlCount();
     },function(){
       window._gdSheetRefreshPending=false;
     });
@@ -1492,8 +1505,11 @@ async function _fetchSheetFresh(opts){
   const scriptCatalog=await tryScriptCatalogJSONP(requestedMode);
   if(stale())return false;
   if(scriptCatalog&&scriptCatalog.length>5){
-    if(opts.background){writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;}
-    activeMode=requestedMode;onLoaded(scriptCatalog,opts);writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;
+    if(catalogHasSourceHints(scriptCatalog,requestedMode)){
+      if(opts.background){writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;}
+      activeMode=requestedMode;onLoaded(scriptCatalog,opts);writeModeSheetCache(requestedMode,scriptCatalog,users.slice(),Object.assign({},userPins),userLimit);return true;
+    }
+    debugLines.push('Apps Script catalog missing source hints '+requestedMode.label+'; reading full sheet');
   }
   // 1. Try JSONP (fastest, direct from Google)
   const r=await tryJSONP(requestedMode);
@@ -1801,6 +1817,20 @@ function parseScriptCatalog(data,mode){
   return collapseModeDuplicateShows(list,mode);
 }
 
+function catalogHasSourceHints(list,mode){
+  if(isDefaultMode(mode))return true;
+  const total=(list&&list.length)||0;
+  if(!total)return false;
+  const hinted=(list||[]).filter(function(s){
+    return !!(s&&(
+      plausibleArchiveId(s.archiveIdHint||s.archiveId||'') ||
+      s.archiveNoAudioHint ||
+      (s.recordings&&s.recordings.length)
+    ));
+  }).length;
+  return hinted>=Math.min(3,Math.ceil(total*0.02));
+}
+
 function normalizeShowGroupPart(value){
   return String(value||'')
     .replace(/\s+/g,' ')
@@ -1947,21 +1977,61 @@ function logVisit(){
 function bestCachedSetlistForShow(cached, show){
   try{
     if(!cached || !show || !show.date) return [];
-    if(show.archiveNoAudioHint) return [];
-    const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
-    if(archiveKey&&Array.isArray(cached[archiveKey])&&cached[archiveKey].length)return cached[archiveKey].slice();
-    let best = Array.isArray(cached[show.id]) ? cached[show.id] : [];
-    if(best.length) return best.slice();
-    const rawId=rawShowId(show.id);
-    if(rawId&&Array.isArray(cached[rawId])&&cached[rawId].length)return cached[rawId].slice();
-    if(rawId&&Array.isArray(cached[show.modeKey+':'+rawId])&&cached[show.modeKey+':'+rawId].length)return cached[show.modeKey+':'+rawId].slice();
-    if(isDuplicateDateShow(show) || sourceLocked(show)) return best.slice();
-    Object.keys(cached).forEach(function(k){
-      if(k.indexOf(show.date + '-') === 0 && Array.isArray(cached[k]) && cached[k].length > best.length){
-        best = cached[k];
-      }
+    function findBestIn(cache,legacy){
+      if(!cache||show.archiveNoAudioHint)return [];
+      const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
+      if(archiveKey&&Array.isArray(cache[archiveKey])&&cache[archiveKey].length)return cache[archiveKey].slice();
+      let best = Array.isArray(cache[show.id]) ? cache[show.id] : [];
+      if(best.length) return best.slice();
+      if(legacy)return [];
+      const rawId=rawShowId(show.id);
+      if(rawId&&Array.isArray(cache[rawId])&&cache[rawId].length)return cache[rawId].slice();
+      if(rawId&&Array.isArray(cache[show.modeKey+':'+rawId])&&cache[show.modeKey+':'+rawId].length)return cache[show.modeKey+':'+rawId].slice();
+      if(isDuplicateDateShow(show) || sourceLocked(show)) return best.slice();
+      Object.keys(cache).forEach(function(k){
+        if(k.indexOf(show.date + '-') === 0 && Array.isArray(cache[k]) && cache[k].length > best.length){
+          best = cache[k];
+        }
+      });
+      return Array.isArray(best) ? best.slice() : [];
+    }
+    let best=findBestIn(cached,false);
+    if(best.length)return best;
+    const modeKey=showModeScopedKey(show,'gd_setlists');
+    ['gd_setlists',currentModeScopedKey('gd_setlists')].forEach(function(key){
+      if(best.length||!key||key===modeKey)return;
+      try{
+        best=findBestIn(JSON.parse(localStorage.getItem(key)||'{}'),true);
+      }catch(e){}
     });
-    return Array.isArray(best) ? best.slice() : [];
+    if(!best.length){
+      try{
+        if(!_legacySetlistCacheList){
+          _legacySetlistCacheList=[];
+          for(let i=0;i<localStorage.length;i++){
+            const key=localStorage.key(i)||'';
+            if(key.indexOf('gd_setlists_')!==0||key===modeKey)continue;
+            try{_legacySetlistCacheList.push(JSON.parse(localStorage.getItem(key)||'{}'));}catch(e){}
+          }
+        }
+        for(let i=0;i<_legacySetlistCacheList.length&&!best.length;i++){
+          best=findBestIn(_legacySetlistCacheList[i],true);
+        }
+      }catch(e){}
+    }
+    if(best.length&&modeKey){
+      try{
+        const cur=JSON.parse(localStorage.getItem(modeKey)||'{}');
+        const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
+        cur[show.id]=best.slice();
+        const rawId=rawShowId(show.id);
+        if(rawId)cur[rawId]=best.slice();
+        if(archiveKey)cur[archiveKey]=best.slice();
+        localStorage.setItem(modeKey,JSON.stringify(cur));
+      }
+      catch(e){}
+    }
+    return best;
   }catch(e){
     return [];
   }
@@ -2372,6 +2442,7 @@ function bgScanLabel(indexed,total,pct){
 }
 
 function shouldShowStartupProgress(indexed,total){
+  if(!isFullReindexRebuilding())return false;
   if(!total||indexed>=total)return false;
   return true;
 }
@@ -2513,6 +2584,8 @@ function onLoaded(list,opts){
   shows=list;
   loadedCatalogModeKey=(list&&list[0]&&list[0].modeKey)||((activeMode&&activeMode.key)||DEFAULT_MODE.key);
   songIndex={};
+  _legacySetlistCacheList=null;
+  _legacyArchiveSourceCacheList=null;
   renderModeSelect();
   try{
     const cached=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
@@ -2695,11 +2768,12 @@ function onLoaded(list,opts){
     updateSongCntProgress();
   }else if(opts.fromCache){
     setTimeout(scheduleArchiveHintRefresh,250);
-    if(!scanCompleteStillValid())setTimeout(bgLoadBatch,1200);
-    else setTimeout(updateSongCntProgress,250);
+    setTimeout(updateSongCntProgress,250);
+    setTimeout(kickVisibleSetlistLoads,900);
   }else{
     scheduleArchiveHintRefresh();
-    if(!scanCompleteStillValid())bgLoadBatch();
+    setTimeout(kickVisibleSetlistLoads,900);
+    if(isFullReindexRebuilding()&&!scanCompleteStillValid())bgLoadBatch();
     else updateSongCntProgress();
   }
   // Restore last playback position after a short delay
@@ -3191,6 +3265,54 @@ function clearSearchInput(inputId,buttonId,afterClear){
 function clearShowSearch(){
   clearSearchInput('q','qClear',applyFilters);
 }
+function setlistHydrationStats(){
+  const list=shows||[];
+  let setlists={};
+  try{setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}')||{};}catch(e){}
+  function hasCachedSongs(s){
+    if(!s)return false;
+    if((s.songs&&s.songs.length)||s.cachePlayable||s.setlistCached)return true;
+    const raw=rawShowId(s.id);
+    const archiveKey=archiveSetlistCacheKey(s.archiveIdHint||s.archiveId||'');
+    return !!(
+      (Array.isArray(setlists[s.id])&&setlists[s.id].length) ||
+      (raw&&Array.isArray(setlists[raw])&&setlists[raw].length) ||
+      (archiveKey&&Array.isArray(setlists[archiveKey])&&setlists[archiveKey].length)
+    );
+  }
+  const total=list.filter(function(s){
+    return s&&!s.archiveNoAudioHint&&plausibleArchiveId(s.archiveIdHint||s.archiveId||'');
+  }).length;
+  const loaded=list.filter(function(s){
+    return s&&!s.archiveNoAudioHint&&plausibleArchiveId(s.archiveIdHint||s.archiveId||'')&&hasCachedSongs(s);
+  }).length;
+  const active=_visibleSetlistHydrateRunning||(Date.now()-_visibleSetlistHydrateLastAt<5000);
+  return {total:total,loaded:loaded,pending:Math.max(0,total-loaded),active:active};
+}
+function setlistHydrationLabel(){
+  const st=setlistHydrationStats();
+  if(!st.active)return '';
+  if(!st.total||st.loaded>=st.total)return '';
+  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' loading</span>';
+}
+function updateSetlistHydrationProgress(){
+  const cntbar=document.getElementById('cntbar');
+  if(cntbar){
+    const base=cntbar.innerHTML.replace(/\s*<span[^>]*class="setlist-prog"[^>]*>.*?<\/span>/g,'').trimEnd();
+    cntbar.innerHTML=base+setlistHydrationLabel();
+  }
+  const el=document.getElementById('songCnt');
+  if(el){
+    const qEl=document.getElementById('songQ');
+    const qActive=qEl&&qEl.value.trim().length>=2;
+    if(!qActive){
+      const st=setlistHydrationStats();
+      if(st.active&&st.total&&st.loaded<st.total){
+        el.textContent='Setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' loading · search any song';
+      }
+    }
+  }
+}
 function applyFilters(){
   updateShowSearchClear();
   const list=currentFilteredShows();
@@ -3204,9 +3326,9 @@ function applyFilters(){
       ? ` <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
       : '';
   if(_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
-  document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
+  document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog+setlistHydrationLabel();
   updateAttCount();renderList();
-  if(!scanCompleteStillValid()){
+  if(isFullReindexRebuilding()&&!scanCompleteStillValid()){
     setTimeout(bgLoadBatch,150);
     setTimeout(kickVisibleSetlistLoads,250);
   }
@@ -3305,7 +3427,56 @@ async function freshenSetlistOnOpen(show){
 }
 
 function kickVisibleSetlistLoads(){
-  return;
+  if(_visibleSetlistHydrateRunning)return;
+  if(!shows||!shows.length)return;
+  const token=bgModeToken;
+  const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
+  let setlists={};
+  try{setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}')||{};}catch(e){}
+  function cachedSetlistExists(s){
+    const raw=rawShowId(s&&s.id);
+    const archiveKey=archiveSetlistCacheKey(s&&((s.archiveIdHint||s.archiveId)||''));
+    return !!(
+      (s&&Array.isArray(setlists[s.id])&&setlists[s.id].length) ||
+      (raw&&Array.isArray(setlists[raw])&&setlists[raw].length) ||
+      (archiveKey&&Array.isArray(setlists[archiveKey])&&setlists[archiveKey].length)
+    );
+  }
+  const pool=(filtered&&filtered.length?filtered:currentFilteredShows()).filter(function(s){
+    return s&&
+      !isActiveLoadFresh(s.id)&&
+      !s.archiveNoAudioHint&&
+      plausibleArchiveId(s.archiveIdHint||s.archiveId||'')&&
+      !(s.songs&&s.songs.length)&&
+      !s.cachePlayable&&
+      !s.setlistCached&&
+      !cachedSetlistExists(s)&&
+      (!s._archiveBgTried || (s._archiveTempFail&&bgArchiveRetryReady(s)));
+  }).slice(0,IS_MOBILE_BG?3:4);
+  if(!pool.length){updateSetlistHydrationProgress();return;}
+  _visibleSetlistHydrateRunning=true;
+  _visibleSetlistHydrateLastAt=Date.now();
+  updateSetlistHydrationProgress();
+  let remaining=pool.length;
+  function doneOne(){
+    remaining--;
+    _visibleSetlistHydrateLastAt=Date.now();
+    updateSetlistHydrationProgress();
+    if(remaining<=0){
+      _visibleSetlistHydrateRunning=false;
+      updateSetlistHydrationProgress();
+      setTimeout(kickVisibleSetlistLoads,1800);
+    }
+  }
+  pool.forEach(function(s,i){
+    setTimeout(function(){
+      if(token!==bgModeToken||!activeMode||activeMode.key!==modeKey){doneOne();return;}
+      loadShowMeta(s,false,true).then(function(){
+        if(token===bgModeToken&&activeMode&&activeMode.key===modeKey&&s.songs&&s.songs.length)renderList();
+        doneOne();
+      },doneOne);
+    },900+i*(IS_MOBILE_BG?850:700));
+  });
 }
 
 function renderList(){
@@ -3507,6 +3678,8 @@ let bgModeToken=0;
 function cancelModeBackgroundWork(){
   bgModeToken++;
   bgRunning=false;
+  _visibleSetlistHydrateRunning=false;
+  _visibleSetlistHydrateLastAt=0;
   try{
     activeLoads.clear();
     activeLoadStarted.clear();
@@ -3787,11 +3960,12 @@ function updateSongCntProgress(){
     const current=cntbar.innerHTML;
     const base=current
       .replace(/\s*<span[^>]*class="bgscan-prog"[^>]*>.*?<\/span>/g,'')
+      .replace(/\s*<span[^>]*class="setlist-prog"[^>]*>.*?<\/span>/g,'')
       .replace(/\s*<span[^>]*>\s*·\s*cached sheet data\s*·\s*refreshing Google Sheets…\s*<\/span>/gi,'')
       .replace(/\s*·\s*cached sheet data\s*·\s*refreshing Google Sheets…/gi,'')
       .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows (?:indexed|checked))?/gi,'')
       .trimEnd();
-    cntbar.innerHTML=base+prog;
+    cntbar.innerHTML=base+prog+setlistHydrationLabel();
   }
 }
 
@@ -3845,6 +4019,33 @@ function writeArchiveSourceCache(cache,modeOrShow){
   const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
   try{localStorage.setItem(key,JSON.stringify(cache||{}));}catch(e){}
 }
+function readArchiveSourceEntryForShow(show,archiveId){
+  const id=normalizeArchiveId(archiveId||'');
+  if(!id)return null;
+  const modeKey=show?showModeScopedKey(show,ARCHIVE_SOURCE_CACHE_KEY):currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY);
+  const keys=[modeKey,ARCHIVE_SOURCE_CACHE_KEY,currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY)].filter(function(k,i,a){return k&&a.indexOf(k)===i;});
+  for(let i=0;i<keys.length;i++){
+    try{
+      const cache=JSON.parse(localStorage.getItem(keys[i])||'{}');
+      if(cache&&cache[id])return {entry:cache[id],key:keys[i]};
+    }catch(e){}
+  }
+  try{
+    if(!_legacyArchiveSourceCacheList){
+      _legacyArchiveSourceCacheList=[];
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i)||'';
+        if(key.indexOf(ARCHIVE_SOURCE_CACHE_KEY+'_')!==0||keys.indexOf(key)>=0)continue;
+        try{_legacyArchiveSourceCacheList.push({key:key,cache:JSON.parse(localStorage.getItem(key)||'{}')});}catch(e){}
+      }
+    }
+    for(let i=0;i<_legacyArchiveSourceCacheList.length;i++){
+      const item=_legacyArchiveSourceCacheList[i];
+      if(item&&item.cache&&item.cache[id])return {entry:item.cache[id],key:item.key};
+    }
+  }catch(e){}
+  return null;
+}
 function deriveSetlistFromTracks(tracks){
   return sanitizeSongList((tracks||[]).map(function(t){
     return getUsableArchiveLabel(t)||cleanTrackLabel((((t&&t.title)||'')||((t&&t.name)||'')).toString());
@@ -3889,7 +4090,8 @@ function applyCachedArchiveSourceToShow(show,archiveId){
   try{
     const id=normalizeArchiveId(archiveId||'');
     if(!id)return false;
-    const entry=readArchiveSourceCache(show)[id];
+    const found=readArchiveSourceEntryForShow(show,id);
+    const entry=found&&found.entry;
     if(!entry||!entry.tracks||!entry.tracks.length)return false;
     show.archiveId=id;
     show.tracks=entry.tracks.slice();
@@ -3916,6 +4118,9 @@ function applyCachedArchiveSourceToShow(show,archiveId){
     show.archiveIdHintLoaded=id;
     show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
     saveMetaLoaded(show);
+    if(found&&found.key&&found.key!==showModeScopedKey(show,ARCHIVE_SOURCE_CACHE_KEY)){
+      cacheArchiveSourceForShow(show,'cache-migrated');
+    }
     return true;
   }catch(e){
     return false;
@@ -4390,6 +4595,20 @@ function archivePlayableFiles(meta){
   });
 }
 
+function archiveSetlistFiles(meta){
+  return (meta&&meta.files||[]).filter(function(f){
+    return f.name&&/\.(mp3|ogg|flac|shn|wav)$/i.test(f.name)&&!f.name.includes('_sample');
+  });
+}
+
+function archiveSetlistSongs(meta){
+  return sanitizeSongList(archiveSetlistFiles(meta).map(function(f){
+    return getUsableArchiveLabel(f)||cleanTrackLabel(String(f.title||f.name||''));
+  }).filter(function(s){
+    return s&&s.length>1&&!/^Track \d+$/i.test(s)&&!looksLikeTapeId(s)&&!looksLikeArchiveNote(s);
+  }));
+}
+
 function archiveMetaAsSource(meta){
   return {sets:[{tracks:archivePlayableFiles(meta).map(function(f){
     return {title:f.title||'',name:f.name||'',length:f.length||''};
@@ -4460,15 +4679,16 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
   const trackSongs=show.tracks.map(function(t){
     return getUsableArchiveLabel(t);
   }).filter(function(s){return s&&s.length>1;});
+  const fileSongs=archiveSetlistSongs(meta);
   const descTrusted=archiveDescriptionSongsTrusted(show,descSongs,rawDesc,show.tracks);
   const chosenSongs=archiveOverride
-    ? (trackSongs.length?trackSongs:(descTrusted?sanitizeSongList(descSongs):[]))
+    ? (trackSongs.length?trackSongs:(fileSongs.length?fileSongs:(descTrusted?sanitizeSongList(descSongs):[])))
     : applyBestCachedSetlist(show,descSongs);
   if(chosenSongs.length){
     show.songs=chosenSongs.slice();
     show.setlistCached=true;
     show.cachePlayable=true;
-    show.setlistTrusted=!!(descTrusted||trackSongs.length);
+    show.setlistTrusted=!!(descTrusted||trackSongs.length||fileSongs.length);
     show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
     if(show.setlistTrusted)indexShowSongs(show,chosenSongs);
     if(show.setlistTrusted)saveCachedSetlistForShow(show,chosenSongs);
