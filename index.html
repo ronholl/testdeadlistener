@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.14</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.15</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.14</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.15</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.14';
+const APP_BUILD = '2.0.15';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1161,6 +1161,13 @@ async function changeMode(){
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
   if(next.key===loadedCatalogModeKey)return;
+  if(useModeCache(next,{fromFastOpen:true})){
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    renderModeSelect();
+    setHdrSt(next.label+' from cache','ok');
+    setTimeout(function(){_fetchSheetFresh({refresh:true,background:true,mode:next});},2500);
+    return;
+  }
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
@@ -1247,12 +1254,12 @@ function findLoadedEquivalentShow(show){
 }
 
 function scheduleSheetRefreshAfterStartup(){
-  const run=function(){setTimeout(function(){_fetchSheetFresh({refresh:true});},8000);};
+  const run=function(){setTimeout(function(){_fetchSheetFresh({refresh:true,background:true,mode:activeMode||DEFAULT_MODE});},8000);};
   try{
     if(document.readyState==='complete')run();
     else window.addEventListener('load',run,{once:true});
   }catch(e){
-    setTimeout(function(){_fetchSheetFresh({refresh:true});},10000);
+    setTimeout(function(){_fetchSheetFresh({refresh:true,background:true,mode:activeMode||DEFAULT_MODE});},10000);
   }
 }
 
@@ -2315,8 +2322,24 @@ function applyArchiveHintInvalidation(show,flags,fp){
   const hint=show.archiveNoAudioHint?'NO_AUDIO':normalizeArchiveId(show.archiveIdHint||'');
   const fpHint=archiveHintFingerprint(show);
   if(!hint||!fpHint)return false;
+  if(fp&&fp[show.id]===fpHint){
+    show.archiveIdHintLoaded=show.archiveNoAudioHint?'NO_AUDIO':hint;
+    show._archiveHintRefreshNeeded=false;
+    show._archiveHintChanged=false;
+    if(flags&&flags.hasAudio){show.metaLoaded=true;show.notAvail=false;}
+    if(flags&&flags.notAvail){show.metaLoaded=true;show.notAvail=true;}
+    return false;
+  }
   if(show.archiveNoAudioHint){
-    if(show.metaLoaded&&show.notAvail&&show.archiveIdHintLoaded==='NO_AUDIO')return false;
+    if((fp&&fp[show.id]===fpHint)||(flags&&flags.archiveIdHintLoaded==='NO_AUDIO')||(show.metaLoaded&&show.notAvail&&show.archiveIdHintLoaded==='NO_AUDIO')){
+      show.archiveIdHintLoaded='NO_AUDIO';
+      show._archiveHintRefreshNeeded=false;
+      show._archiveHintChanged=false;
+      show.metaLoaded=true;
+      show.notAvail=true;
+      if(fp)fp[show.id]=fpHint;
+      return false;
+    }
     invalidateShowForArchiveHint(show,'NO_AUDIO');
     if(fp)fp[show.id]=fpHint;
     return true;
@@ -3436,7 +3459,7 @@ function bgLoadBatch(){
   // 3) archiveCandidates: retry manual Archive IDs that already asked for archive
   // 4) archiveIdBackfillCandidates: disabled during startup
   const hintedCandidates=shows.filter(function(s){
-    return !isActiveLoadFresh(s.id) && s.archiveNoAudioHint && (!s.metaLoaded || !s.archiveIdHintLoaded || s._archiveHintRefreshNeeded);
+    return !isActiveLoadFresh(s.id) && s.archiveNoAudioHint && s._archiveHintRefreshNeeded;
   }).sort(newestShowFirst);
   const archiveIdBackfillCandidates=[];
   try{
@@ -4604,6 +4627,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     clearCachedSetlistForShow(show);
     show.metaLoaded=true;show.notAvail=true;show.tracks=[];show.totalDur=0;show.archiveId=null;show.recordings=[];
     saveMetaLoaded(show);
+    saveShowFlags(show);
     stopLoadingDots('sp-meta-txt');stopLoadingDots('sp-body-msg');
     if(priority){renderSetlistBody(show);renderList();}
     else renderList();
