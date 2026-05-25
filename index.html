@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.21</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.24</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.21</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.24</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -573,7 +573,7 @@ body{display:flex;justify-content:center}
         <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
         <button class="ftog" id="theirBtn" style="display:none" onclick="toggleTheir()">— shows</button>
-        <button class="ftog" id="srtBtn" onclick="toggleSort()">Date ↑</button>
+        <button class="ftog" id="srtBtn" type="button">Date ↑</button>
       </div>
     </div>
     <div class="cntbar" id="cntbar">Loading...</div>
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.21';
+const APP_BUILD = '2.0.24';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1047,7 +1047,8 @@ function tryModesJSONP(){
     function cleanup(){
       clearTimeout(timer);
       const s=document.getElementById('gd-modes-s');if(s)s.remove();
-      try{delete window[cb];}catch(e){window[cb]=undefined;}
+      window[cb]=function(){};
+      setTimeout(function(){try{delete window[cb];}catch(e){window[cb]=undefined;}},30000);
     }
     window[cb]=function(data){cleanup();resolve(data||null);};
     const s=document.createElement('script');
@@ -1066,7 +1067,8 @@ function tryScriptCatalogJSONP(mode){
     let settled=false;
     function cleanup(){
       const s=document.getElementById(scriptId);if(s)s.remove();
-      try{delete window[cb];}catch(e){window[cb]=undefined;}
+      window[cb]=function(){};
+      setTimeout(function(){try{delete window[cb];}catch(e){window[cb]=undefined;}},30000);
     }
     function done(value){
       if(settled)return;
@@ -1181,6 +1183,7 @@ async function changeMode(){
   if(next.key===loadedCatalogModeKey)return;
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
+  cancelModeBackgroundWork();
   setHdrSt('Switching to '+next.label+'…','busy');
   if(sel)sel.value=next.key;
   const switchCnt=document.getElementById('cntbar');
@@ -1188,6 +1191,7 @@ async function changeMode(){
   if(useModeCache(next,{fromFastOpen:true})){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
+    setHdrSt(next.label+' from cache','ok');
     scheduleSheetRefreshAfterStartup();
     return;
   }
@@ -1195,7 +1199,6 @@ async function changeMode(){
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
   _modeSwitchStartedAt=Date.now();
-  cancelModeBackgroundWork();
   document.getElementById('q').value='';
   document.getElementById('songQ').value='';
   const jq=document.getElementById('jamSongQ');if(jq)jq.value='';
@@ -1314,17 +1317,28 @@ function _readCache(){
 }
 
 function _writeCache(list){
-  try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify({
+  const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
+  modeCatalogCache[modeKey]={
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
     shows:_sheetCacheShows(list||shows),
-    users:users,
-    pins:userPins,
+    users:users.slice(),
+    pins:Object.assign({},userPins),
     userLimit:userLimit,
     ts:Date.now()
+  };
+  try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify({
+    schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
+    shows:modeCatalogCache[modeKey].shows,
+    users:modeCatalogCache[modeKey].users,
+    pins:modeCatalogCache[modeKey].pins,
+    userLimit:userLimit,
+    ts:modeCatalogCache[modeKey].ts
   }));}catch(e){}
 }
 
 function _writeCacheSoon(list){
+  const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
+  const cacheKey=modeKeyScopedKey('gd_sheet_cache',activeMode);
   const snapshot={
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
     shows:_sheetCacheShows(list||shows),
@@ -1333,7 +1347,8 @@ function _writeCacheSoon(list){
     userLimit:userLimit,
     ts:Date.now()
   };
-  const run=function(){try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify(snapshot));}catch(e){}};
+  modeCatalogCache[modeKey]=snapshot;
+  const run=function(){try{localStorage.setItem(cacheKey,JSON.stringify(snapshot));}catch(e){}};
   try{
     if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
     else setTimeout(run,250);
@@ -1341,15 +1356,18 @@ function _writeCacheSoon(list){
 }
 
 function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
+  const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+  const snapshot={
+    schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
+    shows:_sheetCacheShows(list||[]),
+    users:cacheUsers||[],
+    pins:cachePins||{},
+    userLimit:cacheLimit||0,
+    ts:Date.now()
+  };
+  modeCatalogCache[modeKey]=snapshot;
   try{
-    localStorage.setItem(modeKeyScopedKey('gd_sheet_cache',mode),JSON.stringify({
-      schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
-      shows:_sheetCacheShows(list||[]),
-      users:cacheUsers||[],
-      pins:cachePins||{},
-      userLimit:cacheLimit||0,
-      ts:Date.now()
-    }));
+    localStorage.setItem(modeKeyScopedKey('gd_sheet_cache',mode),JSON.stringify(snapshot));
   }catch(e){}
 }
 
@@ -1376,9 +1394,15 @@ async function preloadInactiveModeSheets(){
 }
 
 function _readModeCache(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+  if(modeCatalogCache[modeKey]&&modeCatalogCache[modeKey].shows&&modeCatalogCache[modeKey].shows.length)
+    return modeCatalogCache[modeKey];
   try{
     const raw=localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode));
-    return raw?JSON.parse(raw):null;
+    const parsed=raw?JSON.parse(raw):null;
+    if(parsed&&parsed.shows&&parsed.shows.length)modeCatalogCache[modeKey]=parsed;
+    return parsed;
   }catch(e){return null;}
 }
 
@@ -1389,9 +1413,6 @@ function useModeCache(mode,opts){
   if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
   activeMode=mode||activeMode||DEFAULT_MODE;
   onLoaded(_hydrateSheetCacheShows(cached.shows,activeMode),Object.assign({fromCache:true},opts));
-  setTimeout(function(){
-    if(activeMode&&activeMode.key===mode.key)setHdrSt('', '');
-  },0);
   return true;
 }
 
@@ -3230,6 +3251,12 @@ function toggleSort(){
     window.scrollTo(0,0);
   });
 }
+document.addEventListener('click',function(e){
+  const btn=e.target&&e.target.closest&&e.target.closest('#srtBtn');
+  if(!btn)return;
+  e.preventDefault();
+  toggleSort();
+});
 function showSheetRowIndex(show){
   const m=String((show&&show.id)||'').match(/-(\d+)$/);
   return m?Number(m[1])||0:0;
@@ -3283,13 +3310,17 @@ function clearSearchInput(inputId,buttonId,afterClear){
 function clearShowSearch(){
   clearSearchInput('q','qClear',applyFilters);
 }
-function setlistHydrationStats(){
-  const list=shows||[];
+function setlistHydrationStats(mode,listOverride){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+  const list=Array.isArray(listOverride)
+    ? listOverride
+    : ((loadedCatalogModeKey===modeKey)?(shows||[]):[]);
   let setlists={};
-  try{setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}')||{};}catch(e){}
+  try{setlists=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_setlists',mode))||'{}')||{};}catch(e){}
   let sheetSongs={};
   try{
-    const cache=_readModeCache(activeMode);
+    const cache=_readModeCache(mode);
     if(cache&&Array.isArray(cache.shows)){
       cache.shows.forEach(function(s){
         if(!s||!Array.isArray(s.songs)||!s.songs.length)return;
@@ -3322,12 +3353,16 @@ function setlistHydrationStats(){
   return {total:total,loaded:loaded,pending:Math.max(0,total-loaded),active:active};
 }
 function setlistHydrationLabel(){
+  if(_modeSwitchBusy)return '';
+  if(activeMode&&loadedCatalogModeKey&&activeMode.key!==loadedCatalogModeKey)return '';
   const st=setlistHydrationStats();
   if(!st.active)return '';
   if(!st.total||st.loaded>=st.total)return '';
   return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' loading</span>';
 }
 function markSetlistHydrationQueued(){
+  const st=setlistHydrationStats();
+  if(!st.pending)return;
   _visibleSetlistHydrateLastAt=Date.now();
   updateSetlistHydrationProgress();
 }
@@ -3335,10 +3370,11 @@ function updateSetlistHydrationProgress(){
   const cntbar=document.getElementById('cntbar');
   if(cntbar){
     const base=cntbar.innerHTML.replace(/\s*<span[^>]*class="setlist-prog"[^>]*>.*?<\/span>/g,'').trimEnd();
-    cntbar.innerHTML=base+setlistHydrationLabel();
+    cntbar.innerHTML=base+(_modeSwitchBusy?'':setlistHydrationLabel());
   }
   const el=document.getElementById('songCnt');
   if(el){
+    if(_modeSwitchBusy || (activeMode&&loadedCatalogModeKey&&activeMode.key!==loadedCatalogModeKey))return;
     const qEl=document.getElementById('songQ');
     const qActive=qEl&&qEl.value.trim().length>=2;
     if(!qActive){
@@ -3463,6 +3499,7 @@ async function freshenSetlistOnOpen(show){
 }
 
 function kickVisibleSetlistLoads(){
+  if(_modeSwitchBusy)return;
   if(_visibleSetlistHydrateRunning)return;
   if(!shows||!shows.length)return;
   const token=bgModeToken;
@@ -3498,7 +3535,12 @@ function kickVisibleSetlistLoads(){
       !cachedSetlistExists(s)&&
       (!s._archiveBgTried || (s._archiveTempFail&&bgArchiveRetryReady(s)));
   }).slice(0,IS_MOBILE_BG?3:4);
-  if(!pool.length){updateSetlistHydrationProgress();return;}
+  if(!pool.length){
+    _visibleSetlistHydrateRunning=false;
+    _visibleSetlistHydrateLastAt=0;
+    updateSetlistHydrationProgress();
+    return;
+  }
   _visibleSetlistHydrateRunning=true;
   _visibleSetlistHydrateLastAt=Date.now();
   updateSetlistHydrationProgress();
