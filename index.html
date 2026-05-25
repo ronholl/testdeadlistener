@@ -2769,9 +2769,11 @@ function onLoaded(list,opts){
   }else if(opts.fromCache){
     setTimeout(scheduleArchiveHintRefresh,250);
     setTimeout(updateSongCntProgress,250);
+    markSetlistHydrationQueued();
     setTimeout(kickVisibleSetlistLoads,900);
   }else{
     scheduleArchiveHintRefresh();
+    markSetlistHydrationQueued();
     setTimeout(kickVisibleSetlistLoads,900);
     if(isFullReindexRebuilding()&&!scanCompleteStillValid())bgLoadBatch();
     else updateSongCntProgress();
@@ -3211,7 +3213,20 @@ function toggleMy(){
   }
   applyFilters();updateAttCount();updateViewStats();
 }
-function toggleSort(){sortDesc=!sortDesc;document.getElementById('srtBtn').textContent='Date '+(sortDesc?'↓':'↑');applyFilters();}
+function updateSortButton(){
+  const btn=document.getElementById('srtBtn');
+  if(btn)btn.textContent='Date '+(sortDesc?'↓':'↑');
+}
+function toggleSort(){
+  sortDesc=!sortDesc;
+  updateSortButton();
+  applyFilters();
+  requestAnimationFrame(function(){
+    const el=document.getElementById('list');
+    if(el)el.scrollTop=0;
+    window.scrollTo(0,0);
+  });
+}
 function showSheetRowIndex(show){
   const m=String((show&&show.id)||'').match(/-(\d+)$/);
   return m?Number(m[1])||0:0;
@@ -3294,6 +3309,10 @@ function setlistHydrationLabel(){
   if(!st.active)return '';
   if(!st.total||st.loaded>=st.total)return '';
   return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' loading</span>';
+}
+function markSetlistHydrationQueued(){
+  _visibleSetlistHydrateLastAt=Date.now();
+  updateSetlistHydrationProgress();
 }
 function updateSetlistHydrationProgress(){
   const cntbar=document.getElementById('cntbar');
@@ -3442,7 +3461,16 @@ function kickVisibleSetlistLoads(){
       (archiveKey&&Array.isArray(setlists[archiveKey])&&setlists[archiveKey].length)
     );
   }
-  const pool=(filtered&&filtered.length?filtered:currentFilteredShows()).filter(function(s){
+  const visibleOrder=(filtered&&filtered.length?filtered:currentFilteredShows()).slice();
+  const myUser=(curUser&&curUser!=='all')?curUser:null;
+  const myFirst=myUser?sortShowsByDate(shows.filter(function(s){return s&&s.attended&&s.attended[myUser];})):[];
+  const seenOrder={};
+  const loadOrder=myFirst.concat(visibleOrder).filter(function(s){
+    if(!s||seenOrder[s.id])return false;
+    seenOrder[s.id]=1;
+    return true;
+  });
+  const pool=loadOrder.filter(function(s){
     return s&&
       !isActiveLoadFresh(s.id)&&
       !s.archiveNoAudioHint&&
