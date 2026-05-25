@@ -135,9 +135,11 @@ body{display:flex;justify-content:center}
   #tab-shows,#tab-songs,#tab-others{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0}
 #tab-jam{display:flex;flex-direction:column;flex:1;overflow-y:auto;min-height:0}
 .ubar{background:#0f0f0f;padding:7px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
-.ubar label{font-size:10px;color:var(--muted);white-space:nowrap}
+.mode-label{font-size:11px;color:var(--gold);white-space:nowrap;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.ubar label:not(.mode-label){font-size:10px;color:var(--muted);white-space:nowrap}
 .usel{background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:11px;flex:1}
 .usel:focus{outline:none;border-color:var(--gold)}
+#modeSel{border:2px solid var(--gold);box-shadow:0 0 0 1px rgba(200,168,75,.15),0 0 14px rgba(200,168,75,.12);background:#17130b;color:#fff;min-height:34px;font-size:13px;font-weight:700}
 .ucnt{font-size:10px;color:var(--muted);white-space:nowrap}
 .ucnt b{color:var(--gold)}
 .stats{display:flex;gap:1px;background:var(--border)}
@@ -386,7 +388,7 @@ body{display:flex;justify-content:center}
   .hdr-title{font-size:12px}
   .hdr-sub{font-size:8px;letter-spacing:.4px}
   .tab{font-size:8px}
-  .ubar label{display:none}
+  .ubar label:not(.mode-label){display:none}
   .row-date{min-width:74px;font-size:11px;letter-spacing:0}
   .row-venue{font-size:14px}
   .row-city,.row-songs{font-size:11px}
@@ -412,7 +414,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.11</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.13</span></div>
     </div>
     
 
@@ -529,7 +531,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.11</span></div>
+      <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.13</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -549,7 +551,7 @@ body{display:flex;justify-content:center}
 
   <div id="tab-shows">
     <div class="ubar">
-      <label>Mode:</label>
+      <label class="mode-label" for="modeSel">Mode</label>
       <select class="usel" id="modeSel" onchange="changeMode()" oninput="changeMode()"><option value="gd">Grateful Dead</option></select>
       <select class="usel" id="usel" onchange="changeViewUser()"><option value="all">All shows</option></select>
       <div class="ucnt" id="ucnt"></div>
@@ -592,7 +594,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.11';
+const APP_BUILD = '2.0.13';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1186,6 +1188,42 @@ async function changeMode(){
   }
 }
 
+async function ensureModeCatalog(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  if(loadedCatalogModeKey===mode.key)return true;
+  const prev=activeMode;
+  const token=++_modeSwitchToken;
+  _modeSwitchBusy=true;
+  _modeSwitchStartedAt=Date.now();
+  cancelModeBackgroundWork();
+  showModeLoadingState(mode.label);
+  try{
+    const ok=await _fetchSheetFresh({modeSwitchToken:token,mode:mode});
+    if(ok){
+      activeMode=mode;
+      localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+      renderModeSelect();
+      return true;
+    }
+    activeMode=prev||DEFAULT_MODE;
+    renderModeSelect();
+    return false;
+  }finally{
+    _modeSwitchBusy=false;
+    _modeSwitchStartedAt=0;
+  }
+}
+
+function findLoadedEquivalentShow(show){
+  if(!show)return null;
+  return shows.find(function(s){return s.id===show.id||showStorageId(s)===showStorageId(show);})||
+    shows.find(function(s){
+      return s.date===show.date &&
+        String(s.venue||'').trim().toLowerCase()===String(show.venue||'').trim().toLowerCase() &&
+        String(s.city||'').trim().toLowerCase()===String(show.city||'').trim().toLowerCase();
+    })||null;
+}
+
 function scheduleSheetRefreshAfterStartup(){
   const run=function(){setTimeout(function(){_fetchSheetFresh({refresh:true});},8000);};
   try{
@@ -1609,7 +1647,7 @@ function parseModeGviz(table,mode){
     list.push(show);
   }
   hydrateModeAuthUsers();
-  return list;
+  return collapseModeDuplicateShows(list,mode);
 }
 
 function parseModeCSV(csv,mode){
@@ -1652,7 +1690,7 @@ function parseModeCSV(csv,mode){
     list.push(show);
   }
   hydrateModeAuthUsers();
-  return list;
+  return collapseModeDuplicateShows(list,mode);
 }
 
 function parseScriptCatalog(data,mode){
@@ -1687,7 +1725,45 @@ function parseScriptCatalog(data,mode){
   });
   if(!isDefaultMode(mode))hydrateModeAuthUsers();
   try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols}));}catch(e){}
-  return list;
+  return collapseModeDuplicateShows(list,mode);
+}
+
+function normalizeShowGroupPart(value){
+  return String(value||'')
+    .replace(/\s+/g,' ')
+    .replace(/\s*,\s*/g,',')
+    .trim()
+    .toLowerCase();
+}
+
+function modeShowGroupKey(show){
+  return [
+    displayDate(show&&show.date||''),
+    normalizeShowGroupPart(show&&show.venue),
+    normalizeShowGroupPart(show&&show.city)
+  ].join('|');
+}
+
+function collapseModeDuplicateShows(list,mode){
+  if(isDefaultMode(mode))return list||[];
+  const out=[];
+  const byKey={};
+  (list||[]).forEach(function(show){
+    if(!show)return;
+    const key=modeShowGroupKey(show);
+    if(!show.date||!show.venue){out.push(show);return;}
+    const first=byKey[key];
+    if(first){
+      mergeModeDuplicateShow(first,show.attended||{},normalizeArchiveId(show.archiveIdHint||show.archiveId||''),show._sheetRow||0);
+      (show.recordings||[]).forEach(function(r){
+        if(r&&r.id)mergeModeDuplicateShow(first,{},r.id,r.row||0);
+      });
+      return;
+    }
+    byKey[key]=show;
+    out.push(show);
+  });
+  return out;
 }
 
 function mergeModeDuplicateShow(show,att,archiveId,rowNum){
@@ -1786,7 +1862,7 @@ function mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,mode
   mode=mode||activeMode||DEFAULT_MODE;
   const rawId=`${d}-${r}`;
   return{id:makeModeShowId(mode,rawId),rawId:rawId,modeKey:mode.key,modeLabel:mode.label,sheetName:mode.sheetName,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
-    songs:null,archiveId:null,archiveIdHint:normalizeArchiveId(archiveIdHint||''),archiveNoAudioHint:!!archiveNoAudioHint,sourceLockHint:normalizeSourceLock(sourceLockHint||''),tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
+    _sheetRow:r,songs:null,archiveId:null,archiveIdHint:normalizeArchiveId(archiveIdHint||''),archiveNoAudioHint:!!archiveNoAudioHint,sourceLockHint:normalizeSourceLock(sourceLockHint||''),tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
 }
 
 function logVisit(){
@@ -1934,6 +2010,7 @@ function sanitizeSongList(songs){
 const SHOW_FLAGS_KEY='gd_show_flags_v2';
 const ARCHIVE_HINT_FP_KEY='gd_archive_hint_fingerprints_v1';
 const ARCHIVE_HINT_LOGIC_VERSION='tracks-v3';
+const SCAN_COMPLETE_KEY='gd_scan_complete_v1';
 function readShowFlags(modeOrShow){
   const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,SHOW_FLAGS_KEY):modeScopedKey(SHOW_FLAGS_KEY,modeOrShow||activeMode);
   try{return JSON.parse(localStorage.getItem(key)||'{}')||{};}catch(e){return {};}
@@ -2076,9 +2153,37 @@ function showAssumedNoAudioNoSource(show){
   return true;
 }
 
+function catalogFingerprint(){
+  try{
+    const parts=(shows||[]).map(function(s){
+      return [s.id,s.date,s.venue,s.city,normalizeArchiveId(s.archiveIdHint||''),s.archiveNoAudioHint?'NO_AUDIO':''].join('|');
+    });
+    return String(parts.length)+'@'+parts.join('~').length+'@'+parts.slice(0,20).join('~')+'@'+parts.slice(-20).join('~');
+  }catch(e){return '';}
+}
+
+function readScanComplete(){
+  try{return JSON.parse(localStorage.getItem(currentModeScopedKey(SCAN_COMPLETE_KEY))||'null');}catch(e){return null;}
+}
+
+function writeScanComplete(){
+  try{
+    localStorage.setItem(currentModeScopedKey(SCAN_COMPLETE_KEY),JSON.stringify({
+      at:Date.now(),
+      total:(shows&&shows.length)||0,
+      fingerprint:catalogFingerprint()
+    }));
+  }catch(e){}
+}
+
+function scanCompleteStillValid(){
+  const saved=readScanComplete();
+  return !!(saved&&saved.total===((shows&&shows.length)||0)&&saved.fingerprint===catalogFingerprint());
+}
+
 function scanProgressStats(){
   const total=totalShows();
-  const pending=shows.filter(showNeedsStartupWork).length;
+  const pending=scanCompleteStillValid()?0:shows.filter(showNeedsStartupWork).length;
   const resolved=Math.max(0,total-pending);
   const unavailable=shows.filter(showLooksUnavailable).length;
   const available=Math.max(0,total-unavailable);
@@ -2188,14 +2293,17 @@ function applyArchiveHintInvalidation(show,flags,fp){
   const loadedArchive=normalizeArchiveId(show.archiveId || (flags&&flags.archiveId) || '');
   const hasCachedSetlist=!!(show.songs&&show.songs.length);
   const hasCachedAudio=!!(show.tracks&&show.tracks.length);
+  const hasCachedState=hasCachedSetlist||hasCachedAudio||!!(flags&&(flags.setlist||flags.hasAudio||flags.notAvail));
 
   // First install after adding sheet Archive IDs should not wipe useful caches
   // just because older flags only knew an Archive/Relisten source ID, not the
   // sheet hint that produced the cache. Seed the current sheet hint once; future
   // sheet Archive ID edits will then compare against archiveIdHintLoaded.
-  if(!loadedHint&&(hasCachedSetlist||hasCachedAudio)){
+  if(!loadedHint&&hasCachedState){
     show.archiveIdHintLoaded=hint;
     show._archiveHintRefreshNeeded=false;
+    if(flags&&flags.hasAudio){show.metaLoaded=true;show.notAvail=false;}
+    if(flags&&flags.notAvail){show.metaLoaded=true;show.notAvail=true;}
     saveShowFlags(show);
     if(fp)fp[show.id]=fpHint;
     return false;
@@ -2222,7 +2330,13 @@ function applyArchiveHintInvalidation(show,flags,fp){
   }
 
   if(fp)fp[show.id]=fpHint;
-  if((loadedHint===hint||loadedArchive===hint) && (hasCachedSetlist||hasCachedAudio))return false;
+  if((loadedHint===hint||loadedArchive===hint) && hasCachedState){
+    show._archiveHintRefreshNeeded=false;
+    show._archiveHintChanged=false;
+    if(flags&&flags.hasAudio){show.metaLoaded=true;show.notAvail=false;}
+    if(flags&&flags.notAvail){show.metaLoaded=true;show.notAvail=true;}
+    return false;
+  }
   invalidateShowForArchiveHint(show,hint);
   show._archiveHintChanged=true;
   return true;
@@ -2253,6 +2367,7 @@ function scheduleArchiveHintRefresh(){
 
 function onLoaded(list,opts){
   opts=opts||{};
+  if(!isDefaultMode(activeMode))list=collapseModeDuplicateShows(list,activeMode);
   shows=list;
   loadedCatalogModeKey=(list&&list[0]&&list[0].modeKey)||((activeMode&&activeMode.key)||DEFAULT_MODE.key);
   songIndex={};
@@ -2940,7 +3055,7 @@ function applyFilters(){
     : (shouldShowStartupProgress(_loaded,_total)
       ? ` <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
       : '');
-  if(_loaded>=_total)setFullReindexRebuilding(false);
+  if(_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
   setTimeout(bgLoadBatch,50);
@@ -3197,11 +3312,17 @@ function closeSetlist(){
     switchTab(setlistOriginTab);
   }
 }
-function openSetlistForCurrent(){
+async function openSetlistForCurrent(){
   const target=playingShow||curShow;
   if(!target)return;
+  const targetMode=modeForShow(target);
+  if(targetMode&&targetMode.key!==loadedCatalogModeKey){
+    const ok=await ensureModeCatalog(targetMode);
+    if(!ok)return;
+  }
+  const loadedTarget=findLoadedEquivalentShow(target)||target;
   // Open the setlist and highlight the playing track
-  openSetlist(target.id).then(function(){
+  openSetlist(loadedTarget.id).then(function(){
     if(playingShow&&playingTrackIdx>=0){
       const el=document.getElementById('track-'+playingTrackIdx);
       if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
@@ -3460,6 +3581,7 @@ function updateSongCntProgress(){
   const statusText=scanProgressStatus('Search any song');
   updateScanDebugStats(st.resolved,st.total,st.pct);
   if(st.allDone)setFullReindexRebuilding(false);
+  if(st.allDone)writeScanComplete();
   // Update Songs tab counter
   const el=document.getElementById('songCnt');
   if(el){
@@ -6321,12 +6443,7 @@ function jamFavoriteBareRow(user,fav){
 
 async function openFavoriteRecord(showId,modeLabel){
   const m=modeForLabel(modeLabel);
-  if(m.key!==activeMode.key){
-    activeMode=m;
-    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
-    renderModeSelect();
-    await _fetchSheetFresh();
-  }
+  if(m.key!==loadedCatalogModeKey)await ensureModeCatalog(m);
   const show=shows.find(function(s){return s.id===showId||showStorageId(s)===showId;});
   if(show)openSetlist(show.id);
 }
