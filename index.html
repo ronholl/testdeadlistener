@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.15</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.17</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.15</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.17</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.15';
+const APP_BUILD = '2.0.17';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1165,7 +1165,6 @@ async function changeMode(){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
     setHdrSt(next.label+' from cache','ok');
-    setTimeout(function(){_fetchSheetFresh({refresh:true,background:true,mode:next});},2500);
     return;
   }
   const prev=activeMode;
@@ -1254,13 +1253,9 @@ function findLoadedEquivalentShow(show){
 }
 
 function scheduleSheetRefreshAfterStartup(){
-  const run=function(){setTimeout(function(){_fetchSheetFresh({refresh:true,background:true,mode:activeMode||DEFAULT_MODE});},8000);};
-  try{
-    if(document.readyState==='complete')run();
-    else window.addEventListener('load',run,{once:true});
-  }catch(e){
-    setTimeout(function(){_fetchSheetFresh({refresh:true,background:true,mode:activeMode||DEFAULT_MODE});},10000);
-  }
+  // The catalog sheets are intentionally treated as stable. Cached startup
+  // should stay instant; use the sync button for an explicit sheet refresh.
+  window._gdSheetRefreshPending=false;
 }
 
 function _readCache(){
@@ -2158,6 +2153,7 @@ function showLooksStartupReady(show){
 
 function showNeedsStartupWork(show){
   if(!show)return false;
+  if((show.songs&&show.songs.length)||show.setlistCached||show.cachePlayable)return false;
   if(show._archiveHintChanged)return true;
   if(show.archiveNoAudioHint)return !!(show._archiveHintChanged || show._archiveHintRefreshNeeded);
   if(show.archiveIdHint){
@@ -2351,6 +2347,17 @@ function applyArchiveHintInvalidation(show,flags,fp){
   const hasCachedAudio=!!(show.tracks&&show.tracks.length);
   const hasCachedState=hasCachedSetlist||hasCachedAudio||!!(flags&&(flags.setlist||flags.hasAudio||flags.notAvail));
 
+  if(hasCachedSetlist){
+    show.archiveIdHintLoaded=hint;
+    show._archiveHintRefreshNeeded=false;
+    show._archiveHintChanged=false;
+    show.setlistCached=true;
+    show.cachePlayable=true;
+    if(fp)fp[show.id]=fpHint;
+    saveShowFlags(show);
+    return false;
+  }
+
   // First install after adding sheet Archive IDs should not wipe useful caches
   // just because older flags only knew an Archive/Relisten source ID, not the
   // sheet hint that produced the cache. Seed the current sheet hint once; future
@@ -2516,7 +2523,7 @@ function onLoaded(list,opts){
   }catch(e){}
   // Sheet Archive ID is now authoritative at startup. Do not prefetch Relisten
   // availability here; Relisten can still be used later for alternate sources.
-  window._gdSheetRefreshPending=!!opts.fromCache;
+  window._gdSheetRefreshPending=false;
   restorePendingLocalUser();
   if(curUser&&!users.includes(curUser))users.push(curUser);
   const usel=document.getElementById('usel');while(usel.options.length>1)usel.remove(1);
@@ -2605,8 +2612,13 @@ function onLoaded(list,opts){
   }
 
   renderOthers();applyFilters();
-  scheduleArchiveHintRefresh();
-  bgLoadBatch();
+  if(opts.fromCache){
+    setTimeout(scheduleArchiveHintRefresh,250);
+    setTimeout(bgLoadBatch,350);
+  }else{
+    scheduleArchiveHintRefresh();
+    bgLoadBatch();
+  }
   // Restore last playback position after a short delay
   if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
   loadFavorites(); // Load immediately - uses cache for instant display
@@ -3105,11 +3117,9 @@ function applyFilters(){
   const _total=_st.total;
   const _pct=_st.pct;
   updateScanDebugStats(_loaded,_total,_pct);
-  const _prog=window._gdSheetRefreshPending
-    ? ' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· cached sheet data · refreshing Google Sheets…</span>'
-    : (shouldShowStartupProgress(_loaded,_total)
+  const _prog=shouldShowStartupProgress(_loaded,_total)
       ? ` <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
-      : '');
+      : '';
   if(_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog;
   updateAttCount();renderList();
@@ -3652,17 +3662,6 @@ function updateSongCntProgress(){
   // Update Shows tab cntbar progress indicator
   const cntbar=document.getElementById('cntbar');
   if(cntbar){
-    if(window._gdSheetRefreshPending){
-      const current=cntbar.innerHTML;
-      const base=current
-        .replace(/\s*<span[^>]*class="bgscan-prog"[^>]*>.*?<\/span>/g,'')
-        .replace(/\s*<span[^>]*>\s*·\s*cached sheet data\s*·\s*refreshing Google Sheets…\s*<\/span>/gi,'')
-        .replace(/\s*·\s*cached sheet data\s*·\s*refreshing Google Sheets…/gi,'')
-        .replace(/\s*·\s*background scan(?:\s+rebuilding)?\s*\d+%(?:\s*·\s*[\d,]+\/[\d,]+\s*shows (?:indexed|checked))?/gi,'')
-        .trimEnd();
-      cntbar.innerHTML=base+' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· cached sheet data · refreshing Google Sheets…</span>';
-      return;
-    }
     const prog=st.allDone
       ? ''
       : (shouldShowStartupProgress(st.resolved,st.total)?' <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· '+bgScanLabel(st.resolved,st.total,st.pct)+'</span>':'');
@@ -4619,6 +4618,14 @@ async function getArchiveHintMetadata(archiveHint,tOut){
 }
 
 async function loadShowMeta(show,priority,forceArchiveBg){
+  if(!priority && (show.songs&&show.songs.length)){
+    show.setlistCached=true;
+    show.cachePlayable=true;
+    show._archiveHintRefreshNeeded=false;
+    show._archiveHintChanged=false;
+    markShowSetlistCached(show);
+    return;
+  }
   if(show.archiveNoAudioHint){
     show.archiveIdHintLoaded='NO_AUDIO';
     show._archiveHintRefreshNeeded=false;
