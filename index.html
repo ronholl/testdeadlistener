@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.28</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.29</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.28</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.29</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.28';
+const APP_BUILD = '2.0.29';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -4191,22 +4191,42 @@ function clearMetaLoaded(show){
 }
 
 const ARCHIVE_SOURCE_CACHE_KEY='gd_archive_source_cache_v1';
+function sourceCacheLimitFor(modeOrShow){
+  const mode=(modeOrShow&&modeOrShow.id)?modeForShow(modeOrShow):(modeOrShow||activeMode||DEFAULT_MODE);
+  return isDefaultMode(mode)?90:0;
+}
+function clearArchiveSourceCacheFor(modeOrShow){
+  try{
+    const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
+    localStorage.removeItem(key);
+  }catch(e){}
+}
 function readArchiveSourceCache(modeOrShow){
+  if(sourceCacheLimitFor(modeOrShow)<=0){
+    clearArchiveSourceCacheFor(modeOrShow);
+    return {};
+  }
   const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
   try{return JSON.parse(localStorage.getItem(key)||'{}')||{};}catch(e){return {};}
 }
 function writeArchiveSourceCache(cache,modeOrShow){
+  const limit=sourceCacheLimitFor(modeOrShow);
   const key=(modeOrShow&&modeOrShow.id)?showModeScopedKey(modeOrShow,ARCHIVE_SOURCE_CACHE_KEY):modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,modeOrShow||activeMode);
+  if(limit<=0){try{localStorage.removeItem(key);}catch(e){};return;}
   try{localStorage.setItem(key,JSON.stringify(cache||{}));}catch(e){
     try{
       const c=cache||{};
       const keys=Object.keys(c).sort(function(a,b){return (c[b].ts||0)-(c[a].ts||0);});
-      keys.slice(40).forEach(function(k){delete c[k];});
+      keys.slice(Math.min(40,limit)).forEach(function(k){delete c[k];});
       localStorage.setItem(key,JSON.stringify(c));
     }catch(e2){}
   }
 }
 function readArchiveSourceEntryForShow(show,archiveId){
+  if(sourceCacheLimitFor(show)<=0){
+    clearArchiveSourceCacheFor(show);
+    return null;
+  }
   const id=normalizeArchiveId(archiveId||'');
   if(!id)return null;
   const modeKey=show?showModeScopedKey(show,ARCHIVE_SOURCE_CACHE_KEY):currentModeScopedKey(ARCHIVE_SOURCE_CACHE_KEY);
@@ -4242,6 +4262,7 @@ function deriveSetlistFromTracks(tracks){
 }
 function cacheArchiveSourceForShow(show,source){
   try{
+    if(sourceCacheLimitFor(show)<=0)return;
     if(!show||!show.archiveId||!show.tracks||!show.tracks.length)return;
     const id=normalizeArchiveId(show.archiveId);
     if(!plausibleArchiveId(id))return;
@@ -4269,7 +4290,7 @@ function cacheArchiveSourceForShow(show,source){
       sbd:!!show.isSoundboard
     };
     const keys=Object.keys(cache).sort(function(a,b){return (cache[b].ts||0)-(cache[a].ts||0);});
-    keys.slice(90).forEach(function(k){delete cache[k];});
+    keys.slice(sourceCacheLimitFor(show)).forEach(function(k){delete cache[k];});
     writeArchiveSourceCache(cache,show);
   }catch(e){}
 }
