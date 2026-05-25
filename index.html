@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.24</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.25</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.24</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.25</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.24';
+const APP_BUILD = '2.0.25';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1181,6 +1181,10 @@ async function changeMode(){
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
   if(next.key===loadedCatalogModeKey)return;
+  const prev=activeMode;
+  const token=++_modeSwitchToken;
+  _modeSwitchBusy=true;
+  _modeSwitchStartedAt=Date.now();
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
   cancelModeBackgroundWork();
@@ -1188,17 +1192,18 @@ async function changeMode(){
   if(sel)sel.value=next.key;
   const switchCnt=document.getElementById('cntbar');
   if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">Switching to '+esc(next.label)+'…</span>';
+  await new Promise(function(resolve){
+    requestAnimationFrame(function(){setTimeout(resolve,0);});
+  });
   if(useModeCache(next,{fromFastOpen:true})){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
     setHdrSt(next.label+' from cache','ok');
     scheduleSheetRefreshAfterStartup();
+    _modeSwitchBusy=false;
+    _modeSwitchStartedAt=0;
     return;
   }
-  const prev=activeMode;
-  const token=++_modeSwitchToken;
-  _modeSwitchBusy=true;
-  _modeSwitchStartedAt=Date.now();
   document.getElementById('q').value='';
   document.getElementById('songQ').value='';
   const jq=document.getElementById('jamSongQ');if(jq)jq.value='';
@@ -2108,27 +2113,39 @@ function updateSheetCacheShowSongs(show,songs){
   try{
     if(!show||!show.id||!songs||!songs.length)return;
     const mode=modeForShow(show);
+    const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+    const writeSongsToCache=function(cache){
+      if(!cache||!Array.isArray(cache.shows))return false;
+      const sid=showStorageId(show);
+      const target=cache.shows.find(function(s){
+        return s && (
+          String(s.id||'')===String(show.id) ||
+          String(s.rawId||'')===sid ||
+          rawShowId(s.id)===sid ||
+          (favoriteDateKey(s.date)===favoriteDateKey(show.date)&&String(s.venue||'')===String(show.venue||'')&&String(s.city||'')===String(show.city||''))
+        );
+      });
+      if(!target)return false;
+      target.songs=songs.slice(0,80);
+      target.setlistCached=true;
+      target.cachePlayable=true;
+      target.setlistTrusted=!!show.setlistTrusted;
+      target.archiveIdHintLoaded=show.archiveIdHintLoaded||target.archiveIdHintLoaded||'';
+      cache.ts=Date.now();
+      return true;
+    };
+    if(modeCatalogCache[modeKey]&&writeSongsToCache(modeCatalogCache[modeKey])){
+      // Keep the session cache hot so switching away and back does not lose progress.
+    }
     const cacheKey=modeKeyScopedKey('gd_sheet_cache',mode);
     const raw=localStorage.getItem(cacheKey);
-    if(!raw)return;
+    if(!raw){
+      if(modeCatalogCache[modeKey])localStorage.setItem(cacheKey,JSON.stringify(modeCatalogCache[modeKey]));
+      return;
+    }
     const cache=JSON.parse(raw);
-    if(!cache||!Array.isArray(cache.shows))return;
-    const sid=showStorageId(show);
-    const target=cache.shows.find(function(s){
-      return s && (
-        String(s.id||'')===String(show.id) ||
-        String(s.rawId||'')===sid ||
-        rawShowId(s.id)===sid ||
-        (favoriteDateKey(s.date)===favoriteDateKey(show.date)&&String(s.venue||'')===String(show.venue||'')&&String(s.city||'')===String(show.city||''))
-      );
-    });
-    if(!target)return;
-    target.songs=songs.slice(0,80);
-    target.setlistCached=true;
-    target.cachePlayable=true;
-    target.setlistTrusted=!!show.setlistTrusted;
-    target.archiveIdHintLoaded=show.archiveIdHintLoaded||target.archiveIdHintLoaded||'';
-    cache.ts=Date.now();
+    if(!writeSongsToCache(cache))return;
+    modeCatalogCache[modeKey]=cache;
     localStorage.setItem(cacheKey,JSON.stringify(cache));
   }catch(e){}
 }
@@ -2173,6 +2190,7 @@ function saveCachedSetlistForShow(show,songs){
           s._displayNameMap=null;s._visibleTrackMap=null;s._visibleTrackLabels=null;
           indexShowSongs(s,s.songs);
           markShowSetlistCached(s);
+          updateSheetCacheShowSongs(s,savedSongs);
         }
       });
     }
@@ -3331,7 +3349,6 @@ function setlistHydrationStats(mode,listOverride){
   }catch(e){}
   function hasCachedSongs(s){
     if(!s)return false;
-    if((s.songs&&s.songs.length)||s.cachePlayable||s.setlistCached)return true;
     const raw=rawShowId(s.id);
     const archiveKey=archiveSetlistCacheKey(s.archiveIdHint||s.archiveId||'');
     return !!(
@@ -4778,7 +4795,7 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
     show.setlistTrusted=!!(descTrusted||trackSongs.length||fileSongs.length);
     show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
     if(show.setlistTrusted)indexShowSongs(show,chosenSongs);
-    if(show.setlistTrusted)saveCachedSetlistForShow(show,chosenSongs);
+    if(show.setlistTrusted||archiveOverride)saveCachedSetlistForShow(show,chosenSongs);
     if(show.setlistTrusted)markShowSetlistCached(show);
   }else if(archiveOverride){
     show.songs=null;show.setlistCached=false;show.cachePlayable=false;show.setlistTrusted=false;
@@ -5046,6 +5063,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     show.cachePlayable=true;
     show._archiveHintRefreshNeeded=false;
     show._archiveHintChanged=false;
+    saveCachedSetlistForShow(show,show.songs);
     markShowSetlistCached(show);
     return;
   }
