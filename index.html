@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.35';
+const APP_BUILD = '2.0.36';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -611,7 +611,7 @@ const POSTER_URL = POSTER_FILE
 const USER_COLORS=['#c44040','#4a7fc1','#c8a84b','#52b788','#9b6dbd','#e87d3e','#e8a84b','#52b7b7'];
 const SHOW_META_HEADERS=['archive id','archiveid','archive url','archiveurl'];
 const SOURCE_LOCK_HEADERS=['source lock','sourcelock'];
-const SHEET_CACHE_SCHEMA_VERSION=3;
+const SHEET_CACHE_SCHEMA_VERSION=4;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
@@ -1574,6 +1574,7 @@ function _readModeCache(mode){
     const raw=localStorage.getItem(cacheKey);
     const parsed=raw?JSON.parse(raw):null;
     if(parsed&&parsed.shows&&parsed.shows.length){
+      if(parsed.schemaVersion!==SHEET_CACHE_SCHEMA_VERSION)return null;
       const compact=_compactSheetCache(parsed);
       modeCatalogCache[modeKey]=compact;
       if(JSON.stringify(compact).length<JSON.stringify(parsed).length){
@@ -1601,6 +1602,20 @@ function _sheetCacheShows(list){
     else Object.keys(s.attended||{}).forEach(function(u){
       if(s.attended[u])attendedUsers.push(u);
     });
+    const recordings=(s.recordings||[]).map(function(r){
+      const id=normalizeArchiveId((r&&r.id)||'');
+      if(!id)return null;
+      return {
+        id:id,
+        rating:Number(r.rating||0)||0,
+        reviews:Number(r.reviews||0)||0,
+        sbd:!!r.sbd,
+        restricted:!!r.restricted,
+        manual:!!r.manual,
+        sheetAlt:!!r.sheetAlt,
+        row:r.row||0
+      };
+    }).filter(Boolean);
     return {
       id:s.id,
       rawId:s.rawId||rawShowId(s.id),
@@ -1614,6 +1629,7 @@ function _sheetCacheShows(list){
       archiveNoAudioHint:!!s.archiveNoAudioHint,
       sourceLockHint:s.sourceLockHint||'',
       archiveIdHintLoaded:s.archiveIdHintLoaded||'',
+      recordings:recordings,
       attendedUsers:attendedUsers
     };
   });
@@ -1631,6 +1647,7 @@ function _hydrateSheetCacheShows(list,mode){
       const att={};
       s.attendedUsers.forEach(function(u){att[u]=true;});
       const show=mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',mode);
+      show.recordings=mergeSourceRecords(show.recordings,s.recordings||[]);
       if(Array.isArray(s.songs)&&s.songs.length){
         show.songs=s.songs.slice();
         show.setlistCached=true;
