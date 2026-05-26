@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.38';
+const APP_BUILD = '2.0.39';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -3654,9 +3654,9 @@ function setlistHydrationLabel(){
   if(!st.total)return '';
   if(st.playable>=st.total){
     if(st.loaded>=st.total)return '';
-    return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+' · named setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+'</span>';
+    return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+'</span>';
   }
-  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'loaded')+' · named setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+'</span>';
+  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'loaded')+'</span>';
 }
 function markSetlistHydrationQueued(){
   const st=setlistHydrationStats();
@@ -5407,7 +5407,7 @@ async function loadShowMeta(show,priority,forceArchiveBg){
     else renderList();
     return;
   }
-  const archiveHint=normalizeArchiveId(show.archiveIdHint||'');
+  const archiveHint=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
   if(!archiveHint&&showAssumedNoAudioNoSource(show)){
     show._needsArchive=false;
     show._archiveTempFail=false;
