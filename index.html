@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.29</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.31</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.29</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.31</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.29';
+const APP_BUILD = '2.0.31';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -616,6 +616,14 @@ const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
 let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0;
+const SETLIST_DATASET_PATHS={
+  gd:'grateful-dead',
+  'jerry-garcia':'jerry-garcia',
+  'phil-lesh':'phil-lesh',
+  'bob-weir':'bob-weir'
+};
+const setlistDatasets={};
+const setlistDatasetLoads={};
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -697,6 +705,134 @@ function showModeScopedKey(show,base){return modeScopedKey(base,modeForShow(show
 function showScopedCacheId(show){
   if(!show)return '';
   return isDefaultMode({key:show.modeKey,isDefault:show.modeKey===DEFAULT_MODE.key})?show.id:(show.modeKey+':'+rawShowId(show.id));
+}
+
+function setlistDatasetSlug(mode){
+  const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  return SETLIST_DATASET_PATHS[key]||key||'mode';
+}
+function setlistDatasetUrl(mode){
+  return 'data/setlists/'+setlistDatasetSlug(mode)+'.json?v='+encodeURIComponent(APP_BUILD);
+}
+function normalizeSetlistDataset(mode,data){
+  const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+  const out={schemaVersion:1,mode:(mode&&mode.label)||DEFAULT_MODE.label,modeKey:modeKey,updated:'',setlists:{}};
+  if(!data||typeof data!=='object')return out;
+  out.schemaVersion=data.schemaVersion||1;
+  out.mode=data.mode||out.mode;
+  out.modeKey=data.modeKey||modeKey;
+  out.updated=data.updated||'';
+  Object.keys(data.setlists||{}).sort().forEach(function(id){
+    const archiveId=normalizeArchiveId(id);
+    const songs=sanitizeSongList(data.setlists[id]);
+    if(archiveId&&songs.length)out.setlists[archiveId]=songs;
+  });
+  return out;
+}
+async function loadModeSetlistDataset(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  if(setlistDatasets[key])return setlistDatasets[key];
+  if(setlistDatasetLoads[key])return setlistDatasetLoads[key];
+  setlistDatasetLoads[key]=fetch(setlistDatasetUrl(mode),{cache:'no-cache'}).then(async function(res){
+    if(!res.ok)return null;
+    const data=await res.json();
+    const dataset=normalizeSetlistDataset(mode,data);
+    setlistDatasets[key]=dataset;
+    compactLegacySetlistStorageAfterDataset(mode,dataset);
+    return dataset;
+  }).catch(function(e){
+    window._gdSetlistDatasetLast={ok:false,mode:key,at:Date.now(),error:String(e&&e.message||e)};
+    return null;
+  }).finally(function(){
+    delete setlistDatasetLoads[key];
+  });
+  return setlistDatasetLoads[key];
+}
+function readModeSetlistDataset(mode){
+  const key=((mode||activeMode||DEFAULT_MODE).key)||DEFAULT_MODE.key;
+  return setlistDatasets[key]||null;
+}
+function isModeSetlistDatasetLoading(mode){
+  const key=((mode||activeMode||DEFAULT_MODE).key)||DEFAULT_MODE.key;
+  return !!setlistDatasetLoads[key];
+}
+function datasetSetlistForShow(show){
+  if(!show||show.archiveNoAudioHint)return [];
+  const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
+  if(!archiveId)return [];
+  const dataset=readModeSetlistDataset(modeForShow(show));
+  const songs=dataset&&dataset.setlists&&dataset.setlists[archiveId];
+  return Array.isArray(songs)&&songs.length?songs.slice():[];
+}
+function deltaSetlistKeyForShow(show){
+  const archiveKey=archiveSetlistCacheKey(show&&((show.archiveIdHint)||(show.archiveId))||'');
+  return archiveKey||'';
+}
+function readSetlistDelta(modeOrShow){
+  const mode=(modeOrShow&&modeOrShow.id)?modeForShow(modeOrShow):(modeOrShow||activeMode||DEFAULT_MODE);
+  try{return JSON.parse(localStorage.getItem(modeScopedKey('gd_setlist_delta',mode))||'{}')||{};}catch(e){return {};}
+}
+function writeSetlistDelta(mode,delta){
+  try{localStorage.setItem(modeScopedKey('gd_setlist_delta',mode||activeMode||DEFAULT_MODE),JSON.stringify(delta||{}));}catch(e){}
+}
+function deltaSetlistForShow(show){
+  if(!show||show.archiveNoAudioHint)return [];
+  const key=deltaSetlistKeyForShow(show);
+  const songs=key&&readSetlistDelta(show)[key];
+  return Array.isArray(songs)&&songs.length?songs.slice():[];
+}
+function saveDeltaSetlistForShow(show,songs){
+  if(!show||!songs||!songs.length)return false;
+  const key=deltaSetlistKeyForShow(show);
+  if(!key)return false;
+  const mode=modeForShow(show);
+  const delta=readSetlistDelta(mode);
+  delta[key]=sanitizeSongList(songs).slice(0,80);
+  if(!delta[key].length){delete delta[key];return false;}
+  writeSetlistDelta(mode,delta);
+  window._gdSetlistsWriteLast={ok:true,delta:true,at:Date.now(),id:show.id,archiveKey:key,songs:delta[key].length,keys:Object.keys(delta).length};
+  return true;
+}
+function legacySetlistStorageKeys(mode){
+  const keys=[modeScopedKey('gd_setlists',mode),modeScopedKey(ARCHIVE_SOURCE_CACHE_KEY,mode)];
+  return keys.filter(function(k,i,a){return k&&a.indexOf(k)===i;});
+}
+function compactLegacySetlistStorageAfterDataset(mode,dataset){
+  try{
+    const count=Object.keys((dataset&&dataset.setlists)||{}).length;
+    if(!count)return;
+    legacySetlistStorageKeys(mode||activeMode||DEFAULT_MODE).forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+    window._gdSetlistDatasetLast={ok:true,mode:(mode&&mode.key)||DEFAULT_MODE.key,at:Date.now(),setlists:count,cleanup:true};
+  }catch(e){}
+}
+function hydrateShowFromSetlistSongs(show,songs,source){
+  songs=sanitizeSongList(songs);
+  if(!show||!songs.length||show.archiveNoAudioHint)return false;
+  show.songs=songs.slice();
+  show.setlistCached=true;
+  show.cachePlayable=true;
+  show.setlistTrusted=source==='server'||source==='delta'||!!show.setlistTrusted;
+  show.archiveIdHintLoaded=normalizeArchiveId(show.archiveIdHint||show.archiveId||show.archiveIdHintLoaded||'');
+  show._archiveHintRefreshNeeded=false;
+  show._archiveHintChanged=false;
+  show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
+  indexShowSongs(show,show.songs);
+  markShowSetlistCached(show);
+  updateSheetCacheShowSongs(show,show.songs);
+  return true;
+}
+function hydrateShowsFromSetlistDataset(mode,list){
+  const dataset=readModeSetlistDataset(mode);
+  if(!dataset||!dataset.setlists||!Array.isArray(list))return 0;
+  let count=0;
+  list.forEach(function(show){
+    if(show&&!(show.songs&&show.songs.length)){
+      const songs=datasetSetlistForShow(show);
+      if(songs.length&&hydrateShowFromSetlistSongs(show,songs,'server'))count++;
+    }
+  });
+  return count;
 }
 
 function displayDate(value){
@@ -2044,7 +2180,12 @@ function logVisit(){
 
 function bestCachedSetlistForShow(cached, show){
   try{
-    if(!cached || !show || !show.date) return [];
+    if(!show || !show.date) return [];
+    const serverSongs=datasetSetlistForShow(show);
+    if(serverSongs.length)return serverSongs;
+    const deltaSongs=deltaSetlistForShow(show);
+    if(deltaSongs.length)return deltaSongs;
+    if(!cached) cached={};
     function findBestIn(cache,legacy){
       if(!cache||show.archiveNoAudioHint)return [];
       const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
@@ -2087,14 +2228,6 @@ function bestCachedSetlistForShow(cached, show){
         }
       }catch(e){}
     }
-    if(best.length&&modeKey){
-      try{
-        const cur=compactSetlistCacheForMode(modeForShow(show),JSON.parse(localStorage.getItem(modeKey)||'{}'));
-        cur[primarySetlistCacheKey(show)]=best.slice(0,80);
-        localStorage.setItem(modeKey,JSON.stringify(cur));
-      }
-      catch(e){}
-    }
     return best;
   }catch(e){
     return [];
@@ -2136,6 +2269,13 @@ function clearCachedSetlistForShow(show){
     const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
     if(archiveKey&&Object.prototype.hasOwnProperty.call(c,archiveKey))delete c[archiveKey];
     localStorage.setItem(key,JSON.stringify(c));
+    if(archiveKey){
+      const delta=readSetlistDelta(show);
+      if(Object.prototype.hasOwnProperty.call(delta,archiveKey)){
+        delete delta[archiveKey];
+        writeSetlistDelta(modeForShow(show),delta);
+      }
+    }
   }catch(e){}
 }
 
@@ -2227,30 +2367,13 @@ function saveCachedSetlistForShow(show,songs){
     if(!show||!show.id||!songs||!songs.length)return;
     const savedSongs=songs.slice(0,80);
     const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
-    const key=showModeScopedKey(show,'gd_setlists');
-    let c=compactSetlistCacheForMode(modeForShow(show),JSON.parse(localStorage.getItem(key)||'{}'));
-    const rawId=rawShowId(show.id);
-    const archiveKey=archiveSetlistCacheKey(show.archiveIdHint||show.archiveId||'');
-    delete c[show.id];
-    if(rawId)delete c[rawId];
-    if(rawId&&show.modeKey)delete c[show.modeKey+':'+rawId];
-    if(archiveKey)delete c[archiveKey];
-    c[primarySetlistCacheKey(show)]=savedSongs;
-    try{
-      localStorage.setItem(key,JSON.stringify(c));
-      window._gdSetlistsWriteLast={ok:true,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
-    }catch(e){
-      window._gdSetlistsWriteLast={ok:false,at:Date.now(),id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e&&e.message||e)};
-      try{
-        localStorage.removeItem(showModeScopedKey(show,ARCHIVE_SOURCE_CACHE_KEY));
-        localStorage.removeItem(ARCHIVE_SOURCE_CACHE_KEY);
-        c=compactSetlistCacheForMode(modeForShow(show),c);
-        localStorage.setItem(key,JSON.stringify(c));
-        window._gdSetlistsWriteLast={ok:true,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,keys:Object.keys(c).length};
-      }catch(e2){
-        window._gdSetlistsWriteLast={ok:false,at:Date.now(),afterCleanup:true,id:show.id,archiveKey:archiveKey||'',songs:savedSongs.length,error:String(e2&&e2.message||e2)};
-      }
+    const serverSongs=datasetSetlistForShow(show);
+    if(serverSongs.length&&JSON.stringify(serverSongs.slice(0,80))===JSON.stringify(sanitizeSongList(savedSongs).slice(0,80))){
+      window._gdSetlistsWriteLast={ok:true,skipped:'server-dataset',at:Date.now(),id:show.id,archiveKey:archiveSetlistCacheKey(archiveId),songs:serverSongs.length};
+      updateSheetCacheShowSongs(show,savedSongs);
+      return;
     }
+    saveDeltaSetlistForShow(show,savedSongs);
     updateSheetCacheShowSongs(show,savedSongs);
     if(archiveId&&Array.isArray(shows)){
       shows.forEach(function(s){
@@ -2705,14 +2828,20 @@ function onLoaded(list,opts){
   _legacySetlistCacheList=null;
   _legacyArchiveSourceCacheList=null;
   renderModeSelect();
+  const loadedMode=activeMode||DEFAULT_MODE;
+  hydrateShowsFromSetlistDataset(loadedMode,shows);
+  loadModeSetlistDataset(loadedMode).then(function(dataset){
+    if(!dataset||!activeMode||activeMode.key!==loadedMode.key||loadedCatalogModeKey!==loadedMode.key)return;
+    const changed=hydrateShowsFromSetlistDataset(loadedMode,shows);
+    if(changed){
+      applyFilters();
+      updateSetlistHydrationProgress();
+    }
+    setTimeout(kickVisibleSetlistLoads,250);
+  });
   try{
     const setlistCacheKey=currentModeScopedKey('gd_setlists');
     let cached=JSON.parse(localStorage.getItem(setlistCacheKey)||'{}');
-    const compactedCached=compactSetlistCacheForMode(activeMode,cached);
-    if(Object.keys(compactedCached).length&&JSON.stringify(compactedCached).length<JSON.stringify(cached).length){
-      cached=compactedCached;
-      try{localStorage.setItem(setlistCacheKey,JSON.stringify(cached));}catch(e){}
-    }
     // One-time migration marker. Older builds sometimes cached temporary archive.org
     // failures as permanent, but the restore logic below now ignores notAvail=true
     // entries, so we do not need to wipe the good meta cache and trigger a full scan.
@@ -3418,6 +3547,8 @@ function setlistHydrationStats(mode,listOverride){
     : ((loadedCatalogModeKey===modeKey)?(shows||[]):[]);
   let setlists={};
   try{setlists=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_setlists',mode))||'{}')||{};}catch(e){}
+  const delta=readSetlistDelta(mode);
+  const dataset=readModeSetlistDataset(mode);
   let sheetSongs={};
   try{
     const cache=_readModeCache(mode);
@@ -3433,7 +3564,11 @@ function setlistHydrationStats(mode,listOverride){
     if(!s)return false;
     const raw=rawShowId(s.id);
     const archiveKey=archiveSetlistCacheKey(s.archiveIdHint||s.archiveId||'');
+    const archiveId=normalizeArchiveId(s.archiveIdHint||s.archiveId||'');
     return !!(
+      (dataset&&dataset.setlists&&archiveId&&Array.isArray(dataset.setlists[archiveId])&&dataset.setlists[archiveId].length) ||
+      (archiveKey&&Array.isArray(delta[archiveKey])&&delta[archiveKey].length) ||
+      (s.songs&&s.songs.length) ||
       (Array.isArray(setlists[s.id])&&setlists[s.id].length) ||
       (raw&&Array.isArray(setlists[raw])&&setlists[raw].length) ||
       (archiveKey&&Array.isArray(setlists[archiveKey])&&setlists[archiveKey].length) ||
@@ -3448,7 +3583,7 @@ function setlistHydrationStats(mode,listOverride){
   const loaded=list.filter(function(s){
     return s&&!s.archiveNoAudioHint&&plausibleArchiveId(s.archiveIdHint||s.archiveId||'')&&hasCachedSongs(s);
   }).length;
-  const active=_visibleSetlistHydrateRunning||(Date.now()-_visibleSetlistHydrateLastAt<5000);
+  const active=isModeSetlistDatasetLoading(mode)||_visibleSetlistHydrateRunning||(Date.now()-_visibleSetlistHydrateLastAt<5000);
   return {total:total,loaded:loaded,pending:Math.max(0,total-loaded),active:active};
 }
 function setlistHydrationLabel(){
@@ -3456,7 +3591,7 @@ function setlistHydrationLabel(){
   if(activeMode&&loadedCatalogModeKey&&activeMode.key!==loadedCatalogModeKey)return '';
   const st=setlistHydrationStats();
   if(!st.total||st.loaded>=st.total)return '';
-  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'cached')+'</span>';
+  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'loaded')+'</span>';
 }
 function markSetlistHydrationQueued(){
   const st=setlistHydrationStats();
@@ -3602,10 +3737,18 @@ function kickVisibleSetlistLoads(){
   if(!shows||!shows.length)return;
   const token=bgModeToken;
   const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
+  if(isModeSetlistDatasetLoading(activeMode)){
+    _visibleSetlistHydrateLastAt=Date.now();
+    updateSetlistHydrationProgress();
+    setTimeout(function(){
+      if(token===bgModeToken&&activeMode&&activeMode.key===modeKey)kickVisibleSetlistLoads();
+    },600);
+    return;
+  }
   let setlists={};
   try{setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}')||{};}catch(e){}
   function cachedSetlistExists(s){
-    return !!(directCachedSetlistForShow(setlists,s).length);
+    return !!(datasetSetlistForShow(s).length||deltaSetlistForShow(s).length||directCachedSetlistForShow(setlists,s).length);
   }
   const visibleOrder=(filtered&&filtered.length?filtered:currentFilteredShows()).slice();
   const myUser=(curUser&&curUser!=='all')?curUser:null;
@@ -4341,6 +4484,8 @@ function gdDiag(query){
   try{
     const q=String(query||'').toLowerCase();
     const setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
+    const delta=readSetlistDelta(activeMode);
+    const dataset=readModeSetlistDataset(activeMode);
     const sourceCache=readArchiveSourceCache();
     const flags=readShowFlags();
     const fps=readArchiveHintFingerprints();
@@ -4356,6 +4501,8 @@ function gdDiag(query){
       const aid=normalizeArchiveId(s.archiveIdHint||s.archiveId||'');
       const archiveKey=archiveSetlistCacheKey(aid);
       const src=aid?sourceCache[aid]:null;
+      const serverSongs=dataset&&dataset.setlists&&dataset.setlists[aid];
+      const deltaSongs=archiveKey&&delta[archiveKey];
       return {
         id:s.id,date:s.date,venue:s.venue,city:s.city,
         archiveIdHint:s.archiveIdHint||'',archiveId:s.archiveId||'',archiveIdHintLoaded:s.archiveIdHintLoaded||'',
@@ -4367,6 +4514,8 @@ function gdDiag(query){
         refreshNeeded:!!s._archiveHintRefreshNeeded,hintChanged:!!s._archiveHintChanged,tempFail:!!s._archiveTempFail,
         setlistById:Array.isArray(setlists[s.id])?setlists[s.id].length:0,
         setlistByArchiveKey:archiveKey&&Array.isArray(setlists[archiveKey])?setlists[archiveKey].length:0,
+        setlistByServer:Array.isArray(serverSongs)?serverSongs.length:0,
+        setlistByDelta:Array.isArray(deltaSongs)?deltaSongs.length:0,
         sourceCacheTracks:src&&src.tracks?src.tracks.length:0,
         sourceCacheSongs:src&&src.songs?src.songs.length:0,
         setlistsWrite:window._gdSetlistsWriteLast||null,
@@ -4403,6 +4552,8 @@ function renderHelpDiagSummary(){
     return;
   }
   const setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}');
+  const delta=readSetlistDelta(activeMode);
+  const dataset=readModeSetlistDataset(activeMode);
   const sourceCache=readArchiveSourceCache();
   let storageEstimate='';
   try{
@@ -4418,9 +4569,11 @@ function renderHelpDiagSummary(){
     ['Sheet Archive ID',m.archiveIdHint||'(blank)'],
     ['Loaded Archive ID',m.archiveId||'(blank)'],
     ['Songs / Tracks',m.songs+' / '+m.tracks],
-    ['Setlist Cache',m.setlistById+' id · '+m.setlistByArchiveKey+' archive'],
+    ['Server Setlists',setlistHydrationStats().loaded+' / '+setlistHydrationStats().total],
+    ['Local Delta',Object.keys(delta).length],
+    ['Legacy Setlist Cache',m.setlistById+' id · '+m.setlistByArchiveKey+' archive'],
     ['Source Cache',m.sourceCacheSongs+' songs · '+m.sourceCacheTracks+' tracks'],
-    ['Cache Sizes',Object.keys(setlists).length+' setlists · '+Object.keys(sourceCache).length+' sources · '+storageEstimate],
+    ['Cache Sizes',(dataset&&dataset.setlists?Object.keys(dataset.setlists).length:0)+' server · '+Object.keys(delta).length+' delta · '+Object.keys(setlists).length+' legacy · '+Object.keys(sourceCache).length+' sources · '+storageEstimate],
     ['Last Setlist Write',m.setlistsWrite?JSON.stringify(m.setlistsWrite):'(none)'],
     ['Flags',[
       m.metaLoaded?'meta':'no-meta',
@@ -7037,7 +7190,11 @@ function favoriteCachedSummary(f){
     const match=rows.find(function(s){return rawShowId(s.id)===String(f.showId||'')||String(s.id||'')===String(f.showId||'');})||
       rows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(f.date)&&String(s.venue||'')===String(f.venue||'');});
     if(!match)return '';
-    const songs=setlists[match.id]||setlists[rawShowId(match.id)]||setlists[archiveSetlistCacheKey(match.archiveIdHint||'')];
+    const archiveId=normalizeArchiveId(match.archiveIdHint||'');
+    const archiveKey=archiveSetlistCacheKey(archiveId);
+    const dataset=readModeSetlistDataset(mode);
+    const delta=readSetlistDelta(mode);
+    const songs=(dataset&&dataset.setlists&&dataset.setlists[archiveId])||delta[archiveKey]||setlists[match.id]||setlists[rawShowId(match.id)]||setlists[archiveKey];
     if(Array.isArray(songs)&&songs.length)return songs.slice(0,4).join(' · ');
   }catch(e){}
   return '';
