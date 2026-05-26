@@ -1,0 +1,31 @@
+{
+  "mode": "Bob Weir",
+  "modeKey": "bob-weir",
+  "updated": "2026-05-26T05:17:12.135Z",
+  "missing": [
+    {
+      "archiveId": "BobWeirRatDog_ClassicCenter_3-22-07",
+      "shows": [
+        {
+          "date": "2007-03-22",
+          "venue": "Classic Center",
+          "city": "Athens, GA",
+          "row": 192,
+          "archiveId": "BobWeirRatDog_ClassicCenter_3-22-07"
+        }
+      ]
+    },
+    {
+      "archiveId": "Kingfish-1976-02-07-Hinterland",
+      "shows": [
+        {
+          "date": "1976-02-07",
+          "venue": "Hinterland",
+          "city": "",
+          "row": 17,
+          "archiveId": "Kingfish-1976-02-07-Hinterland"
+        }
+      ]
+    }
+  ]
+}

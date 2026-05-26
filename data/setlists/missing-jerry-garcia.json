@@ -1,0 +1,67 @@
+{
+  "mode": "Jerry Garcia",
+  "modeKey": "jerry-garcia",
+  "updated": "2026-05-26T05:17:05.758Z",
+  "missing": [
+    {
+      "archiveId": "jg70-11-20.076324..jg-bw-da.fm.pinkrobert.sbeok.shnf",
+      "shows": [
+        {
+          "date": "1970-11-20",
+          "venue": "The Palestra, University of Rochester",
+          "city": "Rochester, NY",
+          "row": 8,
+          "archiveId": "jg70-11-20.076324..jg-bw-da.fm.pinkrobert.sbeok.shnf"
+        }
+      ]
+    },
+    {
+      "archiveId": "jg76-04-02.bhp.dvd5",
+      "shows": [
+        {
+          "date": "1976-04-02",
+          "venue": "Capitol Theatre",
+          "city": "Passaic, NJ",
+          "row": 417,
+          "archiveId": "jg76-04-02.bhp.dvd5"
+        }
+      ]
+    },
+    {
+      "archiveId": "jg79-11-07.132252.interview.fm.poordevil-sounddog.flac16",
+      "shows": [
+        {
+          "date": "1979-11-07",
+          "venue": "Unknown Venue",
+          "city": "",
+          "row": 618,
+          "archiveId": "jg79-11-07.132252.interview.fm.poordevil-sounddog.flac16"
+        }
+      ]
+    },
+    {
+      "archiveId": "jg94-04.irvine",
+      "shows": [
+        {
+          "date": "1994-04-18",
+          "venue": "Unknown",
+          "city": "Irvine, CA",
+          "row": 1612,
+          "archiveId": "jg94-04.irvine"
+        }
+      ]
+    },
+    {
+      "archiveId": "jg94-05-13.jgb.mattman.dvdf",
+      "shows": [
+        {
+          "date": "1994-05-13",
+          "venue": "Blockbuster Pavilion",
+          "city": "Glen Helen, CA",
+          "row": 1624,
+          "archiveId": "jg94-05-13.jgb.mattman.dvdf"
+        }
+      ]
+    }
+  ]
+}
