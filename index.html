@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.31</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.34</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.31</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.34</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.31';
+const APP_BUILD = '2.0.34';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2617,7 +2617,9 @@ function scanProgressStats(){
 
 function scanProgressStatus(prefix){
   const st=scanProgressStats();
-  return prefix+' · '+st.available.toLocaleString()+' shows available · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' checked ('+st.pct+'%)';
+  const sl=setlistHydrationStats();
+  const setlistText=sl.total?(' · '+sl.loaded.toLocaleString()+'/'+sl.total.toLocaleString()+' searchable setlists'):'';
+  return prefix+setlistText+' · '+st.available.toLocaleString()+' playable · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' audio checked ('+st.pct+'%)';
 }
 
 function updateScanDebugStats(indexed,total,pct){
@@ -3583,15 +3585,27 @@ function setlistHydrationStats(mode,listOverride){
   const loaded=list.filter(function(s){
     return s&&!s.archiveNoAudioHint&&plausibleArchiveId(s.archiveIdHint||s.archiveId||'')&&hasCachedSongs(s);
   }).length;
+  const playable=list.filter(function(s){
+    return s&&!s.archiveNoAudioHint&&plausibleArchiveId(s.archiveIdHint||s.archiveId||'')&&(
+      hasCachedSongs(s) ||
+      (s.tracks&&s.tracks.length) ||
+      s.cachePlayable ||
+      showLooksIndexed(s)
+    );
+  }).length;
   const active=isModeSetlistDatasetLoading(mode)||_visibleSetlistHydrateRunning||(Date.now()-_visibleSetlistHydrateLastAt<5000);
-  return {total:total,loaded:loaded,pending:Math.max(0,total-loaded),active:active};
+  return {total:total,loaded:loaded,playable:playable,pending:Math.max(0,total-playable),active:active};
 }
 function setlistHydrationLabel(){
   if(_modeSwitchBusy)return '';
   if(activeMode&&loadedCatalogModeKey&&activeMode.key!==loadedCatalogModeKey)return '';
   const st=setlistHydrationStats();
-  if(!st.total||st.loaded>=st.total)return '';
-  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'loaded')+'</span>';
+  if(!st.total)return '';
+  if(st.playable>=st.total){
+    if(st.loaded>=st.total)return '';
+    return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+' · named setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+'</span>';
+  }
+  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'loaded')+' · named setlists '+st.loaded.toLocaleString()+'/'+st.total.toLocaleString()+'</span>';
 }
 function markSetlistHydrationQueued(){
   const st=setlistHydrationStats();
@@ -4869,6 +4883,9 @@ function stripLeadingNonSongTracks(tracks){
 function cleanTrackLabel(s){
   return (s || '')
     .replace(/\.(mp3|ogg|flac|m4a|shn|wav)$/i,'')
+    .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:[a-z]+[-_. ]*)?\d{1,2}[-_. ]*/i,'')
+    .replace(/^(?:bwb?|weir)\d{2}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i,'')
+    .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*s\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*d\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*t\d+[-_. ]*/i,'')
@@ -6272,7 +6289,9 @@ function songSearch(){updateSongSearchClear();clearTimeout(songTimer);songTimer=
 
 function showSongIndexStats(matchCount,q){
   const st=scanProgressStats();
-  const status=' · '+st.available.toLocaleString()+' available · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' checked ('+st.pct+'%)';
+  const sl=setlistHydrationStats();
+  const setlistText=sl.total?(' · '+sl.loaded.toLocaleString()+'/'+sl.total.toLocaleString()+' searchable setlists'):'';
+  const status=setlistText+' · '+st.available.toLocaleString()+' playable · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' audio checked ('+st.pct+'%)';
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+status;
   return 'Search any song'+status;
 }
