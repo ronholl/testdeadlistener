@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.39</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.40</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.39</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.40</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.39';
+const APP_BUILD = '2.0.40';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2474,10 +2474,13 @@ function applyBestCachedSetlist(show, incomingSongs, cached){
 }
 
 function sanitizeSongList(songs){
-  return (Array.isArray(songs)?songs:[]).map(function(s){
-    return cleanTrackLabel(String(s||''));
+  return (Array.isArray(songs)?songs:[]).map(function(s,i){
+    const clean=cleanTrackLabel(String(s||''));
+    if(clean&&clean.length>2&&!looksLikeTapeId(clean)&&!looksLikeArchiveNote(clean)&&!/^\d+$/.test(clean))return clean;
+    if(/^(?:disc|track)\s*\d+$/i.test(clean))return clean.replace(/^([a-z])/i,function(m){return m.toUpperCase();});
+    return '';
   }).filter(function(s){
-    return s&&s.length>2&&!looksLikeTapeId(s)&&!looksLikeArchiveNote(s)&&!/^\d+$/.test(s);
+    return !!s;
   });
 }
 
@@ -4937,6 +4940,10 @@ function cleanTrackLabel(s){
     .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:[a-z]+[-_. ]*)?\d{1,2}[-_. ]*/i,'')
     .replace(/^(?:bwb?|weir)\d{2}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i,'')
+    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?(?:d\d+[-_. ]*)?t\d+[-_. ]*/i,'')
+    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?\d{1,2}[-_. ]*/i,'')
+    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?(?:d\d+)?t\d+\s*/i,'')
+    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?\d{1,2}\s*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*s\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*d\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*t\d+[-_. ]*/i,'')
