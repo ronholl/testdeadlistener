@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.36';
+const APP_BUILD = '2.0.38';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -716,7 +716,7 @@ function setlistDatasetUrl(mode){
 }
 function normalizeSetlistDataset(mode,data){
   const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
-  const out={schemaVersion:1,mode:(mode&&mode.label)||DEFAULT_MODE.label,modeKey:modeKey,updated:'',setlists:{}};
+  const out={schemaVersion:1,mode:(mode&&mode.label)||DEFAULT_MODE.label,modeKey:modeKey,updated:'',setlists:{},sources:{},bestSourceByArchiveId:{}};
   if(!data||typeof data!=='object')return out;
   out.schemaVersion=data.schemaVersion||1;
   out.mode=data.mode||out.mode;
@@ -726,6 +726,32 @@ function normalizeSetlistDataset(mode,data){
     const archiveId=normalizeArchiveId(id);
     const songs=sanitizeSongList(data.setlists[id]);
     if(archiveId&&songs.length)out.setlists[archiveId]=songs;
+  });
+  Object.keys(data.sources||{}).sort().forEach(function(id){
+    const archiveId=normalizeArchiveId(id);
+    const recs=(data.sources[id]||[]).map(function(r){
+      const sid=normalizeArchiveId((r&&r.id)||'');
+      if(!sid)return null;
+      return {
+        id:sid,
+        rating:Number(r.rating||0)||0,
+        reviews:Number(r.reviews||0)||0,
+        sbd:!!r.sbd,
+        restricted:!!r.restricted,
+        manual:!!r.manual,
+        sheetAlt:!!r.sheetAlt,
+        best:!!r.best,
+        trackCount:Number(r.trackCount||0)||0,
+        setlistCount:Number(r.setlistCount||0)||0,
+        namedCount:Number(r.namedCount||0)||0
+      };
+    }).filter(Boolean);
+    if(archiveId&&recs.length)out.sources[archiveId]=mergeSourceRecords([],recs);
+  });
+  Object.keys(data.bestSourceByArchiveId||{}).forEach(function(id){
+    const archiveId=normalizeArchiveId(id);
+    const best=normalizeArchiveId(data.bestSourceByArchiveId[id]);
+    if(archiveId&&best)out.bestSourceByArchiveId[archiveId]=best;
   });
   return out;
 }
@@ -809,6 +835,14 @@ function compactLegacySetlistStorageAfterDataset(mode,dataset){
 function hydrateShowFromSetlistSongs(show,songs,source){
   songs=sanitizeSongList(songs);
   if(!show||!songs.length||show.archiveNoAudioHint)return false;
+  const dataset=readModeSetlistDataset(modeForShow(show));
+  const hint=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
+  if(dataset&&hint){
+    const recs=dataset.sources&&dataset.sources[hint];
+    if(recs&&recs.length)show.recordings=mergeSourceRecords(show.recordings,recs);
+    const best=dataset.bestSourceByArchiveId&&dataset.bestSourceByArchiveId[hint];
+    if(best&&best!==normalizeArchiveId(show.archiveId||''))show.archiveId=best;
+  }
   show.songs=songs.slice();
   show.setlistCached=true;
   show.cachePlayable=true;
@@ -3723,7 +3757,7 @@ function rowSetlistSummary(show){
 
 function showNeedsFreshSetlistOnOpen(show){
   if(!show)return false;
-  const archiveHint=normalizeArchiveId(show.archiveIdHint||'');
+  const archiveHint=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
   if(!archiveHint)return false;
   if(show._freshSetlistOpenLoaded===archiveHint)return false;
   const cleanSongs=sanitizeSongList(show.songs);
@@ -4909,7 +4943,7 @@ function cleanTrackLabel(s){
     .replace(/^gd\d{2,4}[-_. ]xx[-_. ]xx[-_. ]*(?:studio[-_. ]*)?t\d+[-_. ]*/i,'')
     .replace(/^s\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^d\d+[-_. ]*t\d+[-_. ]*/i,'')
-    .replace(/^track\s*\d+\s*[-:.]?\s*/i,'')
+    .replace(/^track\s*\d+\s*[-:.]\s*/i,'')
     .replace(/^\d{1,2}\s*\/+\s*/,'')
     .replace(/^\d{1,2}\s*[-.)]\s*/,'')
     .replace(/^\/+\s*/,'')
@@ -4925,8 +4959,7 @@ function looksLikeTapeId(s){
   return (
     /^gd\d{2,4}[\-_. ]/i.test(x) ||
     /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||
-    /s\d+t\d+/i.test(x) ||
-    /^track\s*\d+$/i.test(x)
+    /s\d+t\d+/i.test(x)
   );
 }
 
@@ -6283,7 +6316,7 @@ function parseSongs(text){
       .trim();
   }).filter(s=>{
     if(!s||s.length<3||s.length>70)return false;
-    if(/\b(sbd|aud|flac|wav|dat|pcm|transfer|recorded|source|taped|master|disc|track|tracks|http|www\.|dolby|nakamichi|sony|tdk|maxell)\b/i.test(s))return false;
+    if(/\b(sbd|aud|flac|wav|dat|pcm|transfer|recorded|source|taped|master|http|www\.|dolby|nakamichi|sony|tdk|maxell)\b/i.test(s))return false;
     if(looksLikeArchiveNote(s))return false;
     if(/\d{4}-\d{2}-\d{2}/.test(s))return false;
     if(/:\s*(drums|bass|guitar|keyboards|vocals?|sax(?:ophone)?|percussion)$/i.test(s))return false;
@@ -6313,6 +6346,15 @@ function showSongIndexStats(matchCount,q){
   return 'Search any song'+status;
 }
 
+function isSongSuggestionCandidate(song){
+  const s=String(song||'').trim();
+  if(!s||s.length<3||s.length>42)return false;
+  if(/^(?:disc|track)\s*\d+$/i.test(s))return false;
+  if(/\b(?:sbd|aud|flac|wav|dat|pcm|transfer|recorded|source|taped|master|http|www\.|dolby|nakamichi|sony|tdk|maxell)\b/i.test(s))return false;
+  if(/\d{4}-\d{2}-\d{2}/.test(s))return false;
+  return true;
+}
+
 // Featured songs for pre-loaded Songs tab display
 const FEATURED_SONGS=['Dark Star','Scarlet Begonias','Fire on the Mountain','Terrapin Station','Eyes of the World','Franklin\'s Tower','Sugar Magnolia','Friend of the Devil','Estimated Prophet','Cassidy','Cumberland Blues','Wharf Rat','St. Stephen','The Other One','Truckin\'','Casey Jones','Jack Straw','Ramble On Rose','Brokedown Palace','Ripple','China Cat Sunflower','I Know You Rider','Playing in the Band','Ship of Fools','Loser','Row Jimmy','Brown Eyed Women','Weather Report Suite','Stella Blue','High Time'];
 const MODE_FEATURED_SONGS={
@@ -6326,6 +6368,7 @@ function featuredSongsForActiveMode(){
   Object.keys(songIndex||{}).forEach(function(k){
     (songIndex[k]||[]).forEach(function(e){
       const song=e&&e.song;if(!song)return;
+      if(!isSongSuggestionCandidate(song))return;
       counts[song]=(counts[song]||0)+1;
     });
   });

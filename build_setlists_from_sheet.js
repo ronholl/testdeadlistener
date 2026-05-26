@@ -16,9 +16,10 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT = __dirname;
-const OUT_DIR = path.join(ROOT, 'data', 'setlists');
+const OUT_DIR = path.resolve(argValue('--out-dir') || process.env.SETLIST_OUT_DIR || path.join(ROOT, 'data', 'setlists'));
 const INDEX_HTML = path.join(ROOT, 'index.html');
-const APP_SCRIPT_URL = extractConst('SCRIPT_URL');
+const DEFAULT_APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
+const APP_SCRIPT_URL = argValue('--script-url') || process.env.DEADHEAD_SCRIPT_URL || extractConst('SCRIPT_URL', DEFAULT_APP_SCRIPT_URL);
 const MODE_FILES = {
   gd: 'grateful-dead.json',
   'jerry-garcia': 'jerry-garcia.json',
@@ -33,6 +34,7 @@ const DELTA_KEYS = {
 };
 const SKIP_EXISTING = process.argv.includes('--skip-existing');
 const DRY_RUN = process.argv.includes('--dry-run');
+const SCORE_SOURCES = process.argv.includes('--score-sources');
 const ONLY_MODE = argValue('--mode');
 const MERGE_EXPORT = argValue('--merge-export');
 
@@ -41,11 +43,16 @@ function argValue(flag) {
   return idx >= 0 ? process.argv[idx + 1] : '';
 }
 
-function extractConst(name) {
-  const html = fs.readFileSync(INDEX_HTML, 'utf8');
+function extractConst(name, fallback) {
+  let html = '';
+  try {
+    html = fs.readFileSync(INDEX_HTML, 'utf8');
+  } catch (_) {
+    return fallback;
+  }
   const re = new RegExp("const\\s+" + name + "\\s*=\\s*'([^']+)'");
   const match = html.match(re);
-  if (!match) throw new Error(`Could not find ${name} in index.html`);
+  if (!match) return fallback;
   return match[1];
 }
 
@@ -89,10 +96,63 @@ function cleanSongs(values) {
   (Array.isArray(values) ? values : []).forEach(value => {
     const song = cleanSong(value);
     if (!song || song.length < 3 || /^\d+$/.test(song)) return;
-    if (/^(track|disc|set|tuning|banter|crowd|intro|outro)\s*\d*$/i.test(song)) return;
+    if (/^(set|tuning|banter|crowd|intro|outro)\s*\d*$/i.test(song)) return;
+    if (/\d{7,}/.test(song) && !/[a-z]{3,}/i.test(song.replace(/\bfiles?\b/ig, ''))) return;
+    if (/\(\s*\d+\s+files?\s*\)/i.test(song)) return;
+    if (/\b(?:flac|shn|mp3|ogg|wav|checksum|ffp|md5)\b/i.test(song) && /\d{5,}/.test(song)) return;
+    if (/\b(?:jg|gd|bw|phil|plq|paf|tltt)\w*\d{4}\s+\d{2}\s+\d{2}d\d+t\d+/i.test(song)) return;
+    if (/\b(?:xx|fix|nonfixed|vbr)\b/i.test(song) && /\d{5,}/.test(song)) return;
     out.push(song);
   });
   return out.slice(0, 80);
+}
+
+function cleanGenericTrackLabel(value) {
+  return String(value || '')
+    .replace(/\.(mp3|flac|shn|ogg|m4a|wav)$/i, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function genericTrackSongs(files) {
+  const out = [];
+  const seen = new Set();
+  (Array.isArray(files) ? files : []).forEach(file => {
+    const name = String(file.name || '');
+    if (!/\.(mp3|flac|shn|ogg|m4a|wav)$/i.test(name)) return;
+    if (/64kb|vbr|_thumb|spectrogram|checksums?/i.test(name)) return;
+    const label = cleanGenericTrackLabel(file.title || file.name);
+    if (!label || label.length < 3) return;
+    if (/^(tuning|intro|banter|crowd|encore|encore break)$/i.test(label)) return;
+    const key = label.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(label);
+  });
+  return out.slice(0, 80);
+}
+
+function parseDurationSeconds(value) {
+  const s = String(value || '').trim();
+  if (!s) return 0;
+  const parts = s.split(':').map(n => Number(n));
+  if (parts.some(n => !Number.isFinite(n))) return 0;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return Number(s) || 0;
+}
+
+function isGenericSongLabel(value) {
+  return /^(?:disc|track)\s*\d+$/i.test(String(value || '').trim());
+}
+
+function namedSongCount(songs) {
+  return (songs || []).filter(song => !isGenericSongLabel(song)).length;
+}
+
+function genericSongCount(songs) {
+  return (songs || []).filter(isGenericSongLabel).length;
 }
 
 function descriptionText(value) {
@@ -179,18 +239,26 @@ async function getCatalog(mode) {
   return data;
 }
 
-function archiveRowsFromCatalog(catalog) {
+function archiveGroupsFromCatalog(catalog) {
   const byId = {};
   (catalog.shows || []).forEach(show => {
     const primary = normalizeArchiveId(show.archiveId);
     if (!isBuildableArchiveId(primary)) return;
-    if (!byId[primary]) byId[primary] = [];
-    byId[primary].push({
+    if (!byId[primary]) byId[primary] = {
+      primaryId: primary,
+      rows: [],
+      sourceIds: []
+    };
+    byId[primary].rows.push({
       date: show.date || '',
       venue: show.venue || '',
       city: show.city || '',
       row: show.row || '',
       archiveId: primary
+    });
+    [primary].concat(show.altArchiveIds || []).forEach(id => {
+      id = normalizeArchiveId(id);
+      if (isBuildableArchiveId(id) && !byId[primary].sourceIds.includes(id)) byId[primary].sourceIds.push(id);
     });
   });
   return byId;
@@ -210,17 +278,96 @@ function songsFromArchiveMetadata(meta) {
   const names = candidates.map(file => file.title || file.name);
   const fileSongs = cleanSongs(names);
   if (descSongs.length >= 3 && descSongs.length >= Math.max(3, Math.floor(fileSongs.length / 2))) return descSongs;
-  return fileSongs;
+  if (fileSongs.length) return fileSongs;
+  return genericTrackSongs(candidates);
 }
 
-async function fetchArchiveSongs(archiveId) {
+function sourceStatsFromMetadata(archiveId, meta, songs) {
+  const files = (meta && meta.files) || [];
+  const audioFiles = files.filter(file => {
+    const name = String(file.name || '');
+    return /\.(mp3|flac|shn|ogg|m4a|wav)$/i.test(name) && !/64kb|vbr|_thumb|spectrogram|checksums?/i.test(name);
+  });
+  const durationSeconds = audioFiles.reduce((sum, file) => sum + parseDurationSeconds(file.length || file.runtime || file.duration), 0);
+  const named = namedSongCount(songs);
+  const generic = genericSongCount(songs);
+  return {
+    id: archiveId,
+    title: meta && meta.metadata && meta.metadata.title || '',
+    trackCount: audioFiles.length || songs.length,
+    setlistCount: songs.length,
+    namedCount: named,
+    genericCount: generic,
+    durationSeconds: durationSeconds,
+    score: named * 1000 + songs.length * 35 + Math.min(durationSeconds, 24000) / 6 - generic * 25
+  };
+}
+
+async function fetchArchiveSource(archiveId) {
   try {
     const meta = await fetchJson(`https://archive.org/metadata/${encodeURIComponent(archiveId)}`);
-    return songsFromArchiveMetadata(meta);
+    const songs = songsFromArchiveMetadata(meta);
+    return {
+      id: archiveId,
+      songs: songs,
+      stats: sourceStatsFromMetadata(archiveId, meta, songs)
+    };
   } catch (e) {
     console.warn(`  ${archiveId}: ${e.message}`);
-    return [];
+    return { id: archiveId, songs: [], stats: { id: archiveId, error: e.message, trackCount: 0, setlistCount: 0, namedCount: 0, genericCount: 0, durationSeconds: 0, score: 0 } };
   }
+}
+
+function sourceRecordFromStats(stats, best) {
+  stats = stats || {};
+  const id = normalizeArchiveId(stats.id);
+  if (!id) return null;
+  return {
+    id,
+    title: stats.title || '',
+    trackCount: Number(stats.trackCount || 0) || 0,
+    setlistCount: Number(stats.setlistCount || 0) || 0,
+    namedCount: Number(stats.namedCount || 0) || 0,
+    genericCount: Number(stats.genericCount || 0) || 0,
+    durationSeconds: Number(stats.durationSeconds || 0) || 0,
+    score: Math.round((Number(stats.score || 0) || 0) * 100) / 100,
+    manual: true,
+    sheetAlt: true,
+    best: !!best
+  };
+}
+
+function sourceRecordFromId(id, best) {
+  id = normalizeArchiveId(id);
+  return id ? { id, manual: true, sheetAlt: true, best: !!best } : null;
+}
+
+function compareSources(a, b) {
+  const an = namedSongCount(a && a.songs);
+  const bn = namedSongCount(b && b.songs);
+  if (bn !== an) return bn - an;
+  const al = (a && a.songs && a.songs.length) || 0;
+  const bl = (b && b.songs && b.songs.length) || 0;
+  if (bl !== al) return bl - al;
+  const ad = (a && a.stats && a.stats.durationSeconds) || 0;
+  const bd = (b && b.stats && b.stats.durationSeconds) || 0;
+  if (bd !== ad) return bd - ad;
+  return String((a && a.id) || '').localeCompare(String((b && b.id) || ''));
+}
+
+function reportInterestingSetlists(ids, archiveRows, setlists) {
+  return ids.map(id => {
+    const songs = setlists[id] || [];
+    const generic = genericSongCount(songs);
+    const named = namedSongCount(songs);
+    if (!songs.length || !generic || named) return null;
+    return {
+      archiveId: id,
+      reason: 'generic-track-labels',
+      songs,
+      shows: archiveRows[id] || []
+    };
+  }).filter(Boolean);
 }
 
 function mergeExportSetlists(target, mode, exported) {
@@ -251,16 +398,33 @@ async function mapLimit(items, limit, fn) {
 
 async function buildMode(mode, exported) {
   const catalog = await getCatalog(mode);
-  const archiveRows = archiveRowsFromCatalog(catalog);
-  const ids = Object.keys(archiveRows).sort();
+  const archiveGroups = archiveGroupsFromCatalog(catalog);
+  const ids = Object.keys(archiveGroups).sort();
+  const archiveRows = {};
+  ids.forEach(id => { archiveRows[id] = archiveGroups[id].rows || []; });
   const outFile = MODE_FILES[mode.key] || `${mode.key}.json`;
   const outPath = path.join(OUT_DIR, outFile);
   const existing = readJson(outPath, {});
   const setlists = {};
+  const sources = {};
+  const bestSourceByArchiveId = {};
   Object.keys(existing.setlists || {}).sort().forEach(id => {
     const archiveId = normalizeArchiveId(id);
     const songs = cleanSongs(existing.setlists[id]);
     if (archiveId && songs.length) setlists[archiveId] = songs;
+  });
+  Object.keys(existing.sources || {}).sort().forEach(id => {
+    const archiveId = normalizeArchiveId(id);
+    const recs = (existing.sources[id] || []).map(r => {
+      const sid = normalizeArchiveId(r && r.id);
+      return sid ? Object.assign({}, r, { id: sid }) : null;
+    }).filter(Boolean);
+    if (archiveId && recs.length) sources[archiveId] = recs;
+  });
+  Object.keys(existing.bestSourceByArchiveId || {}).forEach(id => {
+    const archiveId = normalizeArchiveId(id);
+    const best = normalizeArchiveId(existing.bestSourceByArchiveId[id]);
+    if (archiveId && best) bestSourceByArchiveId[archiveId] = best;
   });
   mergeExportSetlists(setlists, mode, exported);
 
@@ -273,16 +437,47 @@ async function buildMode(mode, exported) {
     console.log(`  dry run only, not fetching or writing ${mode.label}`);
     return;
   }
-  if (!SKIP_EXISTING && missing.length) {
+
+  ids.forEach(id => {
+    const sourceIds = (archiveGroups[id].sourceIds || [id]).filter(Boolean);
+    if (!sources[id] || !sources[id].length) sources[id] = sourceIds.map((sourceId, idx) => sourceRecordFromId(sourceId, idx === 0)).filter(Boolean);
+    if (!bestSourceByArchiveId[id]) bestSourceByArchiveId[id] = id;
+  });
+
+  if (!SKIP_EXISTING && SCORE_SOURCES) {
+    const groupsToScore = ids.filter(id => (archiveGroups[id].sourceIds || []).length > 1);
+    let scored = 0;
+    await mapLimit(groupsToScore, 3, async (primaryId, idx) => {
+      const sourceIds = archiveGroups[primaryId].sourceIds || [primaryId];
+      const results = await mapLimit(sourceIds, 3, fetchArchiveSource);
+      const usable = results.filter(r => r && r.songs && r.songs.length).sort(compareSources);
+      if (usable.length) {
+        const best = usable[0];
+        setlists[primaryId] = best.songs;
+        bestSourceByArchiveId[primaryId] = best.id;
+        sources[primaryId] = results.map(r => sourceRecordFromStats(r.stats, r.id === best.id)).filter(Boolean);
+        scored++;
+      }
+      if ((idx + 1) % 5 === 0 || idx === groupsToScore.length - 1) {
+        console.log(`  scored sources ${idx + 1}/${groupsToScore.length}, selected ${scored}`);
+      }
+    });
+  }
+
+  const stillNeedFetch = ids.filter(id => !setlists[id] || !setlists[id].length);
+  if (!SKIP_EXISTING && stillNeedFetch.length) {
     let foundCount = 0;
-    await mapLimit(missing, 4, async (archiveId, idx) => {
-      const songs = await fetchArchiveSongs(archiveId);
+    await mapLimit(stillNeedFetch, 4, async (archiveId, idx) => {
+      const result = await fetchArchiveSource(archiveId);
+      const songs = result.songs || [];
       if (songs.length) {
         foundCount++;
         setlists[archiveId] = songs;
+        sources[archiveId] = [sourceRecordFromStats(result.stats, true)].filter(Boolean);
+        bestSourceByArchiveId[archiveId] = archiveId;
       }
-      if ((idx + 1) % 5 === 0 || idx === missing.length - 1) {
-        console.log(`  checked ${idx + 1}/${missing.length}, found ${foundCount} setlists`);
+      if ((idx + 1) % 5 === 0 || idx === stillNeedFetch.length - 1) {
+        console.log(`  checked ${idx + 1}/${stillNeedFetch.length}, found ${foundCount} setlists`);
       }
     });
   }
@@ -290,6 +485,15 @@ async function buildMode(mode, exported) {
   const sorted = {};
   ids.forEach(id => {
     if (setlists[id] && setlists[id].length) sorted[id] = setlists[id];
+  });
+  const sortedSources = {};
+  ids.forEach(id => {
+    const recs = sources[id] || [];
+    if (recs.length > 1 || (bestSourceByArchiveId[id] && bestSourceByArchiveId[id] !== id)) sortedSources[id] = recs;
+  });
+  const sortedBest = {};
+  ids.forEach(id => {
+    if (bestSourceByArchiveId[id] && bestSourceByArchiveId[id] !== id) sortedBest[id] = bestSourceByArchiveId[id];
   });
   const stillMissing = ids.filter(id => !sorted[id]);
   const missingPath = path.join(OUT_DIR, `missing-${outFile}`);
@@ -307,12 +511,27 @@ async function buildMode(mode, exported) {
   } else if (fs.existsSync(missingPath)) {
     fs.unlinkSync(missingPath);
   }
+  const reviewItems = reportInterestingSetlists(ids, archiveRows, sorted);
+  const reviewPath = path.join(OUT_DIR, `review-${outFile}`);
+  if (reviewItems.length) {
+    fs.writeFileSync(reviewPath, JSON.stringify({
+      mode: mode.label,
+      modeKey: mode.key,
+      updated: new Date().toISOString(),
+      review: reviewItems
+    }, null, 2) + '\n');
+    console.log(`${mode.label}: review report -> data/setlists/${path.basename(reviewPath)}`);
+  } else if (fs.existsSync(reviewPath)) {
+    fs.unlinkSync(reviewPath);
+  }
   const doc = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     mode: mode.label,
     modeKey: mode.key,
     updated: new Date().toISOString(),
-    setlists: sorted
+    setlists: sorted,
+    sources: sortedSources,
+    bestSourceByArchiveId: sortedBest
   };
   fs.writeFileSync(outPath, JSON.stringify(doc, null, 2) + '\n');
   console.log(`${mode.label}: wrote ${Object.keys(sorted).length}/${ids.length} -> data/setlists/${outFile}`);
