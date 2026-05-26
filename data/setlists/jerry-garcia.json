@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "mode": "Jerry Garcia",
   "modeKey": "jerry-garcia",
-  "updated": "2026-05-26T05:17:05.758Z",
+  "updated": "2026-05-26T17:42:23.203Z",
   "setlists": {
     "jg69-10-28dt01": [
       "jg69 10 28dt01",
@@ -41,6 +41,16 @@
       "Jam",
       "Jam",
       "Jam"
+    ],
+    "jg70-11-20.076324..jg-bw-da.fm.pinkrobert.sbeok.shnf": [
+      "advertisement",
+      "El Paso",
+      "Big River",
+      "I Know You Rider",
+      "Jam",
+      "Dark Hollow",
+      "Angie",
+      "Let Me In"
     ],
     "jg70-11-21.077475.jgf.fm.tamarkin.sbeok.t-flac16": [
       "advertisement",
@@ -5904,6 +5914,33 @@
       "Lonesome and a Long Way from Home",
       "Lonesome and a Long Way from Home"
     ],
+    "jg76-04-02.bhp.dvd5": [
+      "Jerry Garcia Band",
+      "Capitol Theatre",
+      "Passaic",
+      "April 2",
+      "multi camera pro shot (black and white)",
+      "DVD 1",
+      "Partial Early Show",
+      "Knockin' On Heaven's Door",
+      "Tore Up Over You",
+      "Friend Of The Devil",
+      "Don't Let Go",
+      "Start Late Show",
+      "Introduction",
+      "Sugaree",
+      "Catfish John",
+      "The Way You Do The Things You Do",
+      "DVD 2",
+      "Mystery Train",
+      "Strange Man",
+      "Moonlight Mile",
+      "The Harder They Come",
+      "The Night They Drove Old Dixie Down",
+      "My Sisters And Brothers",
+      "Lonesome And A Long Way From Home",
+      "no circulating audio for this show"
+    ],
     "jg76-04-03.017328.jgb.late.aud.jones.sbeok.t-flac16": [
       "taper talk, crowd & tuning",
       "taper talk, crowd & tuning",
@@ -8650,6 +8687,20 @@
       "Russian Lullaby",
       "Tore Up over You",
       "Tore Up over You"
+    ],
+    "jg79-11-07.132252.interview.fm.poordevil-sounddog.flac16": [
+      "Brent in the band, Making Go to Heaven album",
+      "Story of Reuben & Cherise, Jerry's new guitar, Acoustic shows, Bertha the fan",
+      "Mission in the Rain, Egypt trip, Smaller venues, GD films, Eclectic listening",
+      "Terrapin II Suite, thanks & outro",
+      "DJ Talk",
+      "10170092 B xx flac 0.5260 jg1979 11 07t01",
+      "63861548 B xx flac 0.5255 jg1979 11 07t02",
+      "84533276 B xx flac 0.5436 jg1979 11 07t03",
+      "89122028 B xx flac 0.5475 jg1979 11 07t04",
+      "24195068 B xx flac 0.5427 jg1979 11 07t05",
+      "7853372 B xx flac 0.5326 jg1979 11 07t06",
+      "279735384 B 0.5397 (6 files)"
     ],
     "jg79-11-16.013426.jgb.aud.angus-misSHN.sbeok.shnf": [
       "jgb79 11 16d1t01",
@@ -22491,6 +22542,10 @@
       "Midnight Moonlight",
       "Midnight Moonlight"
     ],
+    "jg94-04.irvine": [
+      "disc1",
+      "disc2"
+    ],
     "jg94-05-04.009715.jgdg.schoepsCMC34.unknown.sbeok.t-flac16": [
       "The Thrill Is Gone",
       "The Thrill Is Gone",
@@ -22558,6 +22613,26 @@
       "Dawgnation",
       "Goodnight Irene",
       "Goodnight Irene"
+    ],
+    "jg94-05-13.jgb.mattman.dvdf": [
+      "How Sweet It Is (1)",
+      "They Love Each Other",
+      "Forever Young",
+      "Run For The Roses",
+      "Dear Prudence",
+      "My Sisters And Brothers",
+      "Deal",
+      "00:00 Harder They Come (2)",
+      "22:51 And It Stoned Me",
+      "32:36 Think",
+      "40:09 Ain't No Bread In The Breadbox",
+      "51:09 That Lucky Old Sun (Just Rolls Around Heaven All Day)",
+      "01:05 Midnight Moonlight",
+      "Sony Pitch transposer: The tape was pitched slow and required an increase of + 1.573 semitones using a video recording soundtrack as a reference.",
+      "Waves Q6 parametric EQ: Audible hum at 176 Hz selectively attenuated using a 46 dB notch filter.",
+      "Waves X Noise: Frequency response curve of tape noise preceding start of master recording \"learned\" and subtracted at 63%.",
+      "Spectralizer: Restoration of lost transients either absent to start with or removed by X noise.",
+      "Waves L3 Multimaximizer: Boost overall levels without introducing distortion. Flat eq response curve with a threshold of 6 dB and a peak ceiling of 0.02 dB and 'hi res CD' IDR settings (16 bit / type 1 dithering / ultra shaping)."
     ],
     "jg94-05-14.020604.jgb.aud.unknown.ladner.sbeok.t-flac16": [
       "Cats Under the Stars",
