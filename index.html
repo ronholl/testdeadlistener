@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.43</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.44</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.43</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.44</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.43';
+const APP_BUILD = '2.0.44';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1512,8 +1512,7 @@ function findShowInModeCache(mode,showId,ref){
   const list=(cached&&cached.shows&&cached.shows.length)?_hydrateSheetCacheShows(cached.shows,mode):[];
   if(!list.length)return null;
   const raw=rawShowId(showId||'');
-  let show=list.find(function(s){return s.id===showId||showStorageId(s)===showId||showStorageId(s)===raw;});
-  if(show)return show;
+  let show=null;
   if(ref){
     const dateKey=favoriteDateKey(ref.date||'');
     const venue=String(ref.venue||'').trim().toLowerCase();
@@ -1525,8 +1524,15 @@ function findShowInModeCache(mode,showId,ref){
     })||list.find(function(s){
       return favoriteDateKey(s.date)===dateKey &&
         String(s.venue||'').trim().toLowerCase()===venue;
+    })||list.find(function(s){
+      return favoriteDateKey(s.date)===dateKey &&
+        city &&
+        String(s.city||'').trim().toLowerCase()===city;
     })||null;
+    if(show)return show;
   }
+  show=list.find(function(s){return s.id===showId||showStorageId(s)===showId||showStorageId(s)===raw;});
+  if(show)return show;
   return show;
 }
 
@@ -7327,8 +7333,8 @@ function renderJamFavorites() {
 
 function findShowForFavorite(f){
   if(!f||!sameModeLabel(favoriteModeLabel(f),activeMode.label))return null;
-  return shows.find(function(s){return showStorageId(s)===f.showId||s.id===f.showId;}) ||
-    shows.find(function(s){return showStorageId(s).startsWith(String(f.showId||'').substring(0,10))&&s.venue===f.venue;}) ||
+  return findShowInModeCache(activeMode,f.showId,f) ||
+    shows.find(function(s){return showStorageId(s)===f.showId||s.id===f.showId;}) ||
     null;
 }
 
@@ -7342,8 +7348,8 @@ function favoriteCachedSummary(f){
     const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
     const setlists=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_setlists',mode))||'{}');
     const rows=(sheetCache&&sheetCache.shows)||[];
-    const match=rows.find(function(s){return rawShowId(s.id)===String(f.showId||'')||String(s.id||'')===String(f.showId||'');})||
-      rows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(f.date)&&String(s.venue||'')===String(f.venue||'');});
+    const match=rows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(f.date)&&String(s.venue||'')===String(f.venue||'');})||
+      rows.find(function(s){return rawShowId(s.id)===String(f.showId||'')||String(s.id||'')===String(f.showId||'');});
     if(!match)return '';
     const archiveId=normalizeArchiveId(match.archiveIdHint||'');
     const archiveKey=archiveSetlistCacheKey(archiveId);
@@ -7378,8 +7384,8 @@ async function openFavoriteRecord(showId,modeLabel){
   const m=modeForLabel(modeLabel);
   const fav=activeFavorites(allFavorites).find(function(x){return x.showId===showId&&sameModeLabel(favoriteModeLabel(x),modeLabel);});
   const activeList=sameModeLabel(m.label,activeMode.label)?shows:[];
-  const show=activeList.find(function(s){return s.id===showId||showStorageId(s)===showId;})||
-    (fav&&activeList.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(fav.date)&&String(s.venue||'')===String(fav.venue||'');}))||
+  const show=(fav&&activeList.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(fav.date)&&String(s.venue||'')===String(fav.venue||'');}))||
+    activeList.find(function(s){return s.id===showId||showStorageId(s)===showId;})||
     findShowInModeCache(m,showId,fav);
   if(show){
     await prepareShowSetlistFromDataset(show);
