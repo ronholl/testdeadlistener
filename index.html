@@ -4936,14 +4936,20 @@ function stripLeadingNonSongTracks(tracks){
 
 function cleanTrackLabel(s){
   return (s || '')
+    .replace(/\.(mp3|flac|shn|ogg|m4a|wav):[a-f0-9]{8,}$/i,'')
     .replace(/\.(mp3|ogg|flac|m4a|shn|wav)$/i,'')
+    .replace(/\s*\((?:s\d+t\d+|d\d+t\d+|t\d+)\)\s*/ig,' ')
     .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:[a-z]+[-_. ]*)?\d{1,2}[-_. ]*/i,'')
     .replace(/^(?:bwb?|weir)\d{2}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i,'')
-    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?(?:d\d+[-_. ]*)?t\d+[-_. ]*/i,'')
-    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?\d{1,2}[-_. ]*/i,'')
-    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?(?:d\d+)?t\d+\s*/i,'')
-    .replace(/^(?:jg|jgb|garcia|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?\d{1,2}\s*/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?(?:d\d+[-_. ]*)?t\d+[-_. ]*/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?\d{1,2}[-_. ]*/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?(?:d\d+)?t\d+\s*/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?\d{1,2}\s*/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}[-_. ]\d{1,2}[-_. ]\d{1,2}\s+/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}\s+\d{1,2}\s+\d{1,2}\s+/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}\s+\d{1,2}\s+\d{1,2}(?:s\d+t\d+|d\d+t\d+|t\d+)/i,'')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}[.]\d{1,2}[.]\d{1,2}/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*s\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*d\d+[-_. ]*t\d+[-_. ]*/i,'')
     .replace(/^gd\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[-_. ]*t\d+[-_. ]*/i,'')
@@ -4966,7 +4972,9 @@ function looksLikeTapeId(s){
   return (
     /^gd\d{2,4}[\-_. ]/i.test(x) ||
     /^[a-z]{1,4}\d{2,4}[\-_. ]/i.test(x) ||
-    /s\d+t\d+/i.test(x)
+    /s\d+t\d+/i.test(x) ||
+    /^(?:s\d+t\d+|d\d+t\d+|t\d+|set\d+|set\s*\d+\s*t\d+|interview\s*t\d+|full\s*show(?:\s*final)?|fullshow(?:final)?)$/i.test(x) ||
+    /^(?:phil|ph|plf|plq|paf|p&f|pf)\d{0,4}\s*\d{0,2}\s*(?:set)?\d*t?\d*$/i.test(x)
   );
 }
 

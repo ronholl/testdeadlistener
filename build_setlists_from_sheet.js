@@ -80,11 +80,21 @@ function isBuildableArchiveId(value) {
 
 function cleanSong(value) {
   return String(value || '')
+    .replace(/\.(mp3|flac|shn|ogg|m4a|wav):[a-f0-9]{8,}$/i, '')
     .replace(/\.(mp3|flac|shn|ogg|m4a|wav)$/i, '')
+    .replace(/\s*\((?:s\d+t\d+|d\d+t\d+|t\d+)\)\s*/ig, ' ')
     .replace(/\b(vbr|64kb|128kb|soundboard|audience|matrix|remaster)\b/ig, '')
     .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:[a-z]+[-_. ]*)?\d{1,2}[-_. ]*/i, '')
     .replace(/^(?:bwb?|weir)\d{2}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i, '')
     .replace(/^(?:bwb?|weir)\d{4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*t\d+[-_. ]*/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?(?:d\d+[-_. ]*)?t\d+[-_. ]*/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}[-_. ]\d{2}[-_. ]\d{2}[a-z]*[-_. ]*(?:set\s*\d+[-_. ]*)?\d{1,2}[-_. ]*/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?(?:d\d+)?t\d+\s*/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|phil|ph|plf|plq|paf|tltt)\d{2,4}\s+\d{2}\s+\d{2}\s*(?:set\s*\d+\s*)?\d{1,2}\s*/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}[-_. ]\d{1,2}[-_. ]\d{1,2}\s+/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}\s+\d{1,2}\s+\d{1,2}\s+/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}\s+\d{1,2}\s+\d{1,2}(?:s\d+t\d+|d\d+t\d+|t\d+)/i, '')
+    .replace(/^(?:jg|jgb|garcia|nrps|lesh|phil|ph|plf|plq|paf|p&f|pf|tltt)\s*\d{1,4}[.]\d{1,2}[.]\d{1,2}/i, '')
     .replace(/^\s*\d+[\s.)_-]+/, '')
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
@@ -97,6 +107,9 @@ function cleanSongs(values) {
     const song = cleanSong(value);
     if (!song || song.length < 3 || /^\d+$/.test(song)) return;
     if (/^(set|tuning|banter|crowd|intro|outro)\s*\d*$/i.test(song)) return;
+    if (/^(?:s\d+t\d+|d\d+t\d+|t\d+|set\d+|set\s*\d+\s*t\d+|interview\s*t\d+|full\s*show(?:\s*final)?|fullshow(?:final)?)$/i.test(song)) return;
+    if (/^(?:phil|ph|plf|plq|paf|p&f|pf)\d{0,4}\s*\d{0,2}\s*(?:set)?\d*t?\d*$/i.test(song)) return;
+    if (/^(?:[a-z&]+\s*)?\d{1,4}\s+\d{1,2}\s+\d{1,2}.*\bt\d+\b/i.test(song)) return;
     if (/\d{7,}/.test(song) && !/[a-z]{3,}/i.test(song.replace(/\bfiles?\b/ig, ''))) return;
     if (/\(\s*\d+\s+files?\s*\)/i.test(song)) return;
     if (/\b(?:flac|shn|mp3|ogg|wav|checksum|ffp|md5)\b/i.test(song) && /\d{5,}/.test(song)) return;
@@ -104,7 +117,31 @@ function cleanSongs(values) {
     if (/\b(?:xx|fix|nonfixed|vbr)\b/i.test(song) && /\d{5,}/.test(song)) return;
     out.push(song);
   });
-  return out.slice(0, 80);
+  return collapsePairedDuplicates(out).slice(0, 80);
+}
+
+function collapsePairedDuplicates(songs) {
+  const list = (Array.isArray(songs) ? songs : []).filter(Boolean);
+  if (list.length < 6) return list;
+  let pairs = 0;
+  let duplicatePairs = 0;
+  const collapsed = [];
+  for (let i = 0; i < list.length; i += 2) {
+    const a = list[i];
+    const b = list[i + 1];
+    if (b === undefined) {
+      collapsed.push(a);
+      continue;
+    }
+    pairs++;
+    if (String(a).trim().toLowerCase() === String(b).trim().toLowerCase()) {
+      duplicatePairs++;
+      collapsed.push(a);
+    } else {
+      collapsed.push(a, b);
+    }
+  }
+  return pairs && duplicatePairs / pairs >= 0.7 ? collapsed : list;
 }
 
 function cleanGenericTrackLabel(value) {
@@ -118,17 +155,20 @@ function cleanGenericTrackLabel(value) {
 function genericTrackSongs(files) {
   const out = [];
   const seen = new Set();
-  (Array.isArray(files) ? files : []).forEach(file => {
+  (Array.isArray(files) ? files : []).forEach((file, index) => {
     const name = String(file.name || '');
     if (!/\.(mp3|flac|shn|ogg|m4a|wav)$/i.test(name)) return;
     if (/64kb|vbr|_thumb|spectrogram|checksums?/i.test(name)) return;
     const label = cleanGenericTrackLabel(file.title || file.name);
-    if (!label || label.length < 3) return;
-    if (/^(tuning|intro|banter|crowd|encore|encore break)$/i.test(label)) return;
-    const key = label.toLowerCase();
+    const clean = cleanSong(label);
+    const fallback = `Track ${index + 1}`;
+    const finalLabel = clean && clean.length >= 3 && !/^\d+$/.test(clean) && !/^(?:s\d+t\d+|d\d+t\d+|t\d+|set\d+|set\s*\d+\s*t\d+|interview\s*t\d+)$/i.test(clean) ? clean : fallback;
+    if (!finalLabel || finalLabel.length < 3) return;
+    if (/^(tuning|intro|banter|crowd|encore|encore break)$/i.test(finalLabel)) return;
+    const key = finalLabel.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
-    out.push(label);
+    out.push(finalLabel);
   });
   return out.slice(0, 80);
 }
@@ -153,6 +193,13 @@ function namedSongCount(songs) {
 
 function genericSongCount(songs) {
   return (songs || []).filter(isGenericSongLabel).length;
+}
+
+function normalizeStoredSetlist(songs) {
+  const clean = cleanSongs(songs);
+  if (clean.length) return clean;
+  const count = (Array.isArray(songs) ? songs : []).filter(Boolean).length;
+  return Array.from({ length: Math.min(count, 80) }, (_, i) => `Track ${i + 1}`);
 }
 
 function descriptionText(value) {
@@ -484,7 +531,8 @@ async function buildMode(mode, exported) {
 
   const sorted = {};
   ids.forEach(id => {
-    if (setlists[id] && setlists[id].length) sorted[id] = setlists[id];
+    const songs = normalizeStoredSetlist(setlists[id]);
+    if (songs.length) sorted[id] = songs;
   });
   const sortedSources = {};
   ids.forEach(id => {
