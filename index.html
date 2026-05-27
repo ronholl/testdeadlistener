@@ -417,7 +417,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.42</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.43</span></div>
     </div>
     
 
@@ -534,7 +534,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.42</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.43</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.42';
+const APP_BUILD = '2.0.43';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -775,6 +775,11 @@ async function loadModeSetlistDataset(mode){
   });
   return setlistDatasetLoads[key];
 }
+function preloadAllModeSetlistDatasets(){
+  (modes&&modes.length?modes:[DEFAULT_MODE]).forEach(function(mode){
+    if(mode)loadModeSetlistDataset(mode);
+  });
+}
 function readModeSetlistDataset(mode){
   const key=((mode||activeMode||DEFAULT_MODE).key)||DEFAULT_MODE.key;
   return setlistDatasets[key]||null;
@@ -855,6 +860,19 @@ function hydrateShowFromSetlistSongs(show,songs,source){
   markShowSetlistCached(show);
   updateSheetCacheShowSongs(show,show.songs);
   return true;
+}
+async function prepareShowSetlistFromDataset(show){
+  if(!show)return null;
+  await loadModeSetlistDataset(modeForShow(show));
+  if(!(show.songs&&show.songs.length)){
+    const serverSongs=datasetSetlistForShow(show);
+    if(serverSongs.length)hydrateShowFromSetlistSongs(show,serverSongs,'server');
+  }
+  if(!(show.songs&&show.songs.length)){
+    const deltaSongs=deltaSetlistForShow(show);
+    if(deltaSongs.length)hydrateShowFromSetlistSongs(show,deltaSongs,'delta');
+  }
+  return show;
 }
 function hydrateShowsFromSetlistDataset(mode,list){
   const dataset=readModeSetlistDataset(mode);
@@ -1104,6 +1122,7 @@ async function loadData(){
   scheduleStartupLoadGuard();
   await initModes();
   loadModeSetlistDataset(activeMode||DEFAULT_MODE);
+  setTimeout(preloadAllModeSetlistDatasets,300);
   const cached=_readCache();
   if(_canRenderFromSheetCache(cached)){
     users=cached.users;
@@ -1476,12 +1495,47 @@ async function ensureModeCatalog(mode,opts){
 
 function findLoadedEquivalentShow(show){
   if(!show)return null;
-  return shows.find(function(s){return s.id===show.id||showStorageId(s)===showStorageId(show);})||
+  const targetMode=modeForShow(show);
+  if(targetMode&&loadedCatalogModeKey&&targetMode.key!==loadedCatalogModeKey)return null;
+  return shows.find(function(s){return modeForShow(s).key===targetMode.key&&(s.id===show.id||showStorageId(s)===showStorageId(show));})||
     shows.find(function(s){
+      if(modeForShow(s).key!==targetMode.key)return false;
       return s.date===show.date &&
         String(s.venue||'').trim().toLowerCase()===String(show.venue||'').trim().toLowerCase() &&
         String(s.city||'').trim().toLowerCase()===String(show.city||'').trim().toLowerCase();
     })||null;
+}
+
+function findShowInModeCache(mode,showId,ref){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const cached=_readModeCache(mode);
+  const list=(cached&&cached.shows&&cached.shows.length)?_hydrateSheetCacheShows(cached.shows,mode):[];
+  if(!list.length)return null;
+  const raw=rawShowId(showId||'');
+  let show=list.find(function(s){return s.id===showId||showStorageId(s)===showId||showStorageId(s)===raw;});
+  if(show)return show;
+  if(ref){
+    const dateKey=favoriteDateKey(ref.date||'');
+    const venue=String(ref.venue||'').trim().toLowerCase();
+    const city=String(ref.city||'').trim().toLowerCase();
+    show=list.find(function(s){
+      return favoriteDateKey(s.date)===dateKey &&
+        String(s.venue||'').trim().toLowerCase()===venue &&
+        String(s.city||'').trim().toLowerCase()===city;
+    })||list.find(function(s){
+      return favoriteDateKey(s.date)===dateKey &&
+        String(s.venue||'').trim().toLowerCase()===venue;
+    })||null;
+  }
+  return show;
+}
+
+function showIsInActiveCatalog(show){
+  if(!show)return false;
+  const modeKey=modeForShow(show).key;
+  return shows.some(function(s){
+    return modeForShow(s).key===modeKey&&(s===show||s.id===show.id||showStorageId(s)===showStorageId(show));
+  });
 }
 
 function scheduleSheetRefreshAfterStartup(){
@@ -3985,11 +4039,19 @@ function toggleTheir(){
 async function openSetlist(id){
   blurActiveInput();
   const show=shows.find(s=>s.id===id);if(!show)return;
+  return openSetlistShow(show);
+}
+
+async function openSetlistShow(show){
+  if(!show)return;
+  blurActiveInput();
+  await prepareShowSetlistFromDataset(show);
   if(archiveAutoRetryShowId&&archiveAutoRetryShowId!==show.id)stopArchiveAutoRetry();
   // Remember which tab was active so Back returns there
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
   if(!curShow||curShow.id!==show.id) curTrackIdx=-1; // no auto-highlight on open
-  curShow=show;renderList();
+  curShow=show;
+  if(showIsInActiveCatalog(show))renderList();
   document.getElementById('sp-date').textContent=show.date;
   document.getElementById('sp-venue').textContent=show.venue;
   document.getElementById('sp-city').textContent=show.city;
@@ -4046,14 +4108,10 @@ function closeSetlist(){
 async function openSetlistForCurrent(){
   const target=playingShow||curShow;
   if(!target)return;
-  const targetMode=modeForShow(target);
-  if(targetMode&&targetMode.key!==loadedCatalogModeKey){
-    const ok=await ensureModeCatalog(targetMode);
-    if(!ok)return;
-  }
   const loadedTarget=findLoadedEquivalentShow(target)||target;
+  await prepareShowSetlistFromDataset(loadedTarget);
   // Open the setlist and highlight the playing track
-  openSetlist(loadedTarget.id).then(function(){
+  openSetlistShow(loadedTarget).then(function(){
     if(playingShow&&playingTrackIdx>=0){
       const el=document.getElementById('track-'+playingTrackIdx);
       if(el)el.scrollIntoView({block:'center',behavior:'smooth'});
@@ -6462,6 +6520,7 @@ async function openSetlistAndPlay(id,song){
   const show=shows.find(s=>s.id===id);
   if(!show)return;
   touchFavoritePlayback(show);
+  await prepareShowSetlistFromDataset(show);
 
   // Open the setlist panel
   setlistOriginTab=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
@@ -7064,12 +7123,15 @@ function postScriptAction(data,timeoutMs){
   ]);
 }
 
-function resolveRecentShow(entryOrId){
+function resolveRecentShow(entryOrId,modeLabel){
   const entry=typeof entryOrId==='string'?recentEntryForShow(entryOrId):entryOrId;
   if(!entry)return null;
-  let show=shows.find(function(s){return s.id===entry.id||showStorageId(s)===entry.id;});
+  const mode=modeForLabel(modeLabel||entry.mode||activeMode.label);
+  let show=(sameModeLabel(mode.label,activeMode.label)?shows:[]).find(function(s){return s.id===entry.id||showStorageId(s)===entry.id;});
   if(show)return show;
-  const sameDate=shows.filter(function(s){return s.date===entry.date;});
+  show=findShowInModeCache(mode,entry.id,entry);
+  if(show)return show;
+  const sameDate=(sameModeLabel(mode.label,activeMode.label)?shows:[]).filter(function(s){return s.date===entry.date;});
   if(!sameDate.length)return null;
   const venue=(entry.venue||'').trim().toLowerCase();
   const city=(entry.city||'').trim().toLowerCase();
@@ -7119,14 +7181,10 @@ async function resumeRecentShow(id){
 }
 
 async function openRecentShow(id,shouldPlay,modeLabel){
-  if(modeLabel&&!sameModeLabel(modeLabel,activeMode.label)){
-    const m=modeForLabel(modeLabel);
-    const ok=await ensureModeCatalog(m,{preferCache:true});
-    if(!ok)return;
-  }
   const entry=recentEntryForShow(id,modeLabel);
-  const show=resolveRecentShow(entry||id);
+  const show=resolveRecentShow(entry||id,modeLabel);
   if(!show)return;
+  await prepareShowSetlistFromDataset(show);
 
   // Pull saved position from history
   const saved=savedRecentTrack(entry||recentEntryForShow(show.id));
@@ -7319,13 +7377,14 @@ function jamFavoriteBareRow(user,fav){
 async function openFavoriteRecord(showId,modeLabel){
   const m=modeForLabel(modeLabel);
   const fav=activeFavorites(allFavorites).find(function(x){return x.showId===showId&&sameModeLabel(favoriteModeLabel(x),modeLabel);});
-  if(m.key!==loadedCatalogModeKey){
-    const ok=await ensureModeCatalog(m,{preferCache:true});
-    if(!ok)return;
+  const activeList=sameModeLabel(m.label,activeMode.label)?shows:[];
+  const show=activeList.find(function(s){return s.id===showId||showStorageId(s)===showId;})||
+    (fav&&activeList.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(fav.date)&&String(s.venue||'')===String(fav.venue||'');}))||
+    findShowInModeCache(m,showId,fav);
+  if(show){
+    await prepareShowSetlistFromDataset(show);
+    openSetlistShow(show);
   }
-  const show=shows.find(function(s){return s.id===showId||showStorageId(s)===showId;})||
-    (fav&&shows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(fav.date)&&String(s.venue||'')===String(fav.venue||'');}));
-  if(show)openSetlist(show.id);
 }
 
 async function toggleFavoriteRecord(showId,modeLabel){
