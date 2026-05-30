@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.54</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.55</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.54</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.55</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.54';
+const APP_BUILD = '2.0.55';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1208,7 +1208,7 @@ function setHeaderGuestMode(on){
 }
 
 // ── STATE ─────────────────────────────────────────────────────────
-let shows=[], filtered=[], users=[], userCols={}, userPins={};
+let shows=[], filtered=[], users=[], userCols={}, userPins={}, userCountCache={};
 let userLimit=0; // 0 = no limit; set from B4 in sheet
 let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
 function rebuildAttCache(){
@@ -1218,6 +1218,38 @@ function rebuildAttCache(){
   });
 }
 function attCount(u){return attCache[u]||0;}
+function displayUserCount(u){
+  return attCount(u)||(userCountCache&&userCountCache[u])||0;
+}
+function saveUserCountCache(){
+  try{localStorage.setItem('gd_user_count_cache',JSON.stringify({counts:userCountCache||{},ts:Date.now()}));}catch(e){}
+}
+function cacheUserCountsFromShows(list){
+  (list||[]).forEach(function(s){
+    const att=s&&s.attended?s.attended:{};
+    Object.keys(att).forEach(function(u){
+      if(att[u])userCountCache[u]=(userCountCache[u]||0)+1;
+    });
+  });
+  saveUserCountCache();
+}
+function restoreUserCountCache(){
+  try{
+    const c=JSON.parse(localStorage.getItem('gd_user_count_cache')||'null');
+    if(c&&c.counts)userCountCache=Object.assign({},userCountCache,c.counts);
+  }catch(e){}
+  try{
+    const keys=Object.keys(localStorage).filter(function(k){return /(^|_)gd_attended$/.test(k)||k.indexOf('_gd_attended')>=0;});
+    keys.forEach(function(k){
+      const att=JSON.parse(localStorage.getItem(k)||'{}')||{};
+      Object.keys(att).forEach(function(showId){
+        const arr=Array.isArray(att[showId])?att[showId]:[];
+        arr.forEach(function(u){if(u)userCountCache[u]=(userCountCache[u]||0)+1;});
+      });
+    });
+  }catch(e){}
+  saveUserCountCache();
+}
 let curUser=null;      // logged-in user name
 let guestMode=false;   // browsing without login
 let viewUser='all';    // which user's shows to browse
@@ -1509,8 +1541,11 @@ function updateGlobalShowCount(){
 function updateModeControlCount(){
   const el=document.getElementById('modeCount');
   if(!el)return;
-  const mode=modes.find(function(m){return activeMode&&m.key===activeMode.key;})||activeMode||DEFAULT_MODE;
-  const count=(shows&&shows.length)||Number(mode&&mode.showCount)||0;
+  const mode=modes.find(function(m){return loadedCatalogModeKey&&m.key===loadedCatalogModeKey;})||
+    modes.find(function(m){return activeMode&&m.key===activeMode.key;})||activeMode||DEFAULT_MODE;
+  const count=(loadedCatalogModeKey&&activeMode&&loadedCatalogModeKey===activeMode.key&&shows&&shows.length)
+    ? shows.length
+    : (Number(mode&&mode.showCount)||((shows&&shows.length)||0));
   el.textContent=count.toLocaleString()+' show'+(count===1?'':'s');
 }
 
@@ -1661,7 +1696,7 @@ async function changeMode(){
     if(activeMode&&sel)sel.value=activeMode.key;
     return;
   }
-  if(next.key===loadedCatalogModeKey){
+  if(activeMode&&next.key===activeMode.key&&next.key===loadedCatalogModeKey){
     setHdrSt(next.label+' from cache','ok');
     return;
   }
@@ -1673,11 +1708,11 @@ async function changeMode(){
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
   cancelModeBackgroundWork();
-  setHdrSt(hasCachedMode?(next.label+' from memory'):('Loading '+next.label+'…'),hasCachedMode?'ok':'busy');
+  setHdrSt('Loading '+next.label+'…','busy');
   if(sel)sel.value=next.key;
   const switchCnt=document.getElementById('cntbar');
-  if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">'+(hasCachedMode?esc(next.label+' from memory'):('Loading '+esc(next.label)+'…'))+'</span>';
-  if(!hasCachedMode)showModeLoadingState(next);
+  if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">Loading '+esc(next.label)+'…</span>';
+  showModeLoadingState(next);
   await new Promise(function(resolve){
     requestAnimationFrame(function(){setTimeout(resolve,0);});
   });
@@ -1690,8 +1725,7 @@ async function changeMode(){
     _modeSwitchBusy=false;
     _modeSwitchStartedAt=0;
     setHdrSt(next.label+' from memory','ok');
-    markSetlistHydrationQueued();
-    setTimeout(kickVisibleSetlistLoads,50);
+    scheduleModeSetlistHydration(next);
     setTimeout(function(){
       if(activeMode&&activeMode.key===next.key)clearSwitchStatusFor(next,next.label+' from memory','ok');
     },0);
@@ -1738,7 +1772,7 @@ async function changeMode(){
       if(activeMode&&activeMode.key===next.key&&loadedCatalogModeKey===next.key){
         clearSwitchStatusFor(next,next.label,'ok');
         updateSetlistHydrationProgress();
-        setTimeout(kickVisibleSetlistLoads,50);
+        scheduleModeSetlistHydration(next);
       }else{
         clearSwitchStatusFor(next);
       }
@@ -1921,6 +1955,7 @@ async function runBackgroundSheetSync(opts){
     }
     if(!list||!list.length)list=await tryJSONP(mode);
     if(!list||!list.length)return false;
+    cacheUserCountsFromShows(list);
     if(activeMode&&activeMode.key===mode.key)applySheetUserOverlay(list,mode);
     writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
     try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
@@ -2243,6 +2278,7 @@ function readCachedUserData(mode){
 
 function applyCachedUserData(mode){
   const cached=readCachedUserData(mode);
+  restoreUserCountCache();
   if(cached.users.length)users=cached.users.slice();
   if(cached.pins)userPins=Object.assign({},userPins,cached.pins);
   if(cached.userLimit)userLimit=cached.userLimit;
@@ -3695,8 +3731,8 @@ function renderLoginScreen(){
   const sorted=[...users].sort(function(a,b){
     if(a===curUser) return -1;
     if(b===curUser) return 1;
-    const ca=attCount(a);
-    const cb=attCount(b);
+    const ca=displayUserCount(a);
+    const cb=displayUserCount(b);
     return cb-ca;
   });
 
@@ -3710,7 +3746,7 @@ function renderLoginScreen(){
     }
     return matched.map(function(u){
       const i=users.indexOf(u);
-      const cnt=attCount(u);
+      const cnt=displayUserCount(u);
       const col=USER_COLORS[i%USER_COLORS.length];
       const isMe=u===curUser;
       const action=isMe?'cancelLogin()':'showPin(\''+u+'\')';
@@ -4461,9 +4497,10 @@ function renderList(){
 
 // ── DEADHEADS ────────────────────────────────────────────────────────
 function renderOthers(){
-  const max=Math.max(...users.map(u=>attCount(u)),1);
-  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:attCount(u)};}).sort(function(a,b){return b.cnt-a.cnt;});
-  document.getElementById('ogrid').innerHTML=sorted.filter(function(item){return item.cnt>0;}).map(function(item){
+  const max=Math.max(...users.map(u=>displayUserCount(u)),1);
+  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:displayUserCount(u)};}).sort(function(a,b){return b.cnt-a.cnt;});
+  const visible=sorted.filter(function(item){return item.cnt>0;});
+  document.getElementById('ogrid').innerHTML=(visible.length?visible:sorted).map(function(item){
     const u=item.u,c=USER_COLORS[item.i%USER_COLORS.length],cnt=item.cnt;
     return '<div class="orow" onclick="browseUser(\'' + u + '\')">'
       +'<div class="oavatar-sm" style="background:'+c+'22;color:'+c+'">'+u[0].toUpperCase()+'</div>'
