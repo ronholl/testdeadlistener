@@ -465,7 +465,7 @@ body{display:flex;justify-content:center}
 
     <div id="loginCloseBtn" onclick="cancelLogin()" style="display:none;position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:var(--muted);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10" title="Close">×</div>
     <div class="login-users" id="loginUsers">
-      <div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>
+      <div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Checking saved Deadheads</span></div>
     </div>
     <div class="login-spacer"></div>
   </div>
@@ -600,7 +600,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.46';
+const APP_BUILD = '2.0.48';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -615,15 +615,17 @@ const SHEET_CACHE_SCHEMA_VERSION=4;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={};
 const SETLIST_DATASET_PATHS={
   gd:'grateful-dead',
   'jerry-garcia':'jerry-garcia',
   'phil-lesh':'phil-lesh',
   'bob-weir':'bob-weir'
 };
+const CATALOG_DATASET_PATHS=Object.assign({},SETLIST_DATASET_PATHS);
 const setlistDatasets={};
 const setlistDatasetLoads={};
+const catalogDatasetLoads={};
 
 function modeKeyFromLabel(label){
   const s=(label||'').toString().trim().toLowerCase()
@@ -714,6 +716,31 @@ function setlistDatasetSlug(mode){
 function setlistDatasetUrl(mode){
   return 'data/setlists/'+setlistDatasetSlug(mode)+'.json?v='+encodeURIComponent(APP_BUILD);
 }
+function setlistDatasetUrls(mode){
+  const slug=setlistDatasetSlug(mode);
+  const v='?v='+encodeURIComponent(APP_BUILD);
+  return [
+    'data/setlists/'+slug+'.json'+v,
+    'data/setlist/'+slug+'.json'+v,
+    slug+'.json'+v
+  ];
+}
+function catalogDatasetSlug(mode){
+  const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  return CATALOG_DATASET_PATHS[key]||setlistDatasetSlug(mode);
+}
+function catalogDatasetUrls(mode){
+  const slug=catalogDatasetSlug(mode);
+  const v='?v='+encodeURIComponent(APP_BUILD);
+  return [
+    'data/catalog/'+slug+'.json'+v,
+    'data/catalogs/'+slug+'.json'+v,
+    'data/show-index/'+slug+'.json'+v,
+    slug+'.catalog.json'+v,
+    slug+'-catalog.json'+v,
+    slug+'.json'+v
+  ];
+}
 function normalizeSetlistDataset(mode,data){
   const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
   const out={schemaVersion:1,mode:(mode&&mode.label)||DEFAULT_MODE.label,modeKey:modeKey,updated:'',setlists:{},sources:{},bestSourceByArchiveId:{}};
@@ -760,13 +787,19 @@ async function loadModeSetlistDataset(mode){
   const key=(mode&&mode.key)||DEFAULT_MODE.key;
   if(setlistDatasets[key])return setlistDatasets[key];
   if(setlistDatasetLoads[key])return setlistDatasetLoads[key];
-  setlistDatasetLoads[key]=fetch(setlistDatasetUrl(mode),{cache:'no-cache'}).then(async function(res){
-    if(!res.ok)return null;
-    const data=await res.json();
-    const dataset=normalizeSetlistDataset(mode,data);
-    setlistDatasets[key]=dataset;
-    compactLegacySetlistStorageAfterDataset(mode,dataset);
-    return dataset;
+  setlistDatasetLoads[key]=(async function(){
+    const urls=setlistDatasetUrls(mode);
+    for(let i=0;i<urls.length;i++){
+      const data=await fetchJsonQuiet(urls[i],6500);
+      if(!data)continue;
+      const dataset=normalizeSetlistDataset(mode,data);
+      if(dataset&&(Object.keys(dataset.setlists||{}).length||Object.keys(dataset.sources||{}).length)){
+        setlistDatasets[key]=dataset;
+        compactLegacySetlistStorageAfterDataset(mode,dataset);
+        return dataset;
+      }
+    }
+    return null;
   }).catch(function(e){
     window._gdSetlistDatasetLast={ok:false,mode:key,at:Date.now(),error:String(e&&e.message||e)};
     return null;
@@ -885,6 +918,147 @@ function hydrateShowsFromSetlistDataset(mode,list){
     }
   });
   return count;
+}
+
+function showHasPlayableSourceData(show,mode,dataset){
+  if(!show||show.archiveNoAudioHint)return false;
+  const archiveId=normalizeArchiveId(show.archiveIdHint||show.archiveId||'');
+  if(archiveId){
+    if(dataset&&dataset.sources&&Array.isArray(dataset.sources[archiveId])&&dataset.sources[archiveId].some(function(r){return r&&!r.restricted;}))return true;
+    if(dataset&&dataset.setlists&&Array.isArray(dataset.setlists[archiveId])&&dataset.setlists[archiveId].length)return true;
+    if(dataset&&dataset.bestSourceByArchiveId&&dataset.bestSourceByArchiveId[archiveId])return true;
+    return true;
+  }
+  if(show.recordings&&show.recordings.some(function(r){return r&&r.id&&!r.restricted;}))return true;
+  return !!(show.relistenAvail||show.cachePlayable||(show.songs&&show.songs.length));
+}
+
+function normalizeCatalogDataset(mode,data){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const rows=Array.isArray(data)?data:(Array.isArray(data&&data.shows)?data.shows:[]);
+  if(!rows.length)return [];
+  if(data&&Array.isArray(data.modes))applyModesPayload(data,true);
+  const dataset=readModeSetlistDataset(mode);
+  const list=[];
+  const byKey={};
+  rows.forEach(function(row,i){
+    if(!row)return;
+    const d=displayDate(row.date||row.showDate||row.day||'');
+    if(!/^\d{4}-\d{2}-\d{2}/.test(d))return;
+    const venue=row.venue||row.location||row.title||'Unknown Venue';
+    const city=row.city||row.place||'';
+    const archiveRaw=row.archiveId||row.archiveID||row.archive||row.archiveUrl||row.sourceId||row.identifier||'';
+    const archiveId=normalizeArchiveId(archiveRaw);
+    const noAudio=!!(row.archiveNoAudioHint||row.noAudio||isArchiveNoAudioHint(archiveRaw));
+    const att=row.attended||{};
+    const show=mkShow(d,venue,city,att,row.row||row.sheetRow||i+1,archiveId,noAudio,row.sourceLock||row.sourceLockHint||'',mode);
+    const recs=[];
+    (row.recordings||row.sources||[]).forEach(function(r){
+      const id=normalizeArchiveId((r&&r.id)||r||'');
+      if(!id)return;
+      recs.push({
+        id:id,
+        rating:Number((r&&r.rating)||0)||0,
+        reviews:Number((r&&r.reviews)||0)||0,
+        sbd:!!(r&&r.sbd),
+        restricted:!!(r&&r.restricted),
+        manual:!!(r&&r.manual),
+        sheetAlt:!!(r&&r.sheetAlt),
+        row:row.row||i+1
+      });
+    });
+    (row.altArchiveIds||row.altArchives||[]).forEach(function(id){
+      id=normalizeArchiveId(id||'');
+      if(id)recs.push({id:id,rating:0,reviews:0,sbd:false,restricted:false,manual:true,sheetAlt:true,row:row.row||i+1});
+    });
+    if(archiveId&&dataset&&dataset.sources&&dataset.sources[archiveId])recs.push.apply(recs,dataset.sources[archiveId]);
+    show.recordings=mergeSourceRecords(show.recordings,recs);
+    if(row.songs&&Array.isArray(row.songs)&&row.songs.length)hydrateShowFromSetlistSongs(show,row.songs,'server');
+    else if(archiveId&&dataset&&dataset.setlists&&dataset.setlists[archiveId])hydrateShowFromSetlistSongs(show,dataset.setlists[archiveId],'server');
+    if(row.relistenAvail||row.relistenSources){show.relistenAvail=!!row.relistenAvail;show.relistenSources=Number(row.relistenSources||0)||0;}
+    if(!showHasPlayableSourceData(show,mode,dataset))return;
+    const key=modeShowGroupKey(show);
+    if(byKey[key]){
+      mergeModeDuplicateShow(byKey[key],att,archiveId,row.row||i+1);
+      (show.recordings||[]).forEach(function(r){if(r&&r.id)mergeModeDuplicateShow(byKey[key],{},r.id,r.row||0);});
+      return;
+    }
+    byKey[key]=show;
+    list.push(show);
+  });
+  return collapseModeDuplicateShows(list,mode);
+}
+
+async function fetchJsonQuiet(url,ms){
+  try{
+    const res=await fetch(url,{cache:'no-cache',signal:AbortSignal.timeout(ms||7000)});
+    if(!res.ok)return null;
+    return await res.json();
+  }catch(e){return null;}
+}
+
+async function loadModeCatalogFromJson(mode,opts){
+  opts=opts||{};
+  mode=mode||activeMode||DEFAULT_MODE;
+  const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  if(modeCatalogCache[key]&&modeCatalogCache[key].source==='json'&&modeCatalogCache[key].shows&&modeCatalogCache[key].shows.length){
+    return _hydrateSheetCacheShows(modeCatalogCache[key].shows,mode);
+  }
+  if(catalogDatasetLoads[key])return catalogDatasetLoads[key];
+  catalogDatasetLoads[key]=(async function(){
+    await loadModeSetlistDataset(mode);
+    const urls=catalogDatasetUrls(mode);
+    for(let i=0;i<urls.length;i++){
+      const data=await fetchJsonQuiet(urls[i],opts.timeout||6500);
+      const list=normalizeCatalogDataset(mode,data);
+      if(list&&list.length){
+        modeCatalogCache[key]={
+          schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
+          source:'json',
+          shows:_sheetCacheShows(list),
+          users:users.slice(),
+          pins:Object.assign({},userPins),
+          userLimit:userLimit,
+          ts:Date.now()
+        };
+        try{localStorage.setItem(modeKeyScopedKey('gd_catalog_cache',mode),JSON.stringify(modeCatalogCache[key]));}catch(e){}
+        return list;
+      }
+    }
+    try{
+      const cached=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode))||'null');
+      if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length){
+        modeCatalogCache[key]=cached;
+        return _hydrateSheetCacheShows(cached.shows,mode);
+      }
+    }catch(e){}
+    return null;
+  })().finally(function(){delete catalogDatasetLoads[key];});
+  return catalogDatasetLoads[key];
+}
+
+async function renderModeCatalogJsonFirst(mode,opts){
+  opts=opts||{};
+  mode=mode||activeMode||DEFAULT_MODE;
+  const list=await loadModeCatalogFromJson(mode,opts);
+  if(list&&list.length){
+    activeMode=mode;
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    onLoaded(list,Object.assign({fromJsonCatalog:true},opts));
+    return true;
+  }
+  return false;
+}
+
+function noteModeLoadFailure(mode){
+  if(!mode)return;
+  _modeLoadFailures[mode.key]=Date.now();
+}
+
+function recentModeLoadFailure(mode){
+  if(!mode)return false;
+  const at=_modeLoadFailures[mode.key]||0;
+  return at&&Date.now()-at<12000;
 }
 
 function displayDate(value){
@@ -1123,6 +1297,13 @@ async function loadData(){
   await initModes();
   loadModeSetlistDataset(activeMode||DEFAULT_MODE);
   setTimeout(preloadAllModeSetlistDatasets,300);
+  // Startup is catalog-first: render the shell and show list from local JSON,
+  // then let Google Sheets catch up user identity/overlays in the background.
+  applyCachedUserData(activeMode);
+  if(await renderModeCatalogJsonFirst(activeMode,{fromStartup:true})){
+    scheduleSheetRefreshAfterStartup();
+    return;
+  }
   const cached=_readCache();
   if(_canRenderFromSheetCache(cached)){
     users=cached.users;
@@ -1140,6 +1321,9 @@ async function loadData(){
     scheduleSheetRefreshAfterStartup();
     return;
   }
+  // Last resort for first-run devices or deployments that do not yet include
+  // static catalog JSON: read the sheet once, cache identity, then future loads
+  // can fast-open without waiting for Google.
   await _fetchSheetFresh();
 }
 
@@ -1352,6 +1536,8 @@ function checkModeSelectValue(){
       return;
     }
   }
+  const next=modes.find(function(m){return m.key===(sel&&sel.value);})||null;
+  if(next&&recentModeLoadFailure(next))return;
   if(sel.value&&((activeMode&&sel.value!==activeMode.key)||sel.value!==loadedCatalogModeKey))changeMode();
 }
 
@@ -1377,6 +1563,10 @@ async function changeMode(){
   const sel=document.getElementById('modeSel');
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
+  if(recentModeLoadFailure(next)){
+    if(activeMode&&sel)sel.value=activeMode.key;
+    return;
+  }
   if(next.key===loadedCatalogModeKey){
     setHdrSt(next.label+' from cache','ok');
     return;
@@ -1411,16 +1601,18 @@ async function changeMode(){
     scheduleSheetRefreshAfterStartup();
     return;
   }
+  const priorMyOnly=myOnly;
+  const priorViewUser=viewUser;
   document.getElementById('q').value='';
   document.getElementById('songQ').value='';
   const jq=document.getElementById('jamSongQ');if(jq)jq.value='';
-  curShow=null;filtered=[];songIndex={};myOnly=false;viewUser=curUser||'all';
+  curShow=null;filtered=[];songIndex={};myOnly=priorMyOnly;viewUser=priorViewUser||curUser||'all';
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
   showModeLoadingState(next);
   try{
     const ok=await Promise.race([
-      _fetchSheetFresh({modeSwitchToken:token,mode:next}),
+      renderModeCatalogJsonFirst(next,{modeSwitchToken:token}),
       new Promise(function(resolve){
         setTimeout(function(){
           debugLines.push('mode switch timeout '+next.label+' on '+APP_BUILD);
@@ -1435,11 +1627,13 @@ async function changeMode(){
       renderModeSelect();
       setHdrSt(activeMode.label,'ok');
     }else{
+      noteModeLoadFailure(next);
       activeMode=prev||DEFAULT_MODE;
       localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+      if(sel)sel.value=activeMode.key;
       renderModeSelect();
       if(shows&&shows.length)onLoaded(shows,{fromCache:true});
-      setHdrSt('Could not load '+next.label,'err');
+      setHdrSt('Could not load '+next.label+' catalog','err');
     }
   }finally{
     _modeSwitchBusy=false;
@@ -1477,13 +1671,14 @@ async function ensureModeCatalog(mode,opts){
   cancelModeBackgroundWork();
   showModeLoadingState(mode);
   try{
-    const ok=await _fetchSheetFresh({modeSwitchToken:token,mode:mode});
+    const ok=await renderModeCatalogJsonFirst(mode,{modeSwitchToken:token});
     if(ok){
       activeMode=mode;
       localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
       renderModeSelect();
       return true;
     }
+    noteModeLoadFailure(mode);
     activeMode=prev||DEFAULT_MODE;
     renderModeSelect();
     return false;
@@ -1567,7 +1762,7 @@ function scheduleSheetRefreshAfterStartup(){
       window._gdSheetRefreshPending=false;
       return;
     }
-    _fetchSheetFresh({background:true,mode:mode}).then(function(ok){
+    runBackgroundSheetSync({mode:mode}).then(function(ok){
       window._gdSheetRefreshPending=false;
       if(token!==_sheetRefreshToken || !activeMode || activeMode.key!==mode.key)return;
       if(ok)updateModeControlCount();
@@ -1575,6 +1770,76 @@ function scheduleSheetRefreshAfterStartup(){
       window._gdSheetRefreshPending=false;
     });
   },2200);
+}
+
+function sameShowIdentity(a,b){
+  if(!a||!b)return false;
+  if(a.id&&b.id&&String(a.id)===String(b.id))return true;
+  if(showStorageId(a)&&showStorageId(b)&&showStorageId(a)===showStorageId(b))return true;
+  return favoriteDateKey(a.date)===favoriteDateKey(b.date) &&
+    String(a.venue||'').trim().toLowerCase()===String(b.venue||'').trim().toLowerCase() &&
+    String(a.city||'').trim().toLowerCase()===String(b.city||'').trim().toLowerCase();
+}
+
+function applySheetUserOverlay(sheetList,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  let changed=0;
+  if(!Array.isArray(sheetList)||!sheetList.length)return changed;
+  shows.forEach(function(show){
+    const fresh=sheetList.find(function(s){return sameShowIdentity(show,s);});
+    if(!fresh||!fresh.attended)return;
+    users.forEach(function(u){
+      if(!show.attended)show.attended={};
+      const next=!!fresh.attended[u];
+      if(show.attended[u]!==next){show.attended[u]=next;changed++;}
+    });
+  });
+  if(changed){
+    rebuildAttCache();
+    renderOthers();
+    renderList();
+    updateAttCount();
+    updateViewStats();
+    loadAttendedLocal();
+  }
+  return changed;
+}
+
+async function runBackgroundSheetSync(opts){
+  opts=opts||{};
+  const mode=opts.mode||activeMode||DEFAULT_MODE;
+  const prior={users:users.slice(),pins:Object.assign({},userPins),limit:userLimit};
+  let list=null;
+  try{
+    list=await tryScriptCatalogJSONP(mode);
+    if(!list||!list.length)list=await tryJSONP(mode);
+    if(!list||!list.length)return false;
+    if(activeMode&&activeMode.key===mode.key)applySheetUserOverlay(list,mode);
+    writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
+    try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
+    if(activeMode&&activeMode.key===mode.key){
+      const saved=localStorage.getItem('gd_user');
+      const savedPin=localStorage.getItem('gd_pin');
+      const savedIsPending=saved&&localStorage.getItem('gd_pending_user')===saved;
+      if(!curUser&&!guestMode&&saved&&userPins[saved]&&savedPin===userPins[saved]&&(users.includes(saved)||savedIsPending)){
+        loginAs(saved,false);
+      }else if(!curUser&&!guestMode){
+        renderLoginScreen();
+      }else if(curUser){
+        const usel=document.getElementById('usel');
+        if(usel&&!Array.from(usel.options).some(function(o){return o.value===curUser;})){
+          const o=document.createElement('option');o.value=curUser;o.textContent=curUser;usel.appendChild(o);
+        }
+      }
+    }
+    await loadFavorites();
+    setHdrSt(opts.manual?'✓ Synced':'','ok');
+    return true;
+  }catch(e){
+    users=prior.users;userPins=prior.pins;userLimit=prior.limit;
+    if(opts.manual)setHdrSt('⚠ Sync failed','err');
+    return false;
+  }
 }
 
 function _readCache(){
@@ -1654,19 +1919,30 @@ function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
 function scheduleInactiveModePreload(){
   if(_inactiveModePreloadStarted||!modes||modes.length<2)return;
   _inactiveModePreloadStarted=true;
-  setTimeout(preloadInactiveModeSheets,4500);
+  setTimeout(preloadInactiveModeCatalogs,4500);
 }
 
-async function preloadInactiveModeSheets(){
+async function preloadInactiveModeCatalogs(){
   const original={mode:activeMode,users:users.slice(),userCols:Object.assign({},userCols),userPins:Object.assign({},userPins),userLimit:userLimit};
   for(const mode of modes){
     if(!activeMode||activeMode.key!==original.mode.key)return;
     if(mode.key===original.mode.key)continue;
     if(_readModeCache(mode))continue;
     try{
-      const list=await tryJSONP(mode);
+      const list=await loadModeCatalogFromJson(mode,{timeout:4500});
       if(!activeMode||activeMode.key!==original.mode.key)return;
-      if(list&&list.length)writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
+      if(list&&list.length){
+        const key=(mode&&mode.key)||DEFAULT_MODE.key;
+        modeCatalogCache[key]={
+          schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
+          source:'json',
+          shows:_sheetCacheShows(list),
+          users:users.slice(),
+          pins:Object.assign({},userPins),
+          userLimit:userLimit,
+          ts:Date.now()
+        };
+      }
     }catch(e){}
     activeMode=original.mode;users=original.users.slice();userCols=Object.assign({},original.userCols);userPins=Object.assign({},original.userPins);userLimit=original.userLimit;
     await new Promise(function(r){setTimeout(r,600);});
@@ -1739,7 +2015,12 @@ function _sheetCacheShows(list){
       sourceLockHint:s.sourceLockHint||'',
       archiveIdHintLoaded:s.archiveIdHintLoaded||'',
       recordings:recordings,
-      attendedUsers:attendedUsers
+      attendedUsers:attendedUsers,
+      songs:Array.isArray(s.songs)?s.songs.slice(0,80):undefined,
+      setlistTrusted:!!s.setlistTrusted,
+      relistenAvail:!!s.relistenAvail,
+      relistenSources:Number(s.relistenSources||0)||0,
+      cachePlayable:!!s.cachePlayable
     };
   });
 }
@@ -1764,6 +2045,8 @@ function _hydrateSheetCacheShows(list,mode){
         show.setlistTrusted=!!s.setlistTrusted;
         show.archiveIdHintLoaded=s.archiveIdHintLoaded||show.archiveIdHintLoaded||'';
       }
+      if(s.relistenAvail){show.relistenAvail=true;show.relistenSources=Number(s.relistenSources||0)||0;}
+      if(s.cachePlayable)show.cachePlayable=true;
       return show;
     }
     return s;
@@ -1789,6 +2072,60 @@ function shouldUseCachedStartup(){
   return _canRenderFromSheetCache(_readCache());
 }
 
+function readCachedUserData(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const out={users:[],pins:{},favorites:null,attended:null,currentUser:null};
+  try{
+    const uc=JSON.parse(localStorage.getItem('gd_users_cache')||'{}');
+    if(Array.isArray(uc.users))out.users=uc.users.filter(Boolean);
+    if(uc.pins)out.pins=uc.pins;
+  }catch(e){}
+  try{
+    const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
+    if(sheetCache&&Array.isArray(sheetCache.users))out.users=out.users.concat(sheetCache.users.filter(Boolean));
+    if(sheetCache&&sheetCache.pins)out.pins=Object.assign({},out.pins,sheetCache.pins);
+    if(sheetCache&&sheetCache.userLimit)out.userLimit=sheetCache.userLimit;
+  }catch(e){}
+  try{out.currentUser=JSON.parse(localStorage.getItem('gd_current_user_cache')||'null');}catch(e){}
+  try{out.favorites=JSON.parse(localStorage.getItem('gd_favorites')||'null');}catch(e){}
+  try{out.attended=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_attended',mode))||'null');}catch(e){}
+  out.users=[...new Set(out.users)];
+  return out;
+}
+
+function applyCachedUserData(mode){
+  const cached=readCachedUserData(mode);
+  if(cached.users.length)users=cached.users.slice();
+  if(cached.pins)userPins=Object.assign({},userPins,cached.pins);
+  if(cached.userLimit)userLimit=cached.userLimit;
+  if(Array.isArray(cached.favorites)){
+    allFavorites=pruneExpiredFavorites(cached.favorites);
+    favoritesLoaded=true;
+  }
+  restorePendingLocalUser();
+  restoreSavedUserShell();
+  return cached;
+}
+
+function applyCachedAttendanceOverlay(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  let cache=null;
+  try{cache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_attended',mode))||'null');}catch(e){}
+  if(!cache||!shows||!shows.length)return 0;
+  let changed=0;
+  Object.keys(cache).forEach(function(user){
+    if(user&&!users.includes(user))users.push(user);
+    const mine=cache[user]||{};
+    shows.forEach(function(show){
+      if(!show||!show.id)return;
+      if(!show.attended)show.attended={};
+      const att=!!(mine[show.id]||mine[showStorageId(show)]||mine[rawShowId(show.id)]);
+      if(att&&show.attended[user]!==true){show.attended[user]=true;changed++;}
+    });
+  });
+  return changed;
+}
+
 function restoreSavedUserShell(){
   try{
     if(localStorage.getItem('gd_prior_guest')==='1')return false;
@@ -1805,7 +2142,7 @@ function restoreSavedUserShell(){
     document.getElementById('loginScreen').style.display='flex';
     const loginUsers=document.getElementById('loginUsers');
     if(loginUsers){
-      loginUsers.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>';
+      loginUsers.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Checking saved Deadheads</span></div>';
     }
     const loginClose=document.getElementById('loginCloseBtn');
     if(loginClose)loginClose.style.display='none';
@@ -3075,9 +3412,10 @@ function onLoaded(list,opts){
   const hyr=document.getElementById('hdr-year-range');if(hyr)hyr.textContent=yrRange;
   scheduleInactiveModePreload();
 
-  // Apply any locally-cached attendance changes on top of sheet data first
-  // so rebuildAttCache() is correct before loginAs() reads attCount()
-  if(!opts.fromCache)loadAttendedLocal();
+  // JSON/catalog startup preserves local user overlays immediately; sheet
+  // refreshes can rebuild the local My Shows cache after they complete.
+  if(opts.fromJsonCatalog)applyCachedAttendanceOverlay(activeMode);
+  else if(!opts.fromCache)loadAttendedLocal();
   rebuildAttCache();
 
   // Build login screen with real user data
@@ -3103,12 +3441,8 @@ function onLoaded(list,opts){
         loginAs(saved,false);
       } else if(!localStorage.getItem('gd_welcomed')&&!hasExistingAppStorage()){
         document.getElementById('loginScreen').style.display='none';
-        // New users: show poster first (once only), then help screen
-        if(POSTER_URL&&!localStorage.getItem('gd_poster_seen')){
-          showPoster();
-        } else {
-          showHelp();
-        }
+        if(POSTER_URL)localStorage.setItem('gd_poster_seen','1');
+        showHelp();
       } else if(!localStorage.getItem('gd_welcomed')&&hasExistingAppStorage()){
         localStorage.setItem('gd_welcomed','1');
         if(POSTER_URL)localStorage.setItem('gd_poster_seen','1');
@@ -3355,7 +3689,7 @@ function switchUser(){
   // Tapping own name closes, tapping another name asks for PIN
   if(!users.length){
     const el=document.getElementById('loginUsers');
-    if(el)el.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Connecting to Google Sheets</span></div>';
+    if(el)el.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Checking saved Deadheads</span></div>';
     document.getElementById('pinScreen').style.display='none';
     document.getElementById('newUserScreen').style.display='none';
     document.getElementById('loginScreen').style.display='flex';
@@ -8545,31 +8879,8 @@ async function originalSyncData(){
   }
   setHdrSt('Syncing…','busy');
   try{
-    // Re-fetch the sheet data
-    const r=await tryJSONP();
-    if(r){
-      _writeCacheSoon(r);
-      // Preserve current audio state
-      const wasPlaying=playing;
-      const wasShow=curShow;
-      const wasTrack=curTrackIdx;
-      const wasCurUser=curUser;
-      // Reload show data
-      onLoaded(r);
-      // Restore user session
-      if(wasCurUser){
-        curUser=wasCurUser;
-        viewUser=wasCurUser;
-        document.getElementById('usel').value=wasCurUser;
-        const col=userColor(wasCurUser);
-        document.getElementById('hdrAvatar').textContent=wasCurUser[0];
-        document.getElementById('hdrAvatar').style.background=col+'22';
-        document.getElementById('hdrAvatar').style.color=col;
-        document.getElementById('hdrUserName').textContent=wasCurUser;
-        document.getElementById('myBtn').classList.add('on');
-        myOnly=true;
-        applyFilters();updateAttCount();updateViewStats();
-      }
+    const ok=await runBackgroundSheetSync({mode:activeMode,manual:true});
+    if(ok){
       setHdrSt('✓ Synced','ok');
     } else {
       setHdrSt('⚠ Sync failed','err');
@@ -8820,7 +9131,7 @@ function stopArchiveAutoRetry(){
       <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px">Reload Options</div>
       <div style="font-family:var(--serif);font-size:24px;color:var(--gold);line-height:1.2;margin-bottom:10px">Refresh or rebuild</div>
       <div style="font-size:13px;color:#b8b0a0;line-height:1.85;margin-bottom:16px">
-        <b style="color:#d8d0c0">Refresh View</b> pulls the latest sheet data now.<br><br>
+        <b style="color:#d8d0c0">Refresh View</b> syncs latest Deadheads, My Shows, and Favorites now.<br><br>
         <b style="color:#d8d0c0">Full Re-index</b> clears saved show metadata on this device and rebuilds it after reload.<br>
         <span style="color:rgba(200,168,75,.8)">The app remains usable while the library rebuilds in the background.</span>
       </div>
