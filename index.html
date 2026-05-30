@@ -319,6 +319,9 @@ body{display:flex;justify-content:center}
 .srow-venue{font-size:12px;color:var(--muted)}
 .srow-play{font-size:10px;color:var(--green);opacity:.8}
 .loading{padding:28px 16px;text-align:center;color:var(--muted);font-size:11px;letter-spacing:.5px}
+.loading.big{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--gold);font-size:15px}
+.loading.big .spinner{width:24px;height:24px;border-width:3px;margin:0}
+.loading-detail{max-width:340px;color:var(--muted);font-size:11px;line-height:1.5}
 .empty{padding:24px 16px;text-align:center;color:var(--muted);font-size:11px}
 .err-box{margin:14px 16px;background:rgba(196,64,64,.1);border:1px solid rgba(196,64,64,.25);border-radius:10px;padding:14px;font-size:11px;color:#e07070;line-height:1.8}
 .debug-log{margin:0 16px 14px;background:rgba(200,168,75,.05);border:1px solid rgba(200,168,75,.15);border-radius:10px;padding:12px;font-size:10px;color:var(--muted);line-height:1.7;word-break:break-all}
@@ -417,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.46</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.54</span></div>
     </div>
     
 
@@ -534,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span style="opacity:.45">V2.0.46</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.54</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -577,7 +580,7 @@ body{display:flex;justify-content:center}
       </div>
     </div>
     <div class="cntbar" id="cntbar">Loading...</div>
-    <div class="list" id="list"><div class="loading"><span class="spinner"></span>Loading shows…</div></div>
+    <div class="list" id="list"><div class="loading big"><span class="spinner"></span><div>Loading shows…</div><div class="loading-detail">Reading the local show catalog.</div></div></div>
   </div>
 
   <div id="tab-songs" style="display:none">
@@ -600,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.48';
+const APP_BUILD = '2.0.54';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -615,7 +618,7 @@ const SHEET_CACHE_SCHEMA_VERSION=4;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={};
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
 const SETLIST_DATASET_PATHS={
   gd:'grateful-dead',
   'jerry-garcia':'jerry-garcia',
@@ -790,7 +793,7 @@ async function loadModeSetlistDataset(mode){
   setlistDatasetLoads[key]=(async function(){
     const urls=setlistDatasetUrls(mode);
     for(let i=0;i<urls.length;i++){
-      const data=await fetchJsonQuiet(urls[i],6500);
+      const data=await fetchJsonQuiet(urls[i],1800);
       if(!data)continue;
       const dataset=normalizeSetlistDataset(mode,data);
       if(dataset&&(Object.keys(dataset.setlists||{}).length||Object.keys(dataset.sources||{}).length)){
@@ -800,7 +803,7 @@ async function loadModeSetlistDataset(mode){
       }
     }
     return null;
-  }).catch(function(e){
+  })().catch(function(e){
     window._gdSetlistDatasetLast={ok:false,mode:key,at:Date.now(),error:String(e&&e.message||e)};
     return null;
   }).finally(function(){
@@ -870,7 +873,8 @@ function compactLegacySetlistStorageAfterDataset(mode,dataset){
     window._gdSetlistDatasetLast={ok:true,mode:(mode&&mode.key)||DEFAULT_MODE.key,at:Date.now(),setlists:count,cleanup:true};
   }catch(e){}
 }
-function hydrateShowFromSetlistSongs(show,songs,source){
+function hydrateShowFromSetlistSongs(show,songs,source,opts){
+  opts=opts||{};
   songs=sanitizeSongList(songs);
   if(!show||!songs.length||show.archiveNoAudioHint)return false;
   const dataset=readModeSetlistDataset(modeForShow(show));
@@ -891,7 +895,7 @@ function hydrateShowFromSetlistSongs(show,songs,source){
   show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;
   indexShowSongs(show,show.songs);
   markShowSetlistCached(show);
-  updateSheetCacheShowSongs(show,show.songs);
+  if(!opts.skipSheetCache)updateSheetCacheShowSongs(show,show.songs);
   return true;
 }
 async function prepareShowSetlistFromDataset(show){
@@ -907,17 +911,84 @@ async function prepareShowSetlistFromDataset(show){
   }
   return show;
 }
-function hydrateShowsFromSetlistDataset(mode,list){
+function hydrateShowsFromSetlistDataset(mode,list,opts){
+  opts=opts||{};
   const dataset=readModeSetlistDataset(mode);
   if(!dataset||!dataset.setlists||!Array.isArray(list))return 0;
   let count=0;
   list.forEach(function(show){
     if(show&&!(show.songs&&show.songs.length)){
       const songs=datasetSetlistForShow(show);
-      if(songs.length&&hydrateShowFromSetlistSongs(show,songs,'server'))count++;
+      if(songs.length&&hydrateShowFromSetlistSongs(show,songs,'server',opts))count++;
     }
   });
   return count;
+}
+
+function orderedSetlistHydrationList(){
+  const ordered=[];
+  const seen={};
+  function add(list){
+    (list||[]).forEach(function(s){
+      if(!s||seen[s.id])return;
+      seen[s.id]=1;
+      ordered.push(s);
+    });
+  }
+  add(filtered&&filtered.length?filtered:null);
+  add(shows);
+  return ordered;
+}
+
+function scheduleModeSetlistHydration(mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const token=++_setlistHydrateToken;
+  setTimeout(function(){
+    if(token!==_setlistHydrateToken||!activeMode||activeMode.key!==mode.key)return;
+    hydrateModeSetlistsInBatches(mode,token);
+  },650);
+}
+
+async function hydrateModeSetlistsInBatches(mode,token){
+  if(_setlistHydrateRunning)return;
+  _setlistHydrateRunning=true;
+  try{
+    const dataset=await loadModeSetlistDataset(mode);
+    if(token!==_setlistHydrateToken||!dataset||!activeMode||activeMode.key!==mode.key){
+      _setlistHydrateRunning=false;
+      return;
+    }
+    const list=orderedSetlistHydrationList();
+    let changed=0,idx=0;
+    function step(){
+      if(token!==_setlistHydrateToken||!activeMode||activeMode.key!==mode.key){
+        _setlistHydrateRunning=false;
+        return;
+      }
+      const end=Math.min(idx+45,list.length);
+      for(;idx<end;idx++){
+        const show=list[idx];
+        if(!show||(show.songs&&show.songs.length))continue;
+        const songs=datasetSetlistForShow(show);
+        if(songs.length&&hydrateShowFromSetlistSongs(show,songs,'server',{skipSheetCache:true}))changed++;
+      }
+      updateSetlistHydrationProgress();
+      if(changed){
+        renderList();
+        changed=0;
+      }
+      if(idx<list.length){
+        setTimeout(step,25);
+      }else{
+        _setlistHydrateRunning=false;
+        updateSetlistHydrationProgress();
+        renderList();
+      }
+    }
+    step();
+  }catch(e){
+    _setlistHydrateRunning=false;
+  }
 }
 
 function showHasPlayableSourceData(show,mode,dataset){
@@ -1001,21 +1072,30 @@ async function loadModeCatalogFromJson(mode,opts){
   opts=opts||{};
   mode=mode||activeMode||DEFAULT_MODE;
   const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  if(modeLiveCatalogs[key]&&modeLiveCatalogs[key].length)return modeLiveCatalogs[key];
   if(modeCatalogCache[key]&&modeCatalogCache[key].source==='json'&&modeCatalogCache[key].shows&&modeCatalogCache[key].shows.length){
-    return _hydrateSheetCacheShows(modeCatalogCache[key].shows,mode);
+    if(cacheMatchesMode(modeCatalogCache[key],mode)){
+      modeLiveCatalogs[key]=_hydrateSheetCacheShows(modeCatalogCache[key].shows,mode);
+      return modeLiveCatalogs[key];
+    }
+    delete modeCatalogCache[key];
   }
   if(catalogDatasetLoads[key])return catalogDatasetLoads[key];
   catalogDatasetLoads[key]=(async function(){
-    await loadModeSetlistDataset(mode);
     const urls=catalogDatasetUrls(mode);
     for(let i=0;i<urls.length;i++){
-      const data=await fetchJsonQuiet(urls[i],opts.timeout||6500);
+      const data=await fetchJsonQuiet(urls[i],opts.timeout||1800);
+      if(!data){debugLines.push('catalog miss '+urls[i].split('?')[0]);continue;}
       const list=normalizeCatalogDataset(mode,data);
       if(list&&list.length){
+        debugLines.push('catalog '+mode.label+': '+list.length+' shows');
+        modeLiveCatalogs[key]=list;
         modeCatalogCache[key]={
           schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
           source:'json',
-          shows:_sheetCacheShows(list),
+          modeKey:key,
+          modeLabel:mode.label,
+          shows:_sheetCacheShows(list,mode),
           users:users.slice(),
           pins:Object.assign({},userPins),
           userLimit:userLimit,
@@ -1024,14 +1104,17 @@ async function loadModeCatalogFromJson(mode,opts){
         try{localStorage.setItem(modeKeyScopedKey('gd_catalog_cache',mode),JSON.stringify(modeCatalogCache[key]));}catch(e){}
         return list;
       }
+      debugLines.push('catalog empty '+urls[i].split('?')[0]);
     }
     try{
       const cached=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode))||'null');
-      if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length){
+      if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
         modeCatalogCache[key]=cached;
-        return _hydrateSheetCacheShows(cached.shows,mode);
+        modeLiveCatalogs[key]=_hydrateSheetCacheShows(cached.shows,mode);
+        return modeLiveCatalogs[key];
       }
     }catch(e){}
+    debugLines.push('catalog unavailable '+mode.label);
     return null;
   })().finally(function(){delete catalogDatasetLoads[key];});
   return catalogDatasetLoads[key];
@@ -1040,7 +1123,13 @@ async function loadModeCatalogFromJson(mode,opts){
 async function renderModeCatalogJsonFirst(mode,opts){
   opts=opts||{};
   mode=mode||activeMode||DEFAULT_MODE;
-  const list=await loadModeCatalogFromJson(mode,opts);
+  let list=null;
+  try{
+    list=await loadModeCatalogFromJson(mode,opts);
+  }catch(e){
+    debugLines.push('catalog error '+mode.label+': '+String(e&&e.message||e));
+    list=null;
+  }
   if(list&&list.length){
     activeMode=mode;
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
@@ -1293,13 +1382,16 @@ function blurActiveInput(){
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
   debugLines=[];
+  _startupCatalogMissing=false;
   scheduleStartupLoadGuard();
   await initModes();
-  loadModeSetlistDataset(activeMode||DEFAULT_MODE);
-  setTimeout(preloadAllModeSetlistDatasets,300);
   // Startup is catalog-first: render the shell and show list from local JSON,
   // then let Google Sheets catch up user identity/overlays in the background.
   applyCachedUserData(activeMode);
+  // A reload should never wait on the shared Deadhead names list. If we do not
+  // already know the signed-in user on this device, open as a usable guest shell
+  // and let background sync populate names/Favorites/My Shows later.
+  enterStartupGuestShell();
   if(await renderModeCatalogJsonFirst(activeMode,{fromStartup:true})){
     scheduleSheetRefreshAfterStartup();
     return;
@@ -1321,19 +1413,21 @@ async function loadData(){
     scheduleSheetRefreshAfterStartup();
     return;
   }
-  // Last resort for first-run devices or deployments that do not yet include
-  // static catalog JSON: read the sheet once, cache identity, then future loads
-  // can fast-open without waiting for Google.
-  await _fetchSheetFresh();
+  // Show catalogs are JSON-only. If no static catalog and no usable local
+  // catalog cache exists, keep the sheet out of the render path and explain
+  // which deployment files are missing.
+  _startupCatalogMissing=true;
+  showErr();
 }
 
 function scheduleStartupLoadGuard(){
   setTimeout(function(){
     try{
       if(shows&&shows.length)return;
+      if(catalogDatasetLoads&&Object.keys(catalogDatasetLoads).length)return;
       const msg=document.getElementById('loginLoadingMsg');
       if(!msg)return;
-      debugLines.push('startup guard: still loading after 20s on '+APP_BUILD);
+      debugLines.push('startup guard: catalog still not rendered after 20s on '+APP_BUILD);
       showErr();
     }catch(e){}
   },20000);
@@ -1556,7 +1650,7 @@ function showModeLoadingState(mode){
   const cnt=document.getElementById('cntbar');
   if(cnt)cnt.innerHTML='<span style="color:var(--gold2)">Loading '+esc(label)+'…</span>';
   const listEl=document.getElementById('list');
-  if(listEl)listEl.innerHTML='<div class="loading"><span class="spinner"></span>Loading '+esc(label)+' shows…</div>';
+  if(listEl)listEl.innerHTML='<div class="loading big"><span class="spinner"></span><div>Loading '+esc(label)+' shows…</div><div class="loading-detail">Reading the local JSON catalog. Your saved favorites and My Shows stay available while this finishes.</div></div>';
 }
 
 async function changeMode(){
@@ -1571,7 +1665,7 @@ async function changeMode(){
     setHdrSt(next.label+' from cache','ok');
     return;
   }
-  const hasCachedMode=!!(_readModeCache(next)&&_readModeCache(next).shows&&_readModeCache(next).shows.length>5);
+  const hasCachedMode=!!(modeLiveCatalogs[next.key]&&modeLiveCatalogs[next.key].length);
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
@@ -1579,24 +1673,27 @@ async function changeMode(){
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
   cancelModeBackgroundWork();
-  loadModeSetlistDataset(next);
-  setHdrSt(hasCachedMode?(next.label+' from cache'):('Loading '+next.label+'…'),hasCachedMode?'ok':'busy');
+  setHdrSt(hasCachedMode?(next.label+' from memory'):('Loading '+next.label+'…'),hasCachedMode?'ok':'busy');
   if(sel)sel.value=next.key;
   const switchCnt=document.getElementById('cntbar');
-  if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">'+(hasCachedMode?esc(next.label+' from cache'):('Loading '+esc(next.label)+'…'))+'</span>';
+  if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">'+(hasCachedMode?esc(next.label+' from memory'):('Loading '+esc(next.label)+'…'))+'</span>';
+  if(!hasCachedMode)showModeLoadingState(next);
   await new Promise(function(resolve){
     requestAnimationFrame(function(){setTimeout(resolve,0);});
   });
-  if(useModeCache(next,{fromFastOpen:true})){
+  if(modeLiveCatalogs[next.key]&&modeLiveCatalogs[next.key].length){
+    activeMode=next;
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    onLoaded(modeLiveCatalogs[next.key],{fromJsonCatalog:true,fromMemory:true});
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
     _modeSwitchBusy=false;
     _modeSwitchStartedAt=0;
-    setHdrSt(next.label+' from cache','ok');
+    setHdrSt(next.label+' from memory','ok');
     markSetlistHydrationQueued();
     setTimeout(kickVisibleSetlistLoads,50);
     setTimeout(function(){
-      if(activeMode&&activeMode.key===next.key)clearSwitchStatusFor(next,next.label+' from cache','ok');
+      if(activeMode&&activeMode.key===next.key)clearSwitchStatusFor(next,next.label+' from memory','ok');
     },0);
     scheduleSheetRefreshAfterStartup();
     return;
@@ -1609,7 +1706,6 @@ async function changeMode(){
   curShow=null;filtered=[];songIndex={};myOnly=priorMyOnly;viewUser=priorViewUser||curUser||'all';
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
-  showModeLoadingState(next);
   try{
     const ok=await Promise.race([
       renderModeCatalogJsonFirst(next,{modeSwitchToken:token}),
@@ -1622,7 +1718,7 @@ async function changeMode(){
     ]);
     if(token!==_modeSwitchToken)return;
     if(ok){
-      activeMode=next;
+      if(token!==_modeSwitchToken)return;
       localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
       renderModeSelect();
       setHdrSt(activeMode.label,'ok');
@@ -1805,6 +1901,13 @@ function applySheetUserOverlay(sheetList,mode){
   return changed;
 }
 
+function sheetListHasUserOverlay(list){
+  if(!users.length||!Array.isArray(list)||!list.length)return false;
+  return list.some(function(s){
+    return s&&s.attended&&users.some(function(u){return Object.prototype.hasOwnProperty.call(s.attended,u);});
+  });
+}
+
 async function runBackgroundSheetSync(opts){
   opts=opts||{};
   const mode=opts.mode||activeMode||DEFAULT_MODE;
@@ -1812,12 +1915,21 @@ async function runBackgroundSheetSync(opts){
   let list=null;
   try{
     list=await tryScriptCatalogJSONP(mode);
+    if(list&&list.length&&!sheetListHasUserOverlay(list)){
+      const fullSheetList=await tryJSONP(mode);
+      if(fullSheetList&&fullSheetList.length)list=fullSheetList;
+    }
     if(!list||!list.length)list=await tryJSONP(mode);
     if(!list||!list.length)return false;
     if(activeMode&&activeMode.key===mode.key)applySheetUserOverlay(list,mode);
     writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
     try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
     if(activeMode&&activeMode.key===mode.key){
+      rebuildAttCache();
+      renderOthers();
+      renderLoginScreen();
+      updateAttCount();
+      updateViewStats();
       const saved=localStorage.getItem('gd_user');
       const savedPin=localStorage.getItem('gd_pin');
       const savedIsPending=saved&&localStorage.getItem('gd_pending_user')===saved;
@@ -1849,7 +1961,7 @@ function _readCache(){
     if(!raw)return null;
     const parsed=JSON.parse(raw);
     if(parsed&&Array.isArray(parsed.shows)&&parsed.users&&parsed.users.length){
-      const compact=_compactSheetCache(parsed);
+      const compact=_compactSheetCache(parsed,activeMode);
       if(JSON.stringify(compact).length<JSON.stringify(parsed).length){
         try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify(compact));}catch(e){}
       }
@@ -1865,7 +1977,9 @@ function _writeCache(list){
   const modeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
   modeCatalogCache[modeKey]={
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
-    shows:_sheetCacheShows(list||shows),
+    modeKey:modeKey,
+    modeLabel:(activeMode&&activeMode.label)||DEFAULT_MODE.label,
+    shows:_sheetCacheShows(list||shows,activeMode),
     users:users.slice(),
     pins:Object.assign({},userPins),
     userLimit:userLimit,
@@ -1873,6 +1987,8 @@ function _writeCache(list){
   };
   try{localStorage.setItem(currentModeScopedKey('gd_sheet_cache'),JSON.stringify({
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
+    modeKey:modeKey,
+    modeLabel:(activeMode&&activeMode.label)||DEFAULT_MODE.label,
     shows:modeCatalogCache[modeKey].shows,
     users:modeCatalogCache[modeKey].users,
     pins:modeCatalogCache[modeKey].pins,
@@ -1886,7 +2002,9 @@ function _writeCacheSoon(list){
   const cacheKey=modeKeyScopedKey('gd_sheet_cache',activeMode);
   const snapshot={
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
-    shows:_sheetCacheShows(list||shows),
+    modeKey:modeKey,
+    modeLabel:(activeMode&&activeMode.label)||DEFAULT_MODE.label,
+    shows:_sheetCacheShows(list||shows,activeMode),
     users:users.slice(),
     pins:Object.assign({},userPins),
     userLimit:userLimit,
@@ -1904,7 +2022,9 @@ function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
   const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
   const snapshot={
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
-    shows:_sheetCacheShows(list||[]),
+    modeKey:modeKey,
+    modeLabel:(mode&&mode.label)||DEFAULT_MODE.label,
+    shows:_sheetCacheShows(list||[],mode),
     users:cacheUsers||[],
     pins:cachePins||{},
     userLimit:cacheLimit||0,
@@ -1919,7 +2039,8 @@ function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
 function scheduleInactiveModePreload(){
   if(_inactiveModePreloadStarted||!modes||modes.length<2)return;
   _inactiveModePreloadStarted=true;
-  setTimeout(preloadInactiveModeCatalogs,4500);
+  // Leave inactive mode catalogs on demand. Keeping GD stable after first paint
+  // is more important than speculative downloads on memory-constrained Chrome.
 }
 
 async function preloadInactiveModeCatalogs(){
@@ -1927,7 +2048,7 @@ async function preloadInactiveModeCatalogs(){
   for(const mode of modes){
     if(!activeMode||activeMode.key!==original.mode.key)return;
     if(mode.key===original.mode.key)continue;
-    if(_readModeCache(mode))continue;
+    if(modeLiveCatalogs[mode.key]&&modeLiveCatalogs[mode.key].length)continue;
     try{
       const list=await loadModeCatalogFromJson(mode,{timeout:4500});
       if(!activeMode||activeMode.key!==original.mode.key)return;
@@ -1936,7 +2057,9 @@ async function preloadInactiveModeCatalogs(){
         modeCatalogCache[key]={
           schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
           source:'json',
-          shows:_sheetCacheShows(list),
+          modeKey:key,
+          modeLabel:mode.label,
+          shows:_sheetCacheShows(list,mode),
           users:users.slice(),
           pins:Object.assign({},userPins),
           userLimit:userLimit,
@@ -1952,21 +2075,28 @@ async function preloadInactiveModeCatalogs(){
 function _readModeCache(mode){
   mode=mode||activeMode||DEFAULT_MODE;
   const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
-  if(modeCatalogCache[modeKey]&&modeCatalogCache[modeKey].shows&&modeCatalogCache[modeKey].shows.length)
+  if(modeCatalogCache[modeKey]&&modeCatalogCache[modeKey].shows&&modeCatalogCache[modeKey].shows.length&&cacheMatchesMode(modeCatalogCache[modeKey],mode))
     return modeCatalogCache[modeKey];
   try{
+    const catalogRaw=localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode));
+    const catalogParsed=catalogRaw?JSON.parse(catalogRaw):null;
+    if(catalogParsed&&catalogParsed.shows&&catalogParsed.shows.length&&cacheMatchesMode(catalogParsed,mode)){
+      modeCatalogCache[modeKey]=catalogParsed;
+      return catalogParsed;
+    }
     const cacheKey=modeKeyScopedKey('gd_sheet_cache',mode);
     const raw=localStorage.getItem(cacheKey);
     const parsed=raw?JSON.parse(raw):null;
     if(parsed&&parsed.shows&&parsed.shows.length){
       if(parsed.schemaVersion!==SHEET_CACHE_SCHEMA_VERSION)return null;
-      const compact=_compactSheetCache(parsed);
+      const compact=_compactSheetCache(parsed,mode);
+      if(!cacheMatchesMode(compact,mode))return null;
       modeCatalogCache[modeKey]=compact;
       if(JSON.stringify(compact).length<JSON.stringify(parsed).length){
         try{localStorage.setItem(cacheKey,JSON.stringify(compact));}catch(e){}
       }
     }
-    return modeCatalogCache[modeKey]||parsed;
+    return cacheMatchesMode(modeCatalogCache[modeKey],mode)?modeCatalogCache[modeKey]:null;
   }catch(e){return null;}
 }
 
@@ -1974,13 +2104,31 @@ function useModeCache(mode,opts){
   opts=opts||{};
   const cached=_readModeCache(mode);
   if(!cached||!cached.shows||cached.shows.length<=5)return false;
+  if(!cacheMatchesMode(cached,mode))return false;
   if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
   activeMode=mode||activeMode||DEFAULT_MODE;
   onLoaded(_hydrateSheetCacheShows(cached.shows,activeMode),Object.assign({fromCache:true},opts));
   return true;
 }
 
-function _sheetCacheShows(list){
+function cacheMatchesMode(cache,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  if(!cache||!Array.isArray(cache.shows)||!cache.shows.length)return false;
+  const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  if(cache.modeKey&&cache.modeKey!==key)return false;
+  if(cache.modeLabel&&mode.label&&!sameModeLabel(cache.modeLabel,mode.label))return false;
+  const sample=cache.shows.filter(Boolean).slice(0,25);
+  if(!sample.length)return false;
+  return sample.every(function(s){
+    if(!s)return false;
+    if(s.modeKey)return s.modeKey===key;
+    if(s.modeLabel)return sameModeLabel(s.modeLabel,mode.label);
+    return key===DEFAULT_MODE.key;
+  });
+}
+
+function _sheetCacheShows(list,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
   return (list||[]).map(function(s){
     const attendedUsers=[];
     if(Array.isArray(s.attendedUsers))s.attendedUsers.forEach(function(u){if(u)attendedUsers.push(u);});
@@ -2004,8 +2152,8 @@ function _sheetCacheShows(list){
     return {
       id:s.id,
       rawId:s.rawId||rawShowId(s.id),
-      modeKey:s.modeKey||activeMode.key,
-      modeLabel:s.modeLabel||activeMode.label,
+      modeKey:s.modeKey||mode.key,
+      modeLabel:s.modeLabel||mode.label,
       date:s.date,
       year:s.year,
       venue:s.venue,
@@ -2016,7 +2164,6 @@ function _sheetCacheShows(list){
       archiveIdHintLoaded:s.archiveIdHintLoaded||'',
       recordings:recordings,
       attendedUsers:attendedUsers,
-      songs:Array.isArray(s.songs)?s.songs.slice(0,80):undefined,
       setlistTrusted:!!s.setlistTrusted,
       relistenAvail:!!s.relistenAvail,
       relistenSources:Number(s.relistenSources||0)||0,
@@ -2025,9 +2172,10 @@ function _sheetCacheShows(list){
   });
 }
 
-function _compactSheetCache(cache){
+function _compactSheetCache(cache,mode){
   if(!cache||!Array.isArray(cache.shows))return cache;
-  return Object.assign({},cache,{shows:_sheetCacheShows(cache.shows)});
+  mode=mode||activeMode||DEFAULT_MODE;
+  return Object.assign({},cache,{modeKey:cache.modeKey||mode.key,modeLabel:cache.modeLabel||mode.label,shows:_sheetCacheShows(cache.shows,mode)});
 }
 
 function _hydrateSheetCacheShows(list,mode){
@@ -2107,6 +2255,22 @@ function applyCachedUserData(mode){
   return cached;
 }
 
+function enterStartupGuestShell(){
+  if(curUser||guestMode)return false;
+  guestMode=true;
+  viewUser='all';
+  myOnly=false;
+  try{
+    const login=document.getElementById('loginScreen');if(login)login.style.display='none';
+    const pin=document.getElementById('pinScreen');if(pin)pin.style.display='none';
+    const nu=document.getElementById('newUserScreen');if(nu)nu.style.display='none';
+    const usel=document.getElementById('usel');if(usel)usel.value='all';
+    const myBtn=document.getElementById('myBtn');if(myBtn)myBtn.classList.remove('on');
+    setHeaderGuestMode(true);
+  }catch(e){}
+  return true;
+}
+
 function applyCachedAttendanceOverlay(mode){
   mode=mode||activeMode||DEFAULT_MODE;
   let cache=null;
@@ -2139,7 +2303,7 @@ function restoreSavedUserShell(){
     myOnly=true;
     document.getElementById('pinScreen').style.display='none';
     document.getElementById('newUserScreen').style.display='none';
-    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('loginScreen').style.display='none';
     const loginUsers=document.getElementById('loginUsers');
     if(loginUsers){
       loginUsers.innerHTML='<div id="loginLoadingMsg" style="padding:20px;text-align:center;color:var(--muted);font-size:12px"><span class="spinner"></span> Loading names…<br><br><span style="font-size:10px;opacity:.6">Checking saved Deadheads</span></div>';
@@ -2820,7 +2984,7 @@ function updateSheetCacheShowSongs(show,songs){
     }
     const cache=JSON.parse(raw);
     if(!markCacheMeta(cache))return;
-    modeCatalogCache[modeKey]=_compactSheetCache(cache);
+    modeCatalogCache[modeKey]=_compactSheetCache(cache,mode);
     localStorage.setItem(cacheKey,JSON.stringify(modeCatalogCache[modeKey]));
   }catch(e){}
 }
@@ -2872,10 +3036,7 @@ function indexShowSongs(show,songs){
 
 function applyBestCachedSetlist(show, incomingSongs, cached){
   const inc = Array.isArray(incomingSongs) ? incomingSongs.slice() : [];
-  const bestCached = bestCachedSetlistForShow(
-    cached || JSON.parse(localStorage.getItem(showModeScopedKey(show,'gd_setlists'))||'{}'),
-    show
-  );
+  const bestCached = cached ? bestCachedSetlistForShow(cached,show) : [];
   const best = inc.length ? inc : bestCached;
   if(best.length) show.songs = best.slice();
   // invalidate any stale display/visible-track caches whenever we improve songs
@@ -3297,19 +3458,15 @@ function onLoaded(list,opts){
   _legacyArchiveSourceCacheList=null;
   renderModeSelect();
   const loadedMode=activeMode||DEFAULT_MODE;
-  hydrateShowsFromSetlistDataset(loadedMode,shows);
-  loadModeSetlistDataset(loadedMode).then(function(dataset){
-    if(!dataset||!activeMode||activeMode.key!==loadedMode.key||loadedCatalogModeKey!==loadedMode.key)return;
-    const changed=hydrateShowsFromSetlistDataset(loadedMode,shows);
-    if(changed){
-      applyFilters();
-      updateSetlistHydrationProgress();
-    }
-    setTimeout(kickVisibleSetlistLoads,250);
-  });
+  // Keep startup catalog-only. Setlist JSON is loaded lazily when a user opens a
+  // show or performs a song search; pre-hydrating all GD setlists here can make
+  // Chrome exhaust the renderer process on reload.
   try{
-    const setlistCacheKey=currentModeScopedKey('gd_setlists');
-    let cached=JSON.parse(localStorage.getItem(setlistCacheKey)||'{}');
+    // Startup is JSON-first. Older builds stored large per-show setlist blobs in
+    // localStorage; parsing those during first paint can stall or crash Chrome on
+    // the Grateful Dead catalog. The compact JSON setlist file hydrates songs
+    // asynchronously after the playable show list is already rendered.
+    let cached={};
     // One-time migration marker. Older builds sometimes cached temporary archive.org
     // failures as permanent, but the restore logic below now ignores notAvail=true
     // entries, so we do not need to wipe the good meta cache and trigger a full scan.
@@ -3482,19 +3639,13 @@ function onLoaded(list,opts){
   }
 
   renderOthers();applyFilters();
+  if(!opts.fromSheetRefresh)scheduleModeSetlistHydration(activeMode);
   if(opts.fromSheetRefresh){
     updateSongCntProgress();
   }else if(opts.fromCache){
-    setTimeout(scheduleArchiveHintRefresh,250);
     setTimeout(updateSongCntProgress,250);
-    markSetlistHydrationQueued();
-    setTimeout(kickVisibleSetlistLoads,900);
   }else{
-    scheduleArchiveHintRefresh();
-    markSetlistHydrationQueued();
-    setTimeout(kickVisibleSetlistLoads,900);
-    if(isFullReindexRebuilding()&&!scanCompleteStillValid())bgLoadBatch();
-    else updateSongCntProgress();
+    updateSongCntProgress();
   }
   // Restore last playback position after a short delay
   if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
@@ -3516,19 +3667,21 @@ function onLoaded(list,opts){
 }
 
 function showErr(){
-  setHdrSt('Could not connect','err');
+  setHdrSt(_startupCatalogMissing?'Catalog JSON missing':'Could not connect','err');
   // Show welcome on first visit even if data fails (file:// mode)
-  if(!localStorage.getItem('gd_welcomed')&&!hasExistingAppStorage()){
+  if(!_startupCatalogMissing&&!localStorage.getItem('gd_welcomed')&&!hasExistingAppStorage()){
     showHelp();
     return;
   }
   const isLocal=window.location.protocol==='file:';
   const localTip=isLocal?'<div style="background:rgba(200,168,75,.1);border:1px solid rgba(200,168,75,.3);border-radius:10px;padding:14px;margin:0 0 12px;font-size:11px;color:var(--gold);line-height:1.8"><b>Running as a local file</b><br>Chrome blocks sheet loading from file:// pages.<br><br><b>Fix: Open Terminal and run:</b><br><code style="background:#000;padding:5px 8px;border-radius:5px;display:inline-block;margin:6px 0;color:#e8e0d0">cd ~/Downloads &amp;&amp; python3 -m http.server 8080</code><br>Then open <b>http://localhost:8080/RonsDeadhead.html</b><br><br>Or deploy to Netlify (works perfectly).</div>':'';
   const offline=!navigator.onLine;
-  const networkMsg=offline
+  const catalogMsg='<div style="color:var(--gold);font-size:13px;margin-bottom:10px">Missing show catalog JSON.<br><small style="opacity:.75">Deploy <b>data/catalog/grateful-dead.json</b> plus the Jerry, Phil, and Bob catalog files beside <b>data/setlists</b>.</small></div>';
+  const networkMsg=_startupCatalogMissing?catalogMsg:(offline
     ? '<div style="color:var(--gold);font-size:13px;margin-bottom:10px">📶 No internet connection.<br><small style="opacity:.7">Reconnect and tap Retry below.</small></div>'
-    : '<div style="color:var(--muted);font-size:12px;margin-bottom:10px">Could not reach Google Sheets.<br><small style="opacity:.7">This is usually temporary — try again in a moment.</small></div>';
-  const retryBtn='<button onclick="_fetchSheetFresh()" style="margin-top:14px;background:transparent;border:1px solid rgba(200,168,75,.5);border-radius:8px;padding:8px 24px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer;display:block;width:100%">↺ Retry</button>';
+    : '<div style="color:var(--muted);font-size:12px;margin-bottom:10px">Could not reach Google Sheets.<br><small style="opacity:.7">This is usually temporary — try again in a moment.</small></div>');
+  const retryAction=_startupCatalogMissing?'loadData()':'_fetchSheetFresh()';
+  const retryBtn='<button onclick="'+retryAction+'" style="margin-top:14px;background:transparent;border:1px solid rgba(200,168,75,.5);border-radius:8px;padding:8px 24px;color:var(--gold);font-family:var(--mono);font-size:12px;cursor:pointer;display:block;width:100%">↺ Retry</button>';
   const debugDiv=debugLines.length?'<div style="color:var(--red);font-size:10px;line-height:1.8;word-break:break-all;margin-top:10px">'+debugLines.map(l=>'→ '+esc(l)).join('<br>')+'</div>':'';
   document.getElementById('loginUsers').innerHTML='<div style="padding:16px">'+localTip+networkMsg+retryBtn+debugDiv+'</div>';
 }
@@ -4010,21 +4163,9 @@ function setlistHydrationStats(mode,listOverride){
   const list=Array.isArray(listOverride)
     ? listOverride
     : ((loadedCatalogModeKey===modeKey)?(shows||[]):[]);
-  let setlists={};
-  try{setlists=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_setlists',mode))||'{}')||{};}catch(e){}
+  const setlists={};
   const delta=readSetlistDelta(mode);
   const dataset=readModeSetlistDataset(mode);
-  let sheetSongs={};
-  try{
-    const cache=_readModeCache(mode);
-    if(cache&&Array.isArray(cache.shows)){
-      cache.shows.forEach(function(s){
-        if(!s||!Array.isArray(s.songs)||!s.songs.length)return;
-        const keys=[s.id,s.rawId,rawShowId(s.id),archiveSetlistCacheKey(s.archiveIdHint||'')].filter(Boolean);
-        keys.forEach(function(k){sheetSongs[k]=s.songs.length;});
-      });
-    }
-  }catch(e){}
   function hasCachedSongs(s){
     if(!s)return false;
     const raw=rawShowId(s.id);
@@ -4036,10 +4177,7 @@ function setlistHydrationStats(mode,listOverride){
       (s.songs&&s.songs.length) ||
       (Array.isArray(setlists[s.id])&&setlists[s.id].length) ||
       (raw&&Array.isArray(setlists[raw])&&setlists[raw].length) ||
-      (archiveKey&&Array.isArray(setlists[archiveKey])&&setlists[archiveKey].length) ||
-      sheetSongs[s.id] ||
-      (raw&&sheetSongs[raw]) ||
-      (archiveKey&&sheetSongs[archiveKey])
+      (archiveKey&&Array.isArray(setlists[archiveKey])&&setlists[archiveKey].length)
     );
   }
   const total=list.filter(function(s){
@@ -4062,6 +4200,7 @@ function setlistHydrationStats(mode,listOverride){
 function setlistHydrationLabel(){
   if(_modeSwitchBusy)return '';
   if(activeMode&&loadedCatalogModeKey&&activeMode.key!==loadedCatalogModeKey)return '';
+  if(!readModeSetlistDataset(activeMode)&&!isModeSetlistDatasetLoading(activeMode))return '';
   const st=setlistHydrationStats();
   if(!st.total)return '';
   if(st.playable>=st.total){
@@ -4099,15 +4238,18 @@ function applyFilters(){
   updateShowSearchClear();
   const list=currentFilteredShows();
   filtered=list;
-  const _st=scanProgressStats();
-  const _loaded=_st.resolved;
-  const _total=_st.total;
-  const _pct=_st.pct;
-  updateScanDebugStats(_loaded,_total,_pct);
+  let _loaded=0,_total=0,_pct=0;
+  if(isFullReindexRebuilding()){
+    const _st=scanProgressStats();
+    _loaded=_st.resolved;
+    _total=_st.total;
+    _pct=_st.pct;
+    updateScanDebugStats(_loaded,_total,_pct);
+  }
   const _prog=shouldShowStartupProgress(_loaded,_total)
       ? ` <span class="bgscan-prog" style="color:var(--gold2);font-size:10px">· ${bgScanLabel(_loaded,_total,_pct)}</span>`
       : '';
-  if(_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
+  if(_total&&_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog+setlistHydrationLabel();
   updateAttCount();renderList();
   if(isFullReindexRebuilding()&&!scanCompleteStillValid()){
@@ -4141,23 +4283,6 @@ function updateViewStats(){
 function rowSetlistSummary(show){
   if(!show)return '';
   if(show.songs&&show.songs.length)return show.songs.slice(0,5).join(' · ');
-  try{
-    const cached=JSON.parse(localStorage.getItem(showModeScopedKey(show,'gd_setlists'))||'{}');
-    const songs=bestCachedSetlistForShow(cached,show);
-    if(songs&&songs.length){
-      show.songs=songs.slice();
-      show.setlistCached=true;
-      show.cachePlayable=true;
-      songs.forEach(function(song){
-        const key=song.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
-        if(!songIndex[key])songIndex[key]=[];
-        if(!songIndex[key].some(function(e){return e.id===show.id;}))
-          songIndex[key].push({id:show.id,date:show.date,venue:show.venue,city:show.city,song:song});
-      });
-      updateSheetCacheShowSongs(show,songs);
-      return songs.slice(0,5).join(' · ');
-    }
-  }catch(e){}
   const tracks=(show.tracks||[]).map(function(t){
     return getUsableArchiveLabel(t)||cleanTrackLabel((t&&t.name)||'');
   }).filter(function(s){
@@ -4222,8 +4347,7 @@ function kickVisibleSetlistLoads(){
     },600);
     return;
   }
-  let setlists={};
-  try{setlists=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_setlists'))||'{}')||{};}catch(e){}
+  const setlists={};
   function cachedSetlistExists(s){
     return !!(datasetSetlistForShow(s).length||deltaSetlistForShow(s).length||directCachedSetlistForShow(setlists,s).length);
   }
@@ -4481,6 +4605,8 @@ let bgLastListRender=0;
 let bgModeToken=0;
 function cancelModeBackgroundWork(){
   bgModeToken++;
+  _setlistHydrateToken++;
+  _setlistHydrateRunning=false;
   bgRunning=false;
   _visibleSetlistHydrateRunning=false;
   _visibleSetlistHydrateLastAt=0;
@@ -6842,11 +6968,16 @@ function fillSongSearch(song){
   doSongSearch();
 }
 
-function doSongSearch(refreshOnly){
+async function doSongSearch(refreshOnly){
   const q=document.getElementById('songQ').value.trim().toLowerCase();
   const cntEl=document.getElementById('songCnt'),resEl=document.getElementById('songResults');
   if(q.length<2){renderFeaturedSongs();return;}
-  if(!refreshOnly)shows.filter(s=>s.archiveIdHint&&!s.songs&&!s.metaLoaded).slice(0,20).forEach((s,i)=>setTimeout(()=>loadShowMeta(s,false),i*150));
+  if(!refreshOnly&&!readModeSetlistDataset(activeMode)){
+    if(cntEl)cntEl.textContent='Loading local song index…';
+    await loadModeSetlistDataset(activeMode);
+    if(document.getElementById('songQ').value.trim().toLowerCase()!==q)return;
+    hydrateShowsFromSetlistDataset(activeMode,shows);
+  }
   const matches=[],seen=new Set();
   shows.forEach(s=>{
     if(!s.songs)return;
@@ -7694,7 +7825,7 @@ function favoriteCachedSummary(f){
   try{
     const mode=modeForFavorite(f);
     const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
-    const setlists=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_setlists',mode))||'{}');
+    const setlists={};
     const rows=(sheetCache&&sheetCache.shows)||[];
     const match=rows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(f.date)&&String(s.venue||'')===String(f.venue||'');})||
       rows.find(function(s){return rawShowId(s.id)===String(f.showId||'')||String(s.id||'')===String(f.showId||'');});
