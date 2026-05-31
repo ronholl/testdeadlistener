@@ -139,7 +139,7 @@ body{display:flex;justify-content:center}
 .ubar label:not(.mode-label){font-size:10px;color:var(--muted);white-space:nowrap}
 .usel{background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:var(--mono);font-size:11px;flex:1}
 .usel:focus{outline:none;border-color:var(--gold)}
-#modeSel{border:2px solid var(--gold);box-shadow:0 0 0 1px rgba(200,168,75,.18),0 0 16px rgba(200,168,75,.14);background:#17130b;color:#fff;min-height:42px;font-size:14px;font-weight:800;width:100%;padding:7px 86px 7px 12px}
+.mode-select{border:2px solid var(--gold);box-shadow:0 0 0 1px rgba(200,168,75,.18),0 0 16px rgba(200,168,75,.14);background:#17130b;color:#fff;min-height:42px;font-size:14px;font-weight:800;width:100%;padding:7px 86px 7px 12px}
 .mode-control{position:relative;flex:1;min-width:0}
 .mode-count{position:absolute;right:36px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;color:var(--gold);pointer-events:none;white-space:nowrap;font-weight:700}
 #usel{display:none}
@@ -559,8 +559,8 @@ body{display:flex;justify-content:center}
     <div class="ubar">
       <label class="mode-label" for="modeSel">Mode</label>
       <div class="mode-control">
-        <select class="usel" id="modeSel"><option value="gd">Grateful Dead</option></select>
-        <span class="mode-count" id="modeCount">— shows</span>
+        <select class="usel mode-select" id="modeSel"><option value="gd">Grateful Dead</option></select>
+        <span class="mode-count mode-count-display" id="modeCount">— shows</span>
       </div>
       <select class="usel" id="usel" onchange="changeViewUser()"><option value="all">All shows</option></select>
       <div class="ucnt" id="ucnt"></div>
@@ -584,6 +584,13 @@ body{display:flex;justify-content:center}
   </div>
 
   <div id="tab-songs" style="display:none">
+    <div class="ubar">
+      <label class="mode-label" for="modeSelSongs">Mode</label>
+      <div class="mode-control">
+        <select class="usel mode-select" id="modeSelSongs"><option value="gd">Grateful Dead</option></select>
+        <span class="mode-count mode-count-display">— shows</span>
+      </div>
+    </div>
     <div class="song-view">
       <div style="position:relative;display:flex;align-items:center"><input class="srch manual-clear" id="songQ" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search song name (e.g. Dark Star, Scarlet...)" oninput="songSearch()" style="width:100%"/><button class="search-clear" id="songQClear" type="button" aria-label="Clear song search" onclick="clearSongSearch()">×</button></div>
       <div class="cntbar" id="songCnt" style="padding:4px 0;border:none">Type a song name to search</div>
@@ -592,6 +599,13 @@ body{display:flex;justify-content:center}
   </div>
 
   <div id="tab-others" style="display:none">
+    <div class="ubar">
+      <label class="mode-label" for="modeSelOthers">Mode</label>
+      <div class="mode-control">
+        <select class="usel mode-select" id="modeSelOthers"><option value="gd">Grateful Dead</option></select>
+        <span class="mode-count mode-count-display">— shows</span>
+      </div>
+    </div>
     <div class="others-view">
       <div style="font-size:11px;color:var(--muted)">Tap a Deadhead to browse their shows</div>
       <div class="ogrid" id="ogrid"></div>
@@ -1919,9 +1933,9 @@ function updateGlobalShowCount(){
 }
 
 function updateModeControlCount(){
-  const el=document.getElementById('modeCount');
-  if(!el)return;
-  const sel=document.getElementById('modeSel');
+  const els=document.querySelectorAll('.mode-count-display');
+  if(!els.length)return;
+  const sel=modeSelectElements().find(function(s){return s&&s.value;})||document.getElementById('modeSel');
   const pendingKey=_modeSwitchTargetKey||((_modeSwitchBusy&&sel&&sel.value)?sel.value:'');
   const pendingMode=pendingKey?modes.find(function(m){return m.key===pendingKey;}):null;
   const mode=pendingMode||
@@ -1930,7 +1944,8 @@ function updateModeControlCount(){
   const count=(!pendingMode&&loadedCatalogModeKey&&activeMode&&loadedCatalogModeKey===activeMode.key&&shows&&shows.length)
     ? shows.length
     : (Number(modeJsonCounts[mode&&mode.key])||0);
-  el.textContent=count?(count.toLocaleString()+' show'+(count===1?'':'s')):'— shows';
+  const txt=count?(count.toLocaleString()+' show'+(count===1?'':'s')):'— shows';
+  els.forEach(function(el){el.textContent=txt;});
 }
 
 function tryModesJSONP(){
@@ -2000,35 +2015,41 @@ function tryScriptCatalogJSONP(mode){
   });
 }
 
+function modeSelectElements(){
+  return Array.from(document.querySelectorAll('.mode-select'));
+}
+
 function renderModeSelect(){
-  const sel=document.getElementById('modeSel');
-  if(!sel)return;
-  const wanted=(_modeSwitchBusy&&sel.value)?sel.value:((activeMode&&activeMode.key)||loadedCatalogModeKey||DEFAULT_MODE.key);
+  const sels=modeSelectElements();
+  if(!sels.length)return;
+  const current=sels.find(function(s){return s&&s.value;});
+  const wanted=(_modeSwitchBusy&&current&&current.value)?current.value:((activeMode&&activeMode.key)||loadedCatalogModeKey||DEFAULT_MODE.key);
   if(wanted&&!modes.some(function(m){return m.key===wanted;})){
     const fm=fallbackModes();
     fm.forEach(function(m){
       if(!modes.some(function(existing){return existing.key===m.key;}))modes.push(m);
     });
   }
-  sel.innerHTML='';
-  modes.forEach(function(m){
-    const o=document.createElement('option');
-    o.value=m.key;o.textContent=m.label;sel.appendChild(o);
+  sels.forEach(function(sel){
+    sel.innerHTML='';
+    modes.forEach(function(m){
+      const o=document.createElement('option');
+      o.value=m.key;o.textContent=m.label;sel.appendChild(o);
+    });
+    sel.value=wanted;
   });
-  sel.value=wanted;
   bindModeSelectControl();
   updateModeControlCount();
 }
 
 function bindModeSelectControl(){
-  const sel=document.getElementById('modeSel');
-  if(!sel)return;
-  if(!sel.dataset.modeBound){
+  modeSelectElements().forEach(function(sel){
+    if(!sel||sel.dataset.modeBound)return;
     sel.dataset.modeBound='1';
-    sel.addEventListener('change',function(){changeMode();});
+    sel.addEventListener('change',function(){changeMode(sel.value);});
     sel.addEventListener('touchend',function(){setTimeout(checkModeSelectValue,150);},{passive:true});
     sel.addEventListener('mouseup',function(){setTimeout(checkModeSelectValue,150);});
-  }
+  });
   if(!_modeSelectWatchStarted){
     _modeSelectWatchStarted=true;
     setInterval(checkModeSelectValue,300);
@@ -2036,7 +2057,7 @@ function bindModeSelectControl(){
 }
 
 function checkModeSelectValue(){
-  const sel=document.getElementById('modeSel');
+  const sel=modeSelectElements().find(function(s){return s&&s.value&&activeMode&&s.value!==activeMode.key;})||document.getElementById('modeSel');
   if(!sel)return;
   if(_modeSwitchBusy){
     if(_modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt>22000){
@@ -2049,7 +2070,7 @@ function checkModeSelectValue(){
   }
   const next=modes.find(function(m){return m.key===(sel&&sel.value);})||null;
   if(next&&recentModeLoadFailure(next))return;
-  if(sel.value&&((activeMode&&sel.value!==activeMode.key)||sel.value!==loadedCatalogModeKey))changeMode();
+  if(sel.value&&((activeMode&&sel.value!==activeMode.key)||sel.value!==loadedCatalogModeKey))changeMode(sel.value);
 }
 
 function showModeLoadingState(mode){
@@ -2059,9 +2080,9 @@ function showModeLoadingState(mode){
   const yrRange=(mode&&mode.yearStart&&mode.yearEnd)?(mode.yearStart+'–'+mode.yearEnd):'—';
   if(count){
     const totalEl=document.getElementById('s-total');if(totalEl)totalEl.textContent=count.toLocaleString();
-    const modeCount=document.getElementById('modeCount');if(modeCount)modeCount.textContent=count.toLocaleString()+' shows';
+    document.querySelectorAll('.mode-count-display').forEach(function(modeCount){modeCount.textContent=count.toLocaleString()+' shows';});
   }else{
-    const modeCount=document.getElementById('modeCount');if(modeCount)modeCount.textContent='— shows';
+    document.querySelectorAll('.mode-count-display').forEach(function(modeCount){modeCount.textContent='— shows';});
   }
   const attEl=document.getElementById('s-att');if(attEl)attEl.textContent='—';
   const yrsEl=document.getElementById('s-yrs');if(yrsEl)yrsEl.textContent=yrRange;
@@ -2072,14 +2093,16 @@ function showModeLoadingState(mode){
   if(listEl)listEl.innerHTML='<div class="loading big"><span class="spinner"></span><div>Loading '+esc(label)+' shows…</div><div class="loading-detail">Reading the local JSON catalog. Your saved favorites and My Shows stay available while this finishes.</div></div>';
 }
 
-async function changeMode(){
+async function changeMode(modeKey){
   const sel=document.getElementById('modeSel');
-  const next=modes.find(function(m){return m.key===(sel&&sel.value);})||DEFAULT_MODE;
+  const selectedKey=modeKey||((sel&&sel.value)||'');
+  const next=modes.find(function(m){return m.key===selectedKey;})||DEFAULT_MODE;
   if(_modeSwitchBusy && _modeSwitchStartedAt && Date.now()-_modeSwitchStartedAt<1200)return;
   if(recentModeLoadFailure(next)){
-    if(activeMode&&sel)sel.value=activeMode.key;
+    if(activeMode)modeSelectElements().forEach(function(s){if(s)s.value=activeMode.key;});
     return;
   }
+  modeSelectElements().forEach(function(s){if(s)s.value=next.key;});
   if(activeMode&&next.key===activeMode.key&&next.key===loadedCatalogModeKey){
     setHdrSt(next.label+' from cache','ok');
     return;
@@ -2124,7 +2147,7 @@ async function changeMode(){
   cancelModeBackgroundWork();
   activeMode=next;
   setHdrSt('Loading '+next.label+'…','busy');
-  if(sel)sel.value=next.key;
+  modeSelectElements().forEach(function(s){if(s)s.value=next.key;});
   shows=[];
   filtered=[];
   loadedCatalogModeKey='';
@@ -2187,7 +2210,7 @@ async function changeMode(){
       filtered=prevFiltered||[];
       loadedCatalogModeKey=prevLoadedCatalogModeKey||((activeMode&&activeMode.key)||DEFAULT_MODE.key);
       localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
-      if(sel)sel.value=activeMode.key;
+      modeSelectElements().forEach(function(s){if(s)s.value=activeMode.key;});
       renderModeSelect();
       if(shows&&shows.length)onLoaded(shows,{fromCache:true});
       setHdrSt('Could not load '+next.label+' catalog','err');
@@ -4186,6 +4209,7 @@ function onLoaded(list,opts){
 
   applySavedViewStateForLoadedMode();
   renderOthers();applyFilters();
+  refreshActiveTabForMode();
   bindListScrollState();
   restoreListPosition(_restoreViewState);
   if(!opts.fromSheetRefresh)scheduleModeSetlistHydration(activeMode);
@@ -4213,6 +4237,20 @@ function onLoaded(list,opts){
       document.head.appendChild(s);
     }catch(e){}
   }, 3000); // 3s after app loaded — well clear of any render critical path
+}
+
+function refreshActiveTabForMode(){
+  const active=document.querySelector('.tab.on')?.id?.replace('tab-btn-','')||'shows';
+  if(active==='songs'){
+    updateSongSearchClear();
+    const q=document.getElementById('songQ');
+    if(q&&q.value.trim().length>=2)doSongSearch(true);
+    else renderFeaturedSongs();
+  }else if(active==='jam'){
+    initJamTab();
+  }else if(active==='others'){
+    renderOthers();
+  }
 }
 
 function showErr(){
@@ -7862,6 +7900,7 @@ function switchTab(name){
     document.getElementById('tab-'+t).style.display=t===name?'':'none';
     document.getElementById('tab-btn-'+t).classList.toggle('on',t===name);
   });
+  renderModeSelect();
   if(name==='jam')initJamTab();
   if(name==='songs'){updateSongSearchClear();const q=document.getElementById('songQ');if(q&&q.value.trim().length>=2)doSongSearch(true);else renderFeaturedSongs();}
   if(name==='others')refreshAttendance(false);
@@ -10150,6 +10189,13 @@ function stopArchiveAutoRetry(){
 
   <!-- JAM TAB -->
   <div id="tab-jam" style="display:none">
+    <div class="ubar">
+      <label class="mode-label" for="modeSelJam">Mode</label>
+      <div class="mode-control">
+        <select class="usel mode-select" id="modeSelJam"><option value="gd">Grateful Dead</option></select>
+        <span class="mode-count mode-count-display">— shows</span>
+      </div>
+    </div>
 
     <!-- Box of Tapes -->
     <div class="jam-card" id="jamRecentCard">
