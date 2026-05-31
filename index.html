@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.64</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.69</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.64</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.69</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -559,7 +559,7 @@ body{display:flex;justify-content:center}
     <div class="ubar">
       <label class="mode-label" for="modeSel">Mode</label>
       <div class="mode-control">
-        <select class="usel" id="modeSel" onchange="changeMode()" oninput="changeMode()"><option value="gd">Grateful Dead</option></select>
+        <select class="usel" id="modeSel"><option value="gd">Grateful Dead</option></select>
         <span class="mode-count" id="modeCount">— shows</span>
       </div>
       <select class="usel" id="usel" onchange="changeViewUser()"><option value="all">All shows</option></select>
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.64';
+const APP_BUILD = '2.0.69';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -614,6 +614,7 @@ const POSTER_URL = POSTER_FILE
 const USER_COLORS=['#c44040','#4a7fc1','#c8a84b','#52b788','#9b6dbd','#e87d3e','#e8a84b','#52b7b7'];
 const SHOW_META_HEADERS=['archive id','archiveid','archive url','archiveurl'];
 const SOURCE_LOCK_HEADERS=['source lock','sourcelock'];
+const MODE_NON_USER_HEADERS=['notes','note'];
 const SHEET_CACHE_SCHEMA_VERSION=4;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
@@ -1166,6 +1167,8 @@ async function loadModeCatalogFromJson(mode,opts){
 async function renderModeCatalogJsonFirst(mode,opts){
   opts=opts||{};
   mode=mode||activeMode||DEFAULT_MODE;
+  const expectedToken=opts.modeSwitchToken||0;
+  const expectedKey=(mode&&mode.key)||DEFAULT_MODE.key;
   let list=null;
   try{
     list=await loadModeCatalogFromJson(mode,opts);
@@ -1174,6 +1177,8 @@ async function renderModeCatalogJsonFirst(mode,opts){
     list=null;
   }
   if(list&&list.length){
+    if(expectedToken&&expectedToken!==_modeSwitchToken)return false;
+    if(_modeSwitchTargetKey&&_modeSwitchTargetKey!==expectedKey)return false;
     activeMode=mode;
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     onLoaded(list,Object.assign({fromJsonCatalog:true},opts));
@@ -1266,6 +1271,32 @@ function isSourceLockColumnLabel(v){
 function isSheetMetadataColumnLabel(v){
   return isArchiveIdColumnLabel(v)||isSourceLockColumnLabel(v);
 }
+function isModeNonUserColumnLabel(v){
+  const key=sheetHeaderKey(v);
+  return isSheetMetadataColumnLabel(v)||MODE_NON_USER_HEADERS.indexOf(key)>=0;
+}
+function gvizCellText(cell){
+  if(!cell)return '';
+  const v=cell.v!=null?cell.v:cell.f;
+  return v==null?'':String(v).trim();
+}
+function canonicalUserNameForSheet(name,knownUsers){
+  const n=String(name||'').trim();
+  if(!n)return '';
+  knownUsers=knownUsers||users||[];
+  if(knownUsers.includes(n))return n;
+  const bare=n.replace(/\s*\([^)]*\)\s*$/,'').trim();
+  if(bare&&knownUsers.includes(bare))return bare;
+  const lower=n.toLowerCase();
+  const exact=knownUsers.find(function(u){return String(u||'').toLowerCase()===lower;});
+  if(exact)return exact;
+  if(bare){
+    const bareLower=bare.toLowerCase();
+    const bareMatch=knownUsers.find(function(u){return String(u||'').toLowerCase()===bareLower;});
+    if(bareMatch)return bareMatch;
+  }
+  return n;
+}
 function normalizeSourceLock(v){
   const s=(v||'').toString().trim().toUpperCase();
   return (s==='LOCK'||s==='NO_ALT')?s:'';
@@ -1354,6 +1385,29 @@ function cacheUserCountsFromShows(list,mode){
   userCountCache.modes[key]=counts;
   rebuildUserTotalCounts();
   saveUserCountCache();
+}
+function writeAttendedCacheForMode(mode,list,cacheUsers){
+  try{
+    mode=mode||activeMode||DEFAULT_MODE;
+    const fresh={};
+    const allUsers=[...new Set((cacheUsers||users||[]).filter(Boolean))];
+    (list||[]).forEach(function(s){
+      if(!s)return;
+      const att=s.attended||{};
+      if(Array.isArray(s.attendedUsers)){
+        s.attendedUsers.forEach(function(u){if(u)att[u]=true;});
+      }
+      Object.keys(att).forEach(function(u){
+        if(!att[u])return;
+        if(!fresh[u])fresh[u]={};
+        const keys=[s.id,showStorageId(s),rawShowId(s.id),modeShowGroupKey(s)].filter(Boolean);
+        keys.forEach(function(k){fresh[u][k]=1;});
+        if(!allUsers.includes(u))allUsers.push(u);
+      });
+    });
+    allUsers.forEach(function(u){if(!fresh[u])fresh[u]={};});
+    localStorage.setItem(modeKeyScopedKey('gd_attended',mode),JSON.stringify(fresh));
+  }catch(e){}
 }
 function isCurrentJsonCatalogCache(cache){
   return !!(cache&&cache.source==='json'&&cache.build===APP_BUILD);
@@ -1474,10 +1528,19 @@ function saveHistoryPosition(show, trackIdx, pos){
   if(!show||!show.id)return;
   try{
     let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    const sid=showStorageId(show), mode=showModeLabel(show);
-    const i=hist.findIndex(h=>h.id===sid&&sameModeLabel(h.mode,mode));
+    const sid=showStorageId(show), mode=showModeLabel(show), fullId=show.id, stable=modeShowGroupKey(show);
+    const i=hist.findIndex(function(h){
+      return sameModeLabel(h.mode,mode)&&(
+        h.id===sid || h.id===fullId || h.showId===fullId || h.rawId===sid || h.stableKey===stable ||
+        (favoriteDateKey(h.date)===favoriteDateKey(show.date)&&String(h.venue||'').trim().toLowerCase()===String(show.venue||'').trim().toLowerCase())
+      );
+    });
     if(i<0)return; // only update shows already in history
     const entry=hist[i];
+    entry.id=sid;
+    entry.showId=fullId;
+    entry.rawId=sid;
+    entry.stableKey=stable;
     entry.lastTrackIdx=trackIdx;
     entry.lastPos=Math.floor(pos);
     entry.lastPosTs=Date.now();
@@ -1852,9 +1915,7 @@ function bindModeSelectControl(){
   if(!sel)return;
   if(!sel.dataset.modeBound){
     sel.dataset.modeBound='1';
-    ['change','input','blur'].forEach(function(ev){
-      sel.addEventListener(ev,function(){changeMode();});
-    });
+    sel.addEventListener('change',function(){changeMode();});
     sel.addEventListener('touchend',function(){setTimeout(checkModeSelectValue,150);},{passive:true});
     sel.addEventListener('mouseup',function(){setTimeout(checkModeSelectValue,150);});
   }
@@ -2213,6 +2274,7 @@ async function runBackgroundSheetSync(opts){
     if(!list||!list.length)list=await tryJSONP(mode);
     if(!list||!list.length)return false;
     cacheUserCountsFromShows(list,mode);
+    writeAttendedCacheForMode(mode,list,users.slice());
     if(activeMode&&activeMode.key===mode.key)applySheetUserOverlay(list,mode);
     writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
     try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
@@ -2312,6 +2374,7 @@ function _writeCacheSoon(list){
 
 function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
   const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
+  writeAttendedCacheForMode(mode,list,cacheUsers);
   const snapshot={
     schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
     modeKey:modeKey,
@@ -2481,6 +2544,11 @@ function _hydrateSheetCacheShows(list,mode){
       const att={};
       s.attendedUsers.forEach(function(u){att[u]=true;});
       const show=mkShow(s.date,s.venue,s.city,att,Number(String(s.rawId||s.id||'').split('-').pop())||0,s.archiveIdHint||'',!!s.archiveNoAudioHint,s.sourceLockHint||'',mode);
+      if(s.id)show.id=s.id;
+      if(s.rawId)show.rawId=s.rawId;
+      show.modeKey=s.modeKey||mode.key;
+      show.modeLabel=s.modeLabel||mode.label;
+      show.sheetName=s.sheetName||mode.sheetName||show.sheetName;
       show.recordings=mergeSourceRecords(show.recordings,s.recordings||[]);
       if(Array.isArray(s.songs)&&s.songs.length){
         show.songs=s.songs.slice();
@@ -2572,6 +2640,15 @@ function applyCachedAttendanceOverlay(mode){
   mode=mode||activeMode||DEFAULT_MODE;
   let cache=null;
   try{cache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_attended',mode))||'null');}catch(e){}
+  if((!cache||!Object.keys(cache).length)){
+    try{
+      const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
+      if(sheetCache&&Array.isArray(sheetCache.shows)&&sheetCache.shows.length){
+        writeAttendedCacheForMode(mode,_hydrateSheetCacheShows(sheetCache.shows,mode),sheetCache.users||users);
+        cache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_attended',mode))||'null');
+      }
+    }catch(e){}
+  }
   if(!cache||!shows||!shows.length)return 0;
   let changed=0;
   Object.keys(cache).forEach(function(user){
@@ -2580,7 +2657,7 @@ function applyCachedAttendanceOverlay(mode){
     shows.forEach(function(show){
       if(!show||!show.id)return;
       if(!show.attended)show.attended={};
-      const att=!!(mine[show.id]||mine[showStorageId(show)]||mine[rawShowId(show.id)]);
+      const att=!!(mine[show.id]||mine[showStorageId(show)]||mine[rawShowId(show.id)]||mine[modeShowGroupKey(show)]);
       if(att&&show.attended[user]!==true){show.attended[user]=true;changed++;}
     });
   });
@@ -2833,13 +2910,17 @@ function parseModeGviz(table,mode){
   mode=mode||activeMode||DEFAULT_MODE;
   const rows=table.rows||[];
   const cols=table.cols||[];
+  const knownUsers=users.slice();
   users=[];userCols={};userPins={};
+  const nameRow=(rows[0]&&rows[0].c)||[];
   let archiveCol=-1;
   for(let i=3;i<cols.length;i++){
     const label=cols[i]&&cols[i].label?String(cols[i].label).trim():'';
     if(isArchiveIdColumnLabel(label)){archiveCol=i;continue;}
-    if(isSheetMetadataColumnLabel(label))continue;
+    if(isModeNonUserColumnLabel(label))continue;
     let n=label.replace(/^Attended\s*\(Y\)\s*/i,'').trim();
+    if(/^Attended\s*\(Y\)\s*$/i.test(label)||!n)n=gvizCellText(nameRow[i])||n;
+    n=canonicalUserNameForSheet(n,knownUsers);
     if(n&&n!=='Name'&&n!=='Notes'){users.push(n);userCols[n]=i;}
   }
   const list=[];
@@ -2872,12 +2953,13 @@ function parseModeCSV(csv,mode){
   const lines=csv.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   const headerRow=parseRow(lines[0]||'');
   const nameRow=parseRow(lines[1]||'');
+  const knownUsers=users.slice();
   users=[];userCols={};userPins={};
   let archiveCol=-1;
   for(let i=3;i<headerRow.length;i++){
     if(isArchiveIdColumnLabel(headerRow[i])){archiveCol=i;continue;}
-    if(isSheetMetadataColumnLabel(headerRow[i]))continue;
-    const n=(nameRow[i]||headerRow[i]||'').replace(/^Attended\s*\(Y\)\s*/i,'').trim();
+    if(isModeNonUserColumnLabel(headerRow[i]))continue;
+    const n=canonicalUserNameForSheet((nameRow[i]||headerRow[i]||'').replace(/^Attended\s*\(Y\)\s*/i,'').trim(),knownUsers);
     if(n&&n!=='Name'&&n!=='Notes'&&!isArchiveIdColumnLabel(n)){users.push(n);userCols[n]=i;}
   }
   const list=[];
@@ -4490,13 +4572,21 @@ function updateSearchClear(inputId,buttonId){
   const btn=document.getElementById(buttonId);
   if(btn)btn.classList.toggle('show',!!(q&&q.value));
 }
-function clearSearchInput(inputId,buttonId,afterClear){
+function shouldRefocusClearedInput(inputId,opts){
+  opts=opts||{};
+  if(opts.refocus===false)return false;
+  const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(isiOS&&(inputId==='songQ'||inputId==='jamSongQ'))return false;
+  return true;
+}
+function clearSearchInput(inputId,buttonId,afterClear,opts){
   const q=document.getElementById(inputId);
   if(!q)return;
   q.value='';
   updateSearchClear(inputId,buttonId);
   if(afterClear)afterClear();
-  q.focus();
+  if(shouldRefocusClearedInput(inputId,opts))q.focus();
+  else try{q.blur();}catch(e){}
 }
 function clearShowSearch(){
   clearSearchInput('q','qClear',applyFilters);
@@ -4747,9 +4837,10 @@ function kickVisibleSetlistLoads(){
 
 function renderList(){
   const el=document.getElementById('list');
-  if(_modeSwitchBusy&&_modeSwitchTargetKey&&loadedCatalogModeKey!==_modeSwitchTargetKey)return;
-  if(!shows.length&&_modeSwitchTargetKey){
-    const mode=modes.find(function(m){return m.key===_modeSwitchTargetKey;})||activeMode||DEFAULT_MODE;
+  const activeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
+  const waitingKey=_modeSwitchTargetKey||((_modeSwitchBusy||!shows.length||loadedCatalogModeKey!==activeKey)?activeKey:'');
+  if(waitingKey&&(_modeSwitchBusy||!shows.length||loadedCatalogModeKey!==activeKey)){
+    const mode=modes.find(function(m){return m.key===waitingKey;})||activeMode||DEFAULT_MODE;
     el.innerHTML='<div class="loading big"><span class="spinner"></span><div>Loading '+esc(mode.label||'shows')+' shows…</div><div class="loading-detail">Reading the local JSON catalog.</div></div>';
     return;
   }
@@ -6940,11 +7031,12 @@ function startPlayback(show,idx,resumeAt){
   playIntent=true;
   if(!newAudio._preloaded)audio.src=url;
   _startBufferTimer(show,idx); // start timer only after src is set and play initiated
+  addToHistory(show,idx,sourceTrackTitle(show,idx));
   audio.play().then(function(){
     playing=true;
     _stopBufferTimer();
     _startAudioKeepAlive(); // keep iOS audio session alive in background
-    // Add/move show to Box of Tapes now that actual playback has started
+    // Refresh Box of Tapes now that actual playback has started
     const _trackTitle=sourceTrackTitle(show,idx);
     addToHistory(show,idx,_trackTitle);
     touchFavoritePlayback(show);
@@ -7237,7 +7329,7 @@ function clearSongSearch(){
   clearSearchInput('songQ','songQClear',function(){
     clearTimeout(songTimer);
     renderFeaturedSongs();
-  });
+  },{refocus:false});
 }
 function songSearch(){updateSongSearchClear();clearTimeout(songTimer);songTimer=setTimeout(doSongSearch,220);}
 
@@ -7862,11 +7954,17 @@ function addToHistory(show,trackIdx,trackTitle){
   const fromPlayback=(trackIdx!=null);
   try{
     let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    const sid=showStorageId(show), mode=showModeLabel(show);
-    const existing=hist.find(h=>h.id===sid&&sameModeLabel(h.mode,mode))||{};
-    hist=hist.filter(h=>!(h.id===sid&&sameModeLabel(h.mode,mode)));
+    const sid=showStorageId(show), mode=showModeLabel(show), fullId=show.id, stable=modeShowGroupKey(show);
+    const matchesShow=function(h){
+      return sameModeLabel(h.mode,mode)&&(
+        h.id===sid || h.id===fullId || h.showId===fullId || h.rawId===sid || h.stableKey===stable ||
+        (favoriteDateKey(h.date)===favoriteDateKey(show.date)&&String(h.venue||'').trim().toLowerCase()===String(show.venue||'').trim().toLowerCase())
+      );
+    };
+    const existing=hist.find(matchesShow)||{};
+    hist=hist.filter(function(h){return !matchesShow(h);});
     hist.unshift({
-      id:sid,mode:mode,date:show.date,venue:show.venue,city:show.city,ts:Date.now(),
+      id:sid,showId:fullId,rawId:sid,stableKey:stable,mode:mode,date:show.date,venue:show.venue,city:show.city,ts:Date.now(),
       // On playback: reset to current track (position will update via saveHistoryPosition)
       // On view-only: this path no longer runs (addToHistory only called from startPlayback)
       lastTrackIdx:fromPlayback?trackIdx:(existing.lastTrackIdx!=null?existing.lastTrackIdx:null),
@@ -7878,6 +7976,35 @@ function addToHistory(show,trackIdx,trackTitle){
     localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
   }catch(e){}
   renderJamRecent();
+}
+
+function seedHistoryFromRestore(){
+  try{
+    let hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
+    if(hist&&hist.length)return hist;
+    const restore=JSON.parse(localStorage.getItem('gd_restore')||'null');
+    if(!restore||!restore.showId)return [];
+    const show=resolveRecentShow({id:restore.showId,showId:restore.showId,mode:restore.mode,date:restore.date||'',venue:restore.venue||'',city:restore.city||''},restore.mode);
+    if(!show)return [];
+    const entry={
+      id:showStorageId(show),
+      showId:show.id,
+      rawId:showStorageId(show),
+      stableKey:modeShowGroupKey(show),
+      mode:showModeLabel(show),
+      date:show.date,
+      venue:show.venue,
+      city:show.city,
+      ts:restore.ts||Date.now(),
+      lastTrackIdx:restore.trackIdx!=null?restore.trackIdx:null,
+      lastTrackTitle:null,
+      lastPos:restore.pos||0,
+      lastPosTs:restore.ts||Date.now()
+    };
+    hist=[entry];
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+    return hist;
+  }catch(e){return [];}
 }
 
 function toggleJamSection(listId,chevId){
@@ -7894,6 +8021,7 @@ function renderJamRecent(){
   if(!el)return;
   let hist=[];
   try{hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch(e){}
+  if(!hist.length)hist=seedHistoryFromRestore();
   if(!hist.length){
     el.innerHTML='<div class="jam-empty">No history yet — start listening!</div>';
     return;
@@ -7958,9 +8086,12 @@ function resolveRecentShow(entryOrId,modeLabel){
   const entry=typeof entryOrId==='string'?recentEntryForShow(entryOrId):entryOrId;
   if(!entry)return null;
   const mode=modeForLabel(modeLabel||entry.mode||activeMode.label);
-  let show=(sameModeLabel(mode.label,activeMode.label)?shows:[]).find(function(s){return s.id===entry.id||showStorageId(s)===entry.id;});
+  const raw=rawShowId(entry.id||entry.rawId||entry.showId||'');
+  let show=(sameModeLabel(mode.label,activeMode.label)?shows:[]).find(function(s){
+    return s.id===entry.id||s.id===entry.showId||showStorageId(s)===entry.id||showStorageId(s)===raw||modeShowGroupKey(s)===entry.stableKey;
+  });
   if(show)return show;
-  show=findShowInModeCache(mode,entry.id,entry);
+  show=findShowInModeCache(mode,entry.showId||entry.id||entry.rawId,entry);
   if(show)return show;
   const sameDate=(sameModeLabel(mode.label,activeMode.label)?shows:[]).filter(function(s){return s.date===entry.date;});
   if(!sameDate.length)return null;
@@ -7974,9 +8105,12 @@ function resolveRecentShow(entryOrId,modeLabel){
   if(show&&entry.id&&show.id!==entry.id){
     try{
       const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-      const idx=hist.findIndex(function(h){return h.id===entry.id;});
+      const idx=hist.findIndex(function(h){return h.id===entry.id&&sameModeLabel(h.mode,entry.mode);});
       if(idx>=0){
-        hist[idx].id=show.id;
+        hist[idx].id=showStorageId(show);
+        hist[idx].showId=show.id;
+        hist[idx].rawId=showStorageId(show);
+        hist[idx].stableKey=modeShowGroupKey(show);
         hist[idx].date=show.date;
         hist[idx].venue=show.venue;
         hist[idx].city=show.city;
@@ -7990,7 +8124,10 @@ function resolveRecentShow(entryOrId,modeLabel){
 function recentEntryForShow(id,modeLabel){
   try{
     const hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');
-    return hist.find(function(h){return h.id===id&&(!modeLabel||sameModeLabel(h.mode,modeLabel));})||hist.find(function(h){
+    const raw=rawShowId(id||'');
+    return hist.find(function(h){
+      return (!modeLabel||sameModeLabel(h.mode,modeLabel))&&(h.id===id||h.showId===id||h.rawId===id||h.id===raw||h.rawId===raw);
+    })||hist.find(function(h){
       return h.id&&String(h.id)===String(id)&&(!modeLabel||sameModeLabel(h.mode,modeLabel));
     })||null;
   }catch(e){return null;}
@@ -8592,7 +8729,7 @@ function clearJamSongSearch(){
     clearTimeout(jamSongTimer);
     const el=document.getElementById('jamBestList');
     if(el)el.innerHTML='<div class="jam-empty">Type at least 2 characters</div>';
-  });
+  },{refocus:false});
 }
 function jamSongSearch(){
   updateJamSongSearchClear();
@@ -9128,8 +9265,10 @@ function saveAttendedLocal(showId,user,attended){
   try{
     const cache=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_attended'))||'{}');
     if(!cache[user])cache[user]={};
-    if(attended) cache[user][showId]=1;
-    else delete cache[user][showId];
+    const show=shows.find(function(s){return s.id===showId||showStorageId(s)===showId;});
+    const keys=[showId,show&&show.id,show&&showStorageId(show),show&&rawShowId(show.id),show&&modeShowGroupKey(show)].filter(Boolean);
+    if(attended) keys.forEach(function(k){cache[user][k]=1;});
+    else keys.forEach(function(k){delete cache[user][k];});
     localStorage.setItem(currentModeScopedKey('gd_attended'),JSON.stringify(cache));
   }catch(e){}
 }
@@ -9140,7 +9279,11 @@ function loadAttendedLocal(){
     const fresh={};
     users.forEach(function(u){
       fresh[u]={};
-      shows.forEach(function(s){if(s.attended[u])fresh[u][s.id]=1;});
+      shows.forEach(function(s){
+        if(s.attended[u]){
+          [s.id,showStorageId(s),rawShowId(s.id),modeShowGroupKey(s)].filter(Boolean).forEach(function(k){fresh[u][k]=1;});
+        }
+      });
     });
     localStorage.setItem(currentModeScopedKey('gd_attended'),JSON.stringify(fresh));
   }catch(e){}
@@ -9391,20 +9534,43 @@ async function refreshAttendance(force){
     const rows = json.table.rows;
     const cols = json.table.cols;
 
-    // Rebuild userCols mapping from column labels (same as initial load)
+    const headerRow=(rows[0]&&rows[0].c)||[];
+    const nameRow=(rows[1]&&rows[1].c)||[];
+    const dataStart=isDefaultMode(activeMode)?4:2;
+    // Rebuild userCols mapping from sheet header/name rows; MODE tabs keep
+    // user names on the row below "Attended (Y)".
     const newUserCols = {};
-    for(let i=3; i<cols.length; i++){
-      let n = cols[i]&&cols[i].label ? String(cols[i].label).trim() : '';
-      if(isSheetMetadataColumnLabel(n)) continue;
-      n = n.replace(/^Attended\s*\(Y\)\s*/i,'').trim();
+    const colCount=Math.max(cols.length,headerRow.length,nameRow.length);
+    for(let i=3; i<colCount; i++){
+      const label = gvizCellText(headerRow[i]) || (cols[i]&&cols[i].label ? String(cols[i].label).trim() : '');
+      if(isModeNonUserColumnLabel(label)) continue;
+      let n = label.replace(/^Attended\s*\(Y\)\s*/i,'').trim();
+      if(/^Attended\s*\(Y\)\s*$/i.test(label)||!n)n=gvizCellText(nameRow[i])||n;
+      n=canonicalUserNameForSheet(n,users);
       if(n && n!=='Name' && n!=='') newUserCols[n] = i;
     }
 
-    // Update attendance on all shows from row index 4 onwards for GD,
-    // row index 2 onwards for MODE tabs.
+    function gvizDate(cell){
+      if(!cell)return '';
+      let d='';
+      if(typeof cell.v==='string'&&cell.v.startsWith('Date(')){
+        const p=cell.v.replace('Date(','').replace(')','').split(',');
+        d=p[0]+'-'+String(+p[1]+1).padStart(2,'0')+'-'+String(+p[2]).padStart(2,'0');
+      }else if(cell.f){d=cell.f;}else if(cell.v!=null){d=String(cell.v).trim();}
+      return displayDate(d);
+    }
+    function showForSheetRow(row,ri){
+      const cells=(row&&row.c)||[];
+      const d=gvizDate(cells[0]);
+      const venue=cells[1]&&cells[1].v!=null?String(cells[1].v).trim():'';
+      const city=cells[2]&&cells[2].v!=null?String(cells[2].v).trim():'';
+      const probe={date:d,venue:venue,city:city,id:'',modeKey:(activeMode&&activeMode.key)||DEFAULT_MODE.key};
+      return shows.find(function(s){return sameShowIdentity(s,probe);})||shows[ri]||null;
+    }
+    // Match attendance by show identity; mode catalogs can collapse duplicate sheet rows.
     let changed = 0;
-    rows.slice(isDefaultMode(activeMode)?4:2).forEach(function(row, ri){
-      const show = shows[ri];
+    rows.slice(dataStart).forEach(function(row, ri){
+      const show = showForSheetRow(row,ri);
       if(!show || !row.c) return;
       users.forEach(function(u){
         const colIdx = newUserCols[u];
