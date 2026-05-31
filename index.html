@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.71</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.72</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.71</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.72</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.71';
+const APP_BUILD = '2.0.72';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1397,6 +1397,7 @@ function setHeaderGuestMode(on){
 let shows=[], filtered=[], users=[], userCols={}, userPins={}, userCountCache={modes:{},totals:{}};
 let userLimit=0; // 0 = no limit; set from B4 in sheet
 let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
+let attendanceLoadState={}; // modeKey -> pending | ready | error
 function rebuildAttCache(){
   attCache={};
   users.forEach(function(u){
@@ -1410,6 +1411,26 @@ function rebuildAttCache(){
   saveUserCountCache();
 }
 function attCount(u){return attCache[u]||0;}
+function attendedCacheHasUser(mode,user){
+  if(!user)return false;
+  const cache=readAttendedModeCache(mode||activeMode||DEFAULT_MODE);
+  return !!(cache&&Object.prototype.hasOwnProperty.call(cache,user)&&countAttendedCacheEntries(cache,user)>0);
+}
+function setAttendanceLoadState(mode,state){
+  mode=mode||activeMode||DEFAULT_MODE;
+  attendanceLoadState[(mode&&mode.key)||DEFAULT_MODE.key]=state;
+}
+function isAttendanceCountPending(mode,user){
+  mode=mode||activeMode||DEFAULT_MODE;
+  user=user||curUser||viewUser;
+  if(!user||user==='all')return false;
+  if(attendanceLoadState[mode.key]==='ready')return false;
+  if(attendedCacheHasUser(mode,user))return false;
+  const last=window._gdLastSheetSync;
+  if(last&&last.mode===mode.key&&(last.status==='ok'||last.status==='empty'))return false;
+  if(last&&last.mode===mode.key&&last.status==='started')return true;
+  return attendanceLoadState[mode.key]==='pending';
+}
 function rebuildUserTotalCounts(){
   const totals={};
   Object.keys((userCountCache&&userCountCache.modes)||{}).forEach(function(modeKey){
@@ -2306,7 +2327,7 @@ function scheduleSheetRefreshAfterStartup(){
     },function(){
       window._gdSheetRefreshPending=false;
     });
-  },2200);
+  },350);
 }
 
 function sameShowIdentity(a,b){
@@ -2387,6 +2408,8 @@ async function runBackgroundSheetSync(opts){
   const prior={users:users.slice(),pins:Object.assign({},userPins),limit:userLimit};
   let list=null;
   try{
+    setAttendanceLoadState(mode,'pending');
+    if(activeMode&&activeMode.key===mode.key){updateAttCount();updateViewStats();}
     window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'started',at:Date.now()};
     list=await tryScriptCatalogJSONP(mode);
     if(list&&list.length&&!sheetListHasUserOverlay(list)){
@@ -2396,6 +2419,8 @@ async function runBackgroundSheetSync(opts){
     if(!list||!list.length)list=await tryJSONP(mode);
     if(!list||!list.length){
       window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'empty',at:Date.now()};
+      setAttendanceLoadState(mode,'ready');
+      if(activeMode&&activeMode.key===mode.key){updateAttCount();updateViewStats();}
       return false;
     }
     cacheUserCountsFromShows(list,mode);
@@ -2429,11 +2454,15 @@ async function runBackgroundSheetSync(opts){
     await loadFavorites();
     setHdrSt(opts.manual?'✓ Synced':'','ok');
     window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'ok',shows:list.length,hasOverlay:sheetListHasUserOverlay(list),user:curUser||viewUser||'',runtimeCount:runtimeAttendedCount(curUser||viewUser),cacheKeyCount:countAttendedCacheEntries(readAttendedModeCache(mode),curUser||viewUser),at:Date.now()};
+    setAttendanceLoadState(mode,'ready');
+    if(activeMode&&activeMode.key===mode.key){updateAttCount();updateViewStats();}
     return true;
   }catch(e){
     users=prior.users;userPins=prior.pins;userLimit=prior.limit;
     if(opts.manual)setHdrSt('⚠ Sync failed','err');
     window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'error',error:String(e&&e.message||e),at:Date.now()};
+    setAttendanceLoadState(mode,'error');
+    if(activeMode&&activeMode.key===mode.key){updateAttCount();updateViewStats();}
     return false;
   }
 }
@@ -4085,6 +4114,8 @@ function onLoaded(list,opts){
   // refreshes can rebuild the local My Shows cache after they complete.
   if(opts.fromJsonCatalog)applyCachedAttendanceOverlay(activeMode);
   else if(!opts.fromCache)loadAttendedLocal();
+  const countUser=curUser||((viewUser&&viewUser!=='all')?viewUser:null);
+  setAttendanceLoadState(activeMode,countUser&&attendedCacheHasUser(activeMode,countUser)?'ready':'pending');
   rebuildAttCache();
 
   // Build login screen with real user data
@@ -4821,18 +4852,20 @@ function applyFilters(){
 }
 function updateAttCount(){
   const u=(viewUser&&viewUser!=='all')?viewUser:curUser;
-  document.getElementById('s-att').textContent=u?attCount(u).toLocaleString():'—';
+  document.getElementById('s-att').textContent=u?(isAttendanceCountPending(activeMode,u)?'—':attCount(u).toLocaleString()):'—';
 }
 function updateViewStats(){
   const el=document.getElementById('ucnt');
   if(viewUser==='all'){el.innerHTML='';return;}
+  const pending=isAttendanceCountPending(activeMode,viewUser);
   const cnt=attCount(viewUser);
-  el.innerHTML='<b>'+cnt+'</b> shows';
+  el.innerHTML=pending?'<b>—</b> shows':'<b>'+cnt+'</b> shows';
   const myBtn=document.getElementById('myBtn');
   if(myBtn){
     // Hide My Shows only if the LOGGED-IN user has 0 shows
     const myCnt=curUser?attCount(curUser):0;
-    if(myCnt===0&&curUser){
+    const myPending=curUser&&isAttendanceCountPending(activeMode,curUser);
+    if(myCnt===0&&curUser&&!myPending){
       myBtn.style.display='none';
       if(myOnly){myOnly=false;myBtn.classList.remove('on');applyFilters();}
     } else {
@@ -5782,6 +5815,8 @@ function renderHelpDiagSummary(){
     ].join(' · ')],
     ['Fingerprint',m.fingerprint||'(none)']
   ];
+  const diagText=rows.map(function(r){return r[0]+'\n'+String(r[1]);}).join('\n')+'\n';
+  window._gdDiagText=diagText;
   el.innerHTML=rows.map(function(r){
     return '<div style="display:grid;grid-template-columns:116px 1fr;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05)">'+
       '<div style="color:rgba(200,168,75,.7)">'+esc(r[0])+'</div>'+
@@ -5791,6 +5826,38 @@ function renderHelpDiagSummary(){
     '<div style="color:var(--muted);font-size:10px;margin-top:8px">Diagnostics target the open show, or the first visible show if none is open.</div>';
 }
 window.renderHelpDiagSummary=renderHelpDiagSummary;
+
+function copyHelpDiagnostics(){
+  renderHelpDiagSummary();
+  const text=window._gdDiagText||'';
+  function done(ok){
+    const btn=document.getElementById('helpDiagCopyBtn');
+    if(btn){
+      btn.textContent=ok?'Copied':'Copy failed';
+      setTimeout(function(){btn.textContent='Copy Diagnostics';},1800);
+    }
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){done(true);},function(){fallbackCopyDiag(text,done);});
+  }else{
+    fallbackCopyDiag(text,done);
+  }
+}
+function fallbackCopyDiag(text,done){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.setAttribute('readonly','');
+    ta.style.position='fixed';
+    ta.style.left='-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    done(!!ok);
+  }catch(e){done(false);}
+}
+window.copyHelpDiagnostics=copyHelpDiagnostics;
 
 function toggleHelpDiagnostics(){
   const box=document.getElementById('helpDiagBox');
@@ -9984,6 +10051,7 @@ function stopArchiveAutoRetry(){
         <!-- Diagnostics -->
         <div id="helpDiagBox" style="display:none;background:rgba(200,168,75,.07);border:1px solid rgba(200,168,75,.28);border-radius:12px;padding:12px 14px;margin-bottom:16px">
           <div onclick="renderHelpDiagSummary()" style="width:100%;box-sizing:border-box;background:transparent;border:1px solid rgba(200,168,75,.45);border-radius:9px;padding:9px;color:var(--gold);font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:center">Diagnostics</div>
+          <button id="helpDiagCopyBtn" onclick="copyHelpDiagnostics()" style="width:100%;box-sizing:border-box;background:var(--gold);border:0;border-radius:9px;padding:10px;color:#0b0907;font-family:var(--mono);font-size:12px;font-weight:800;cursor:pointer;margin-bottom:10px;text-align:center">Copy Diagnostics</button>
           <div id="helpDiagOutput" style="font-family:var(--mono);font-size:10px;line-height:1.55;color:var(--muted)"></div>
         </div>
 
