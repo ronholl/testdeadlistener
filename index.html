@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.57</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.59</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.57</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.59</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.57';
+const APP_BUILD = '2.0.59';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -619,7 +619,7 @@ const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
 const LAST_VIEW_STATE_KEY='gd_last_view_state';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},modeJsonCounts={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
 const SETLIST_DATASET_PATHS={
   gd:'grateful-dead',
   'jerry-garcia':'jerry-garcia',
@@ -1073,10 +1073,20 @@ async function loadModeCatalogFromJson(mode,opts){
   opts=opts||{};
   mode=mode||activeMode||DEFAULT_MODE;
   const key=(mode&&mode.key)||DEFAULT_MODE.key;
-  if(modeLiveCatalogs[key]&&modeLiveCatalogs[key].length)return modeLiveCatalogs[key];
+  if(modeLiveCatalogs[key]&&modeLiveCatalogs[key].length){
+    modeJsonCounts[key]=modeLiveCatalogs[key].length;
+    mode.showCount=modeLiveCatalogs[key].length;
+    updateGlobalShowCount();
+    updateModeControlCount();
+    return modeLiveCatalogs[key];
+  }
   if(modeCatalogCache[key]&&modeCatalogCache[key].source==='json'&&modeCatalogCache[key].shows&&modeCatalogCache[key].shows.length){
     if(cacheMatchesMode(modeCatalogCache[key],mode)){
       modeLiveCatalogs[key]=_hydrateSheetCacheShows(modeCatalogCache[key].shows,mode);
+      modeJsonCounts[key]=modeLiveCatalogs[key].length;
+      mode.showCount=modeLiveCatalogs[key].length;
+      updateGlobalShowCount();
+      updateModeControlCount();
       return modeLiveCatalogs[key];
     }
     delete modeCatalogCache[key];
@@ -1090,6 +1100,10 @@ async function loadModeCatalogFromJson(mode,opts){
       const list=normalizeCatalogDataset(mode,data);
       if(list&&list.length){
         debugLines.push('catalog '+mode.label+': '+list.length+' shows');
+        modeJsonCounts[key]=list.length;
+        mode.showCount=list.length;
+        updateGlobalShowCount();
+        updateModeControlCount();
         modeLiveCatalogs[key]=list;
         modeCatalogCache[key]={
           schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
@@ -1112,6 +1126,10 @@ async function loadModeCatalogFromJson(mode,opts){
       if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
         modeCatalogCache[key]=cached;
         modeLiveCatalogs[key]=_hydrateSheetCacheShows(cached.shows,mode);
+        modeJsonCounts[key]=modeLiveCatalogs[key].length;
+        mode.showCount=modeLiveCatalogs[key].length;
+        updateGlobalShowCount();
+        updateModeControlCount();
         return modeLiveCatalogs[key];
       }
     }catch(e){}
@@ -1138,6 +1156,29 @@ async function renderModeCatalogJsonFirst(mode,opts){
     return true;
   }
   return false;
+}
+
+async function refreshCatalogModeCounts(){
+  const list=(modes&&modes.length?modes:[DEFAULT_MODE]).slice();
+  await Promise.all(list.map(async function(mode){
+    const key=(mode&&mode.key)||DEFAULT_MODE.key;
+    if(modeJsonCounts[key])return;
+    try{
+      const urls=catalogDatasetUrls(mode);
+      for(let i=0;i<urls.length;i++){
+        const data=await fetchJsonQuiet(urls[i],3000);
+        if(!data)continue;
+        const rows=Array.isArray(data)?data:(Array.isArray(data&&data.shows)?data.shows:[]);
+        if(rows.length){
+          modeJsonCounts[key]=rows.length;
+          mode.showCount=rows.length;
+          return;
+        }
+      }
+    }catch(e){}
+  }));
+  updateGlobalShowCount();
+  updateModeControlCount();
 }
 
 function noteModeLoadFailure(mode){
@@ -1209,7 +1250,7 @@ function setHeaderGuestMode(on){
 }
 
 // ── STATE ─────────────────────────────────────────────────────────
-let shows=[], filtered=[], users=[], userCols={}, userPins={}, userCountCache={};
+let shows=[], filtered=[], users=[], userCols={}, userPins={}, userCountCache={modes:{},totals:{}};
 let userLimit=0; // 0 = no limit; set from B4 in sheet
 let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
 function rebuildAttCache(){
@@ -1217,38 +1258,78 @@ function rebuildAttCache(){
   users.forEach(function(u){
     attCache[u]=shows.filter(function(s){return s.attended&&s.attended[u];}).length;
   });
+  const key=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
+  userCountCache.modes=userCountCache.modes||{};
+  userCountCache.totals=userCountCache.totals||{};
+  userCountCache.modes[key]=Object.assign({},attCache);
+  rebuildUserTotalCounts();
+  saveUserCountCache();
 }
 function attCount(u){return attCache[u]||0;}
-function displayUserCount(u){
-  return attCount(u)||(userCountCache&&userCountCache[u])||0;
+function rebuildUserTotalCounts(){
+  const totals={};
+  Object.keys((userCountCache&&userCountCache.modes)||{}).forEach(function(modeKey){
+    const counts=userCountCache.modes[modeKey]||{};
+    Object.keys(counts).forEach(function(u){totals[u]=(totals[u]||0)+(Number(counts[u])||0);});
+  });
+  userCountCache.totals=totals;
+}
+function displayUserModeCount(u){
+  return attCount(u);
+}
+function displayUserTotalCount(u){
+  return (userCountCache&&userCountCache.totals&&userCountCache.totals[u])||attCount(u)||0;
 }
 function saveUserCountCache(){
   try{localStorage.setItem('gd_user_count_cache',JSON.stringify({counts:userCountCache||{},ts:Date.now()}));}catch(e){}
 }
-function cacheUserCountsFromShows(list){
+function userCountsFromCachedShows(list){
+  const counts={};
   (list||[]).forEach(function(s){
-    const att=s&&s.attended?s.attended:{};
+    if(!s)return;
+    if(Array.isArray(s.attendedUsers)){
+      s.attendedUsers.forEach(function(u){if(u)counts[u]=(counts[u]||0)+1;});
+      return;
+    }
+    const att=s.attended||{};
     Object.keys(att).forEach(function(u){
-      if(att[u])userCountCache[u]=(userCountCache[u]||0)+1;
+      if(att[u])counts[u]=(counts[u]||0)+1;
     });
   });
+  return counts;
+}
+function cacheUserCountsFromShows(list,mode){
+  mode=mode||activeMode||DEFAULT_MODE;
+  const key=(mode&&mode.key)||DEFAULT_MODE.key;
+  const counts=userCountsFromCachedShows(list);
+  userCountCache.modes=userCountCache.modes||{};
+  userCountCache.modes[key]=counts;
+  rebuildUserTotalCounts();
   saveUserCountCache();
 }
 function restoreUserCountCache(){
   try{
     const c=JSON.parse(localStorage.getItem('gd_user_count_cache')||'null');
-    if(c&&c.counts)userCountCache=Object.assign({},userCountCache,c.counts);
+    if(c&&c.counts&&c.counts.modes){
+      userCountCache={modes:Object.assign({},c.counts.modes),totals:Object.assign({},c.counts.totals||{})};
+      rebuildUserTotalCounts();
+    }
   }catch(e){}
-  try{
-    const keys=Object.keys(localStorage).filter(function(k){return /(^|_)gd_attended$/.test(k)||k.indexOf('_gd_attended')>=0;});
-    keys.forEach(function(k){
-      const att=JSON.parse(localStorage.getItem(k)||'{}')||{};
-      Object.keys(att).forEach(function(showId){
-        const arr=Array.isArray(att[showId])?att[showId]:[];
-        arr.forEach(function(u){if(u)userCountCache[u]=(userCountCache[u]||0)+1;});
-      });
-    });
-  }catch(e){}
+  userCountCache=userCountCache||{modes:{},totals:{}};
+  userCountCache.modes=userCountCache.modes||{};
+  (modes&&modes.length?modes:fallbackModes()).forEach(function(mode){
+    const key=(mode&&mode.key)||DEFAULT_MODE.key;
+    try{
+      const cached=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
+      if(cached&&Array.isArray(cached.shows)){
+        const counts=userCountsFromCachedShows(cached.shows);
+        // Sheet-row caches are mode-scoped and authoritative for user counts;
+        // prefer them over older aggregate count caches that could overcount.
+        if(Object.keys(counts).length)userCountCache.modes[key]=counts;
+      }
+    }catch(e){}
+  });
+  rebuildUserTotalCounts();
   saveUserCountCache();
 }
 let curUser=null;      // logged-in user name
@@ -1491,6 +1572,7 @@ async function loadData(){
   // and let background sync populate names/Favorites/My Shows later.
   enterStartupGuestShell();
   if(await renderModeCatalogJsonFirst(activeMode,{fromStartup:true})){
+    setTimeout(refreshCatalogModeCounts,50);
     scheduleSheetRefreshAfterStartup();
     return;
   }
@@ -1501,6 +1583,7 @@ async function loadData(){
     userLimit=cached.userLimit||0;
     requestAnimationFrame(function(){
       onLoaded(_hydrateSheetCacheShows(cached.shows),{fromCache:true});
+      setTimeout(refreshCatalogModeCounts,50);
       scheduleSheetRefreshAfterStartup();
     });
     return;
@@ -1508,6 +1591,7 @@ async function loadData(){
   if(useModeCache(activeMode,{fromFastOpen:true,fromStartup:true})){
     localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
     renderModeSelect();
+    setTimeout(refreshCatalogModeCounts,50);
     scheduleSheetRefreshAfterStartup();
     return;
   }
@@ -1540,11 +1624,11 @@ async function initModes(){
   try{loadedModes=applyModesPayload(cachedModePayload,true);}catch(e){}
   if(!loadedModes || !modes || modes.length<2){
     modes=fallbackModes();
-    allModeShowTotal=modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
+    allModeShowTotal=0;
     loadedModes=true;
   }
   if(!modes.some(function(m){return m.key===DEFAULT_MODE.key;}))modes.unshift(DEFAULT_MODE);
-  if(!allModeShowTotal)allModeShowTotal=modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
+  allModeShowTotal=0;
   activeMode=modes.find(function(m){return m.key===saved||m.label===saved;})||DEFAULT_MODE;
   _restoreViewState=readLastViewStateForMode(activeMode.key)||_restoreViewState;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
@@ -1584,26 +1668,30 @@ async function discoverModesInBackground(){
   updateGlobalShowCount();
 }
 
-function applyModesPayload(d){
+function applyModesPayload(d,fromCache){
   if(!d||!Array.isArray(d.modes)||!d.modes.length)return false;
   const discovered=(d.modes||[]).map(function(m){
     if(m&&m.isDefault)return Object.assign({},DEFAULT_MODE,m);
-    return {key:m.key||modeKeyFromLabel(m.label),label:m.label,sheetName:m.sheetName,isDefault:false,showCount:m.showCount||0,yearStart:m.yearStart||'',yearEnd:m.yearEnd||''};
+    return {key:m.key||modeKeyFromLabel(m.label),label:m.label,sheetName:m.sheetName,isDefault:false,showCount:fromCache?0:(m.showCount||0),yearStart:m.yearStart||'',yearEnd:m.yearEnd||''};
   }).filter(function(m){return m&&m.label&&m.sheetName;});
   if(!discovered.length)return false;
   modes=discovered;
-  allModeShowTotal=Number(d.totalShows||0)||modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
+  allModeShowTotal=fromCache?0:(Number(d.totalShows||0)||modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0));
   try{localStorage.setItem('gd_modes_cache',JSON.stringify({modes:modes,totalShows:allModeShowTotal,ts:Date.now()}));}catch(e){}
   updateGlobalShowCount();
   return true;
 }
 
+function setShowCountText(id,total){
+  const el=document.getElementById(id);
+  if(el)el.textContent=total?total.toLocaleString():'—';
+}
 function updateGlobalShowCount(){
-  const total=allModeShowTotal||modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0)||((shows&&shows.length)||0);
-  ['hdr-show-count','login-show-count','help-show-count','help-show-count2'].forEach(function(id){
-    const el=document.getElementById(id);
-    if(el)el.textContent=total.toLocaleString();
-  });
+  const modeKeys=(modes&&modes.length?modes:[DEFAULT_MODE]).map(function(m){return m.key;});
+  const haveAll=modeKeys.length&&modeKeys.every(function(k){return Number(modeJsonCounts[k])>0;});
+  const total=haveAll?modeKeys.reduce(function(sum,k){return sum+(Number(modeJsonCounts[k])||0);},0):0;
+  allModeShowTotal=total||allModeShowTotal;
+  ['hdr-show-count','login-show-count','help-show-count','help-show-count2'].forEach(function(id){setShowCountText(id,total);});
 }
 
 function updateModeControlCount(){
@@ -1613,8 +1701,8 @@ function updateModeControlCount(){
     modes.find(function(m){return activeMode&&m.key===activeMode.key;})||activeMode||DEFAULT_MODE;
   const count=(loadedCatalogModeKey&&activeMode&&loadedCatalogModeKey===activeMode.key&&shows&&shows.length)
     ? shows.length
-    : (Number(mode&&mode.showCount)||((shows&&shows.length)||0));
-  el.textContent=count.toLocaleString()+' show'+(count===1?'':'s');
+    : (Number(modeJsonCounts[mode&&mode.key])||0);
+  el.textContent=count?(count.toLocaleString()+' show'+(count===1?'':'s')):'— shows';
 }
 
 function tryModesJSONP(){
@@ -1741,7 +1829,7 @@ function checkModeSelectValue(){
 function showModeLoadingState(mode){
   const label=(mode&&mode.label)||mode||'';
   setHdrSt('Loading '+label+'…','busy');
-  const count=Number(mode&&mode.showCount)||0;
+  const count=Number(modeJsonCounts[(mode&&mode.key)||'']||0)||0;
   const yrRange=(mode&&mode.yearStart&&mode.yearEnd)?(mode.yearStart+'–'+mode.yearEnd):'—';
   if(count){
     const totalEl=document.getElementById('s-total');if(totalEl)totalEl.textContent=count.toLocaleString();
@@ -2030,7 +2118,7 @@ async function runBackgroundSheetSync(opts){
     }
     if(!list||!list.length)list=await tryJSONP(mode);
     if(!list||!list.length)return false;
-    cacheUserCountsFromShows(list);
+    cacheUserCountsFromShows(list,mode);
     if(activeMode&&activeMode.key===mode.key)applySheetUserOverlay(list,mode);
     writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
     try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
@@ -3810,8 +3898,8 @@ function renderLoginScreen(){
   const sorted=[...users].sort(function(a,b){
     if(a===curUser) return -1;
     if(b===curUser) return 1;
-    const ca=displayUserCount(a);
-    const cb=displayUserCount(b);
+    const ca=displayUserTotalCount(a);
+    const cb=displayUserTotalCount(b);
     return cb-ca;
   });
 
@@ -3825,7 +3913,7 @@ function renderLoginScreen(){
     }
     return matched.map(function(u){
       const i=users.indexOf(u);
-      const cnt=displayUserCount(u);
+      const cnt=displayUserTotalCount(u);
       const col=USER_COLORS[i%USER_COLORS.length];
       const isMe=u===curUser;
       const action=isMe?'cancelLogin()':'showPin(\''+u+'\')';
@@ -4408,8 +4496,8 @@ function applyFilters(){
   }
 }
 function updateAttCount(){
-  if(viewUser==='all'){document.getElementById('s-att').textContent='—';return;}
-  document.getElementById('s-att').textContent=attCount(viewUser).toLocaleString();
+  const u=(viewUser&&viewUser!=='all')?viewUser:curUser;
+  document.getElementById('s-att').textContent=u?attCount(u).toLocaleString():'—';
 }
 function updateViewStats(){
   const el=document.getElementById('ucnt');
@@ -4611,8 +4699,8 @@ function renderList(){
 
 // ── DEADHEADS ────────────────────────────────────────────────────────
 function renderOthers(){
-  const max=Math.max(...users.map(u=>displayUserCount(u)),1);
-  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:displayUserCount(u)};}).sort(function(a,b){return b.cnt-a.cnt;});
+  const max=Math.max(...users.map(u=>displayUserModeCount(u)),1);
+  const sorted=[...users].map(function(u,i){return{u:u,i:i,cnt:displayUserModeCount(u)};}).sort(function(a,b){return b.cnt-a.cnt;});
   const visible=sorted.filter(function(item){return item.cnt>0;});
   document.getElementById('ogrid').innerHTML=(visible.length?visible:sorted).map(function(item){
     const u=item.u,c=USER_COLORS[item.i%USER_COLORS.length],cnt=item.cnt;
@@ -9457,7 +9545,7 @@ function stopArchiveAutoRetry(){
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
           <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">What's Here</div>
           <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
-            🎵 <b style="color:#d8d0c0">Shows</b> — all <span id="help-show-count2">—</span> concerts. Filter by year, search venue, city or date. Tap any show for its setlist &amp; player<br>
+            🎵 <b style="color:#d8d0c0">Shows</b> — all <span id="help-show-count2">—</span> concerts across modes. Filter by year, search venue, city or date. Tap any show for its setlist &amp; player<br>
             🔍 <b style="color:#d8d0c0">Songs</b> — type any song to find every show it was played. Tap a result to jump straight there<br>
             💀 <b style="color:#d8d0c0">Deadheads</b> — other Deadheads show lists. Tap a name to browse their attended shows<br>
             🎲 <b style="color:#d8d0c0">Jam</b> — discover shows: Favorites, On This Day, Play a Show, and Best Versions
