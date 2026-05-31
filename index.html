@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.60</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.62</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.60</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.62</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.60';
+const APP_BUILD = '2.0.62';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -619,7 +619,7 @@ const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
 const LAST_VIEW_STATE_KEY='gd_last_view_state';
-let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},modeJsonCounts={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
+let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},modeJsonCounts={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeSwitchTargetKey='',_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
 const SETLIST_DATASET_PATHS={
   gd:'grateful-dead',
   'jerry-garcia':'jerry-garcia',
@@ -1080,7 +1080,7 @@ async function loadModeCatalogFromJson(mode,opts){
     updateModeControlCount();
     return modeLiveCatalogs[key];
   }
-  if(modeCatalogCache[key]&&modeCatalogCache[key].source==='json'&&modeCatalogCache[key].shows&&modeCatalogCache[key].shows.length){
+  if(isCurrentJsonCatalogCache(modeCatalogCache[key])&&modeCatalogCache[key].shows&&modeCatalogCache[key].shows.length){
     if(cacheMatchesMode(modeCatalogCache[key],mode)){
       modeLiveCatalogs[key]=_hydrateSheetCacheShows(modeCatalogCache[key].shows,mode);
       modeJsonCounts[key]=modeLiveCatalogs[key].length;
@@ -1093,7 +1093,7 @@ async function loadModeCatalogFromJson(mode,opts){
   }
   try{
     const cached=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode))||'null');
-    if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
+    if(isCurrentJsonCatalogCache(cached)&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
       modeCatalogCache[key]=cached;
       modeLiveCatalogs[key]=_hydrateSheetCacheShows(cached.shows,mode);
       modeJsonCounts[key]=modeLiveCatalogs[key].length;
@@ -1120,6 +1120,7 @@ async function loadModeCatalogFromJson(mode,opts){
         modeCatalogCache[key]={
           schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
           source:'json',
+          build:APP_BUILD,
           modeKey:key,
           modeLabel:mode.label,
           shows:_sheetCacheShows(list,mode),
@@ -1135,7 +1136,7 @@ async function loadModeCatalogFromJson(mode,opts){
     }
     try{
       const cached=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode))||'null');
-      if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
+      if(isCurrentJsonCatalogCache(cached)&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
         modeCatalogCache[key]=cached;
         modeLiveCatalogs[key]=_hydrateSheetCacheShows(cached.shows,mode);
         modeJsonCounts[key]=modeLiveCatalogs[key].length;
@@ -1318,6 +1319,9 @@ function cacheUserCountsFromShows(list,mode){
   userCountCache.modes[key]=counts;
   rebuildUserTotalCounts();
   saveUserCountCache();
+}
+function isCurrentJsonCatalogCache(cache){
+  return !!(cache&&cache.source==='json'&&cache.build===APP_BUILD);
 }
 function restoreUserCountCache(){
   try{
@@ -1710,7 +1714,8 @@ function updateModeControlCount(){
   const el=document.getElementById('modeCount');
   if(!el)return;
   const sel=document.getElementById('modeSel');
-  const pendingMode=(_modeSwitchBusy&&sel&&sel.value)?modes.find(function(m){return m.key===sel.value;}):null;
+  const pendingKey=_modeSwitchTargetKey||((_modeSwitchBusy&&sel&&sel.value)?sel.value:'');
+  const pendingMode=pendingKey?modes.find(function(m){return m.key===pendingKey;}):null;
   const mode=pendingMode||
     modes.find(function(m){return loadedCatalogModeKey&&m.key===loadedCatalogModeKey;})||
     modes.find(function(m){return activeMode&&m.key===activeMode.key;})||activeMode||DEFAULT_MODE;
@@ -1849,6 +1854,8 @@ function showModeLoadingState(mode){
   if(count){
     const totalEl=document.getElementById('s-total');if(totalEl)totalEl.textContent=count.toLocaleString();
     const modeCount=document.getElementById('modeCount');if(modeCount)modeCount.textContent=count.toLocaleString()+' shows';
+  }else{
+    const modeCount=document.getElementById('modeCount');if(modeCount)modeCount.textContent='— shows';
   }
   const attEl=document.getElementById('s-att');if(attEl)attEl.textContent='—';
   const yrsEl=document.getElementById('s-yrs');if(yrsEl)yrsEl.textContent=yrRange;
@@ -1875,6 +1882,9 @@ async function changeMode(){
   const hasCachedMode=!!(modeLiveCatalogs[next.key]&&modeLiveCatalogs[next.key].length);
   _restoreViewState=readLastViewStateForMode(next.key);
   const prev=activeMode;
+  const prevShows=shows;
+  const prevFiltered=filtered;
+  const prevLoadedCatalogModeKey=loadedCatalogModeKey;
   if(hasCachedMode){
     _sheetRefreshToken++;
     window._gdSheetRefreshPending=false;
@@ -1902,11 +1912,16 @@ async function changeMode(){
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
   _modeSwitchStartedAt=Date.now();
+  _modeSwitchTargetKey=next.key;
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
   cancelModeBackgroundWork();
   setHdrSt('Loading '+next.label+'…','busy');
   if(sel)sel.value=next.key;
+  shows=[];
+  filtered=[];
+  loadedCatalogModeKey='';
+  songIndex={};
   const switchCnt=document.getElementById('cntbar');
   if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">Loading '+esc(next.label)+'…</span>';
   if(hasCachedMode){
@@ -1939,7 +1954,7 @@ async function changeMode(){
   document.getElementById('q').value='';
   document.getElementById('songQ').value='';
   const jq=document.getElementById('jamSongQ');if(jq)jq.value='';
-  curShow=null;filtered=[];songIndex={};myOnly=priorMyOnly;viewUser=priorViewUser||curUser||'all';
+  curShow=null;myOnly=priorMyOnly;viewUser=priorViewUser||curUser||'all';
   const sp=document.getElementById('setlistPanel');
   if(sp&&sp.classList.contains('open'))closeSetlist();
   try{
@@ -1961,6 +1976,9 @@ async function changeMode(){
     }else{
       noteModeLoadFailure(next);
       activeMode=prev||DEFAULT_MODE;
+      shows=prevShows||[];
+      filtered=prevFiltered||[];
+      loadedCatalogModeKey=prevLoadedCatalogModeKey||((activeMode&&activeMode.key)||DEFAULT_MODE.key);
       localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
       if(sel)sel.value=activeMode.key;
       renderModeSelect();
@@ -1970,6 +1988,7 @@ async function changeMode(){
   }finally{
     _modeSwitchBusy=false;
     _modeSwitchStartedAt=0;
+    _modeSwitchTargetKey='';
     if(token===_modeSwitchToken){
       if(activeMode&&activeMode.key===next.key&&loadedCatalogModeKey===next.key){
         clearSwitchStatusFor(next,next.label,'ok');
@@ -2294,6 +2313,7 @@ async function preloadInactiveModeCatalogs(){
         modeCatalogCache[key]={
           schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
           source:'json',
+          build:APP_BUILD,
           modeKey:key,
           modeLabel:mode.label,
           shows:_sheetCacheShows(list,mode),
@@ -2312,12 +2332,14 @@ async function preloadInactiveModeCatalogs(){
 function _readModeCache(mode){
   mode=mode||activeMode||DEFAULT_MODE;
   const modeKey=(mode&&mode.key)||DEFAULT_MODE.key;
-  if(modeCatalogCache[modeKey]&&modeCatalogCache[modeKey].shows&&modeCatalogCache[modeKey].shows.length&&cacheMatchesMode(modeCatalogCache[modeKey],mode))
+  if(modeCatalogCache[modeKey]&&modeCatalogCache[modeKey].shows&&modeCatalogCache[modeKey].shows.length&&
+    (modeCatalogCache[modeKey].source!=='json'||isCurrentJsonCatalogCache(modeCatalogCache[modeKey]))&&
+    cacheMatchesMode(modeCatalogCache[modeKey],mode))
     return modeCatalogCache[modeKey];
   try{
     const catalogRaw=localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode));
     const catalogParsed=catalogRaw?JSON.parse(catalogRaw):null;
-    if(catalogParsed&&catalogParsed.shows&&catalogParsed.shows.length&&cacheMatchesMode(catalogParsed,mode)){
+    if(isCurrentJsonCatalogCache(catalogParsed)&&catalogParsed.shows&&catalogParsed.shows.length&&cacheMatchesMode(catalogParsed,mode)){
       modeCatalogCache[modeKey]=catalogParsed;
       return catalogParsed;
     }
@@ -2341,6 +2363,7 @@ function useModeCache(mode,opts){
   opts=opts||{};
   const cached=_readModeCache(mode);
   if(!cached||!cached.shows||cached.shows.length<=5)return false;
+  if(opts.fromFastOpen && !isCurrentJsonCatalogCache(cached))return false;
   if(!cacheMatchesMode(cached,mode))return false;
   if(cached.users&&cached.users.length){users=cached.users;userPins=cached.pins||{};}
   activeMode=mode||activeMode||DEFAULT_MODE;
@@ -4511,6 +4534,7 @@ function updateSetlistHydrationProgress(){
   }
 }
 function applyFilters(){
+  if(_modeSwitchBusy&&_modeSwitchTargetKey&&loadedCatalogModeKey!==_modeSwitchTargetKey)return;
   updateShowSearchClear();
   const list=currentFilteredShows();
   filtered=list;
@@ -4682,6 +4706,7 @@ function kickVisibleSetlistLoads(){
 
 function renderList(){
   const el=document.getElementById('list');
+  if(_modeSwitchBusy&&_modeSwitchTargetKey&&loadedCatalogModeKey!==_modeSwitchTargetKey)return;
   if(!filtered.length&&shows.length){
     filtered=currentFilteredShows();
   }
