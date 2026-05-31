@@ -16,7 +16,7 @@
 <meta name="application-name" content="RonsDeadListener">
 <meta property="og:title" content="RonsDeadListener">
 <meta property="og:site_name" content="RonsDeadListener">
-<meta property="og:description" content="Grateful Dead live shows 1965–1995 · archive.org · 2,386 shows">
+<meta property="og:description" content="Grateful Dead live shows · archive.org">
 <meta property="og:type" content="website">
 <meta property="og:image" content="https://www.ronsdeadlistener.com/icon.png">
 <meta property="og:image:width" content="512">
@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">2,290</span> Shows · <span id="login-version">V2.0.55</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.56</span></div>
     </div>
     
 
@@ -537,14 +537,14 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">2,290</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.55</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.56</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
       <div class="hdr-user-avatar" id="hdrAvatar">?</div>
       <div class="hdr-user-name" id="hdrUserName">—</div>
     </div>
-    <button onclick="showReloadOptions()" id="syncBtn" title="Sync latest data" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:50%;width:28px;height:28px;color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="Sync">&#8635;</button>
+    <button onclick="syncData()" id="syncBtn" title="Sync Deadheads, My Shows, and Favorites" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:50%;width:28px;height:28px;color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="Sync">&#8635;</button>
     <button onclick="showHelp()" title="Help" id="helpBtn" style="background:rgba(200,168,75,.08);border:1.5px solid rgba(200,168,75,.5);border-radius:50%;width:32px;height:32px;color:var(--gold);font-size:15px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;animation:helpPulse 3s ease-in-out infinite">?</button>
   </div>
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.55';
+const APP_BUILD = '2.0.56';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1712,7 +1712,12 @@ async function changeMode(){
   if(sel)sel.value=next.key;
   const switchCnt=document.getElementById('cntbar');
   if(switchCnt)switchCnt.innerHTML='<span style="color:var(--gold2)">Loading '+esc(next.label)+'…</span>';
-  showModeLoadingState(next);
+  if(hasCachedMode){
+    const listEl=document.getElementById('list');
+    if(listEl)listEl.innerHTML='<div class="loading big"><span class="spinner"></span><div>Switching to '+esc(next.label)+'…</div></div>';
+  }else{
+    showModeLoadingState(next);
+  }
   await new Promise(function(resolve){
     requestAnimationFrame(function(){setTimeout(resolve,0);});
   });
@@ -3280,9 +3285,7 @@ function scanProgressStats(){
 
 function scanProgressStatus(prefix){
   const st=scanProgressStats();
-  const sl=setlistHydrationStats();
-  const setlistText=sl.total?(' · '+sl.loaded.toLocaleString()+'/'+sl.total.toLocaleString()+' searchable setlists'):'';
-  return prefix+setlistText+' · '+st.available.toLocaleString()+' playable · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' audio checked ('+st.pct+'%)';
+  return prefix+' · '+st.available.toLocaleString()+' playable · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' audio checked ('+st.pct+'%)';
 }
 
 function updateScanDebugStats(indexed,total,pct){
@@ -4236,14 +4239,10 @@ function setlistHydrationStats(mode,listOverride){
 function setlistHydrationLabel(){
   if(_modeSwitchBusy)return '';
   if(activeMode&&loadedCatalogModeKey&&activeMode.key!==loadedCatalogModeKey)return '';
-  if(!readModeSetlistDataset(activeMode)&&!isModeSetlistDatasetLoading(activeMode))return '';
-  const st=setlistHydrationStats();
-  if(!st.total)return '';
-  if(st.playable>=st.total){
-    if(st.loaded>=st.total)return '';
-    return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+'</span>';
+  if(isModeSetlistDatasetLoading(activeMode)){
+    return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loading setlists</span>';
   }
-  return ' <span class="setlist-prog" style="color:var(--gold2);font-size:10px">· loaded '+st.playable.toLocaleString()+'/'+st.total.toLocaleString()+' '+(st.active?'loading':'loaded')+'</span>';
+  return '';
 }
 function markSetlistHydrationQueued(){
   const st=setlistHydrationStats();
@@ -6931,9 +6930,7 @@ function songSearch(){updateSongSearchClear();clearTimeout(songTimer);songTimer=
 
 function showSongIndexStats(matchCount,q){
   const st=scanProgressStats();
-  const sl=setlistHydrationStats();
-  const setlistText=sl.total?(' · '+sl.loaded.toLocaleString()+'/'+sl.total.toLocaleString()+' searchable setlists'):'';
-  const status=setlistText+' · '+st.available.toLocaleString()+' playable · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' audio checked ('+st.pct+'%)';
+  const status=' · '+st.available.toLocaleString()+' playable · '+st.unavailable.toLocaleString()+' without audio · '+st.resolved.toLocaleString()+'/'+st.total.toLocaleString()+' audio checked ('+st.pct+'%)';
   if(matchCount>0&&q)return matchCount+' songs matching "'+q+'"'+status;
   return 'Search any song'+status;
 }
@@ -9010,10 +9007,7 @@ function pauseAtPosition(show,trackIdx,pos){
 }
 
 async function showReloadOptions(){
-  var ov=document.getElementById('reloadMenuOverlay');
-  if(!ov)return;
-  ov.style.display='flex';
-  document.body.style.overflow='hidden';
+  return syncData();
 }
 function closeReloadOptions(){
   var ov=document.getElementById('reloadMenuOverlay');
@@ -9321,7 +9315,7 @@ function stopArchiveAutoRetry(){
           <img id="welcomeLogo" onclick="toggleHelpDiagnostics()" title="Diagnostics" style="width:88px;height:88px;border-radius:50%;border:2px solid rgba(200,168,75,.3);margin-bottom:14px;display:block;margin-left:auto;margin-right:auto;cursor:pointer">
           <div style="font-family:var(--serif);font-size:26px;color:var(--gold);letter-spacing:.5px;line-height:1.2">Ron's Deadhead Listener</div>
           <div style="font-family:var(--serif);font-size:18px;color:rgba(200,168,75,.7);letter-spacing:.3px;margin-top:5px;line-height:1.3">Built for Deadheads by Ron</div>
-          <div style="font-size:12px;color:rgba(200,168,75,.6);margin-top:6px;letter-spacing:.5px">1965 – 1995 · <span id="help-show-count">2,290</span> Shows</div>
+          <div style="font-size:12px;color:rgba(200,168,75,.6);margin-top:6px;letter-spacing:.5px">1965 – 1995 · <span id="help-show-count">—</span> Shows</div>
         </div>
 
         <!-- Diagnostics -->
@@ -9348,7 +9342,7 @@ function stopArchiveAutoRetry(){
         <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 18px;margin-bottom:16px">
           <div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px">What's Here</div>
           <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
-            🎵 <b style="color:#d8d0c0">Shows</b> — all <span id="help-show-count2">2,290</span> concerts. Filter by year, search venue, city or date. Tap any show for its setlist &amp; player<br>
+            🎵 <b style="color:#d8d0c0">Shows</b> — all <span id="help-show-count2">—</span> concerts. Filter by year, search venue, city or date. Tap any show for its setlist &amp; player<br>
             🔍 <b style="color:#d8d0c0">Songs</b> — type any song to find every show it was played. Tap a result to jump straight there<br>
             💀 <b style="color:#d8d0c0">Deadheads</b> — other Deadheads show lists. Tap a name to browse their attended shows<br>
             🎲 <b style="color:#d8d0c0">Jam</b> — discover shows: Favorites, On This Day, Play a Show, and Best Versions
