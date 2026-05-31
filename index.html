@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.59</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.60</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.59</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.60</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.59';
+const APP_BUILD = '2.0.60';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1091,6 +1091,18 @@ async function loadModeCatalogFromJson(mode,opts){
     }
     delete modeCatalogCache[key];
   }
+  try{
+    const cached=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_catalog_cache',mode))||'null');
+    if(cached&&cached.source==='json'&&cached.shows&&cached.shows.length&&cacheMatchesMode(cached,mode)){
+      modeCatalogCache[key]=cached;
+      modeLiveCatalogs[key]=_hydrateSheetCacheShows(cached.shows,mode);
+      modeJsonCounts[key]=modeLiveCatalogs[key].length;
+      mode.showCount=modeLiveCatalogs[key].length;
+      updateGlobalShowCount();
+      updateModeControlCount();
+      return modeLiveCatalogs[key];
+    }
+  }catch(e){}
   if(catalogDatasetLoads[key])return catalogDatasetLoads[key];
   catalogDatasetLoads[key]=(async function(){
     const urls=catalogDatasetUrls(mode);
@@ -1697,9 +1709,12 @@ function updateGlobalShowCount(){
 function updateModeControlCount(){
   const el=document.getElementById('modeCount');
   if(!el)return;
-  const mode=modes.find(function(m){return loadedCatalogModeKey&&m.key===loadedCatalogModeKey;})||
+  const sel=document.getElementById('modeSel');
+  const pendingMode=(_modeSwitchBusy&&sel&&sel.value)?modes.find(function(m){return m.key===sel.value;}):null;
+  const mode=pendingMode||
+    modes.find(function(m){return loadedCatalogModeKey&&m.key===loadedCatalogModeKey;})||
     modes.find(function(m){return activeMode&&m.key===activeMode.key;})||activeMode||DEFAULT_MODE;
-  const count=(loadedCatalogModeKey&&activeMode&&loadedCatalogModeKey===activeMode.key&&shows&&shows.length)
+  const count=(!pendingMode&&loadedCatalogModeKey&&activeMode&&loadedCatalogModeKey===activeMode.key&&shows&&shows.length)
     ? shows.length
     : (Number(modeJsonCounts[mode&&mode.key])||0);
   el.textContent=count?(count.toLocaleString()+' show'+(count===1?'':'s')):'— shows';
@@ -1860,6 +1875,30 @@ async function changeMode(){
   const hasCachedMode=!!(modeLiveCatalogs[next.key]&&modeLiveCatalogs[next.key].length);
   _restoreViewState=readLastViewStateForMode(next.key);
   const prev=activeMode;
+  if(hasCachedMode){
+    _sheetRefreshToken++;
+    window._gdSheetRefreshPending=false;
+    cancelModeBackgroundWork();
+    activeMode=next;
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    onLoaded(modeLiveCatalogs[next.key],{fromJsonCatalog:true,fromMemory:true});
+    renderModeSelect();
+    setHdrSt(next.label+' from memory','ok');
+    scheduleModeSetlistHydration(next);
+    scheduleSheetRefreshAfterStartup();
+    return;
+  }
+  if(useModeCache(next,{fromFastOpen:true,fromStartup:false})){
+    _sheetRefreshToken++;
+    window._gdSheetRefreshPending=false;
+    cancelModeBackgroundWork();
+    localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
+    renderModeSelect();
+    setHdrSt(activeMode.label+' from cache','ok');
+    scheduleModeSetlistHydration(activeMode);
+    scheduleSheetRefreshAfterStartup();
+    return;
+  }
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
   _modeSwitchStartedAt=Date.now();
