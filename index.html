@@ -8095,6 +8095,17 @@ function favoriteMatchesShow(f,show) {
   return !!(f && show && sameModeLabel(favoriteModeLabel(f),showModeLabel(show)) && (f.showId === show.id || f.showId===showStorageId(show) || (favoriteDateKey(f.date) === favoriteDateKey(show.date) && String(f.venue||'') === String(show.venue||''))));
 }
 
+function currentUserFavoriteForRecord(record,show){
+  if(!curUser||!record)return null;
+  const mode=favoriteModeLabel(record);
+  return activeFavorites(allFavorites).find(function(f){
+    if(f.user!==curUser||!sameModeLabel(favoriteModeLabel(f),mode))return false;
+    if(show&&favoriteMatchesShow(f,show))return true;
+    return f.showId===record.showId || rawShowId(f.showId)===rawShowId(record.showId) ||
+      (favoriteDateKey(f.date)===favoriteDateKey(record.date)&&String(f.venue||'')===String(record.venue||''));
+  })||null;
+}
+
 function touchFavoritePlayback(show) {
   const matching = activeFavorites(allFavorites).filter(function(f){ return favoriteMatchesShow(f,show); });
   if (!show || !show.id || !matching.length) return;
@@ -8616,21 +8627,47 @@ function favoriteCachedSummary(f){
 
 function jamFavoriteBareRow(user,fav){
   const mode=favoriteModeLabel(fav);
-  const canEditFav=!!(curUser&&curUser===user);
+  const myFav=currentUserFavoriteForRecord(fav,null);
   const safeShow=escJs(fav.showId||'');
   const safeMode=escJs(mode);
-  const favAction=canEditFav
-    ? "toggleFavoriteRecord('"+safeShow+"','"+safeMode+"')"
-    : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
+  const favAction=myFav
+    ? "toggleFavoriteRecord('"+escJs(myFav.showId||fav.showId||'')+"','"+escJs(favoriteModeLabel(myFav)||mode)+"')"
+    : "addFavoriteRecordFromJam('"+safeShow+"','"+safeMode+"')";
   const songs=favoriteCachedSummary(fav);
   const sub=songs?'<div class="row-songs"><span style="color:var(--green)">▶ </span>'+esc(songs)+'</div>':'';
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
     +'<div class="row-date">'+esc(displayDate(fav.date||''))+'</div>'
     +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+' favorite</div>'+sub+'</div>'
     +'<div class="row-right"><div class="row-btns">'
-      +'<button class="fav-btn'+favoriteClass(fav)+'" data-id="'+esc(fav.showId||'')+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
+      +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+esc(fav.showId||'')+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
       +'<button class="pbtn" onclick="event.stopPropagation();openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">↗</button>'
     +'</div></div></div>';
+}
+
+async function addFavoriteRecordFromJam(showId,modeLabel){
+  if(guestMode||!curUser){
+    const btn=document.querySelector('.fav-btn[data-id="'+showId+'"]');
+    if(btn)showMineTooltip(btn,'Join to save favorites →');
+    setTimeout(function(){promptSignup({type:'favorite',showId:showId});},800);
+    return;
+  }
+  const mode=modeForLabel(modeLabel);
+  const fav=activeFavorites(allFavorites).find(function(f){return f.showId===showId&&sameModeLabel(favoriteModeLabel(f),modeLabel);});
+  const show=(fav&&findFavoriteMatchInList(sameModeLabel(mode.label,activeMode.label)?shows:[],fav))||findShowInModeCache(mode,showId,fav);
+  if(show&&sameModeLabel(showModeLabel(show),activeMode.label)){
+    await addFavoriteForUser(show.id,curUser);
+    return;
+  }
+  const nowStamp=new Date().toISOString();
+  const sid=rawShowId(showId);
+  const date=(show&&show.date)||(fav&&fav.date)||'';
+  const venue=(show&&show.venue)||(fav&&fav.venue)||'';
+  if(!allFavorites.some(function(f){return f.user===curUser&&f.showId===sid&&sameModeLabel(favoriteModeLabel(f),modeLabel);})){
+    allFavorites.push({user:curUser,showId:sid,date:date,venue:venue,addedAt:nowStamp,lastPlayedAt:nowStamp,mode:modeLabel});
+  }
+  localStorage.setItem('gd_favorites',JSON.stringify(allFavorites));
+  renderList();renderJamFavorites();updateSpFavBtn();
+  postScriptAction({action:'addFavorite',user:curUser,showId:sid,date:date,venue:venue,mode:modeLabel},3500);
 }
 
 async function openFavoriteRecord(showId,modeLabel){
@@ -8663,9 +8700,9 @@ async function toggleFavoriteRecord(showId,modeLabel){
 function jamFavoriteShowRow(s,user,fav){
   const favShowId = fav && fav.showId;
   const mode=favoriteModeLabel(fav);
+  const myFav=currentUserFavoriteForRecord(fav,s);
   const myUser=curUser||viewUser;
   const myAtt=myUser&&myUser!=='all'&&s.attended&&s.attended[myUser];
-  const canEditFav=!!(curUser&&curUser===user);
   const hasAudio=showLooksPlayable(s);
   const hasCachedSetlist=!!(s.songs&&s.songs.length);
   const dot='<span style="color:var(--green)">▶ </span>';
@@ -8674,15 +8711,13 @@ function jamFavoriteShowRow(s,user,fav){
   const sub=songs?'<div class="row-songs">'+dot+prefix+esc(songs)+'</div>':'';
   const safeId=String(s.id).replace(/'/g,"\\'");
   const safeFavId=String(favShowId||s.id).replace(/'/g,"\\'");
-  const favAction=canEditFav
-    ? "toggleFavorite('"+safeFavId+"')"
-    : "showMineTooltip(this,'Only the person who added it can remove this favorite',function(){})";
+  const favAction="toggleFavorite('"+safeId+"')";
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openSetlistFromJam(\''+s.id+'\')">'
     +'<div class="row-date">'+displayDate(s.date)+'</div>'
     +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(mode)+' · '+esc(s.city)+'</div>'+sub+'</div>'
     +'<div class="row-right">'
       +'<div class="row-btns">'
-        +'<button class="fav-btn'+favoriteClass(fav)+'" data-id="'+(favShowId||s.id)+'" onclick="event.stopPropagation();'+favAction+'" title="'+(canEditFav?'Remove favorite':'Favorite')+'">★</button>'
+        +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+s.id+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
         +'<button class="mine-btn'+(myAtt?' mine-on':'')+'" onclick="event.stopPropagation();toggleMine(\''+safeId+'\')" title="'+(myAtt?'Remove':'Add to my shows')+'">'+(myAtt?'✓':'+')+'</button>'
         +'<button class="pbtn'+(!hasAudio?' na':'')+'" onclick="event.stopPropagation();'+(hasAudio?'openSetlistAndPlay(\''+safeId+'\',\'\')':'')+'">'+(hasAudio?'▶':'—')+'</button>'
       +'</div>'
