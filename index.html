@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.63</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.64</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.63</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.64</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.63';
+const APP_BUILD = '2.0.64';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1062,11 +1062,22 @@ function normalizeCatalogDataset(mode,data){
 }
 
 async function fetchJsonQuiet(url,ms){
+  ms=ms||8000;
+  let timer=null;
   try{
-    const res=await fetch(url,{cache:'no-cache',signal:AbortSignal.timeout(ms||7000)});
+    let signal=null;
+    if(window.AbortSignal&&AbortSignal.timeout){
+      signal=AbortSignal.timeout(ms);
+    }else if(window.AbortController){
+      const controller=new AbortController();
+      signal=controller.signal;
+      timer=setTimeout(function(){try{controller.abort();}catch(e){}},ms);
+    }
+    const res=await fetch(url,{cache:'no-cache',signal:signal});
     if(!res.ok)return null;
     return await res.json();
   }catch(e){return null;}
+  finally{if(timer)clearTimeout(timer);}
 }
 
 async function loadModeCatalogFromJson(mode,opts){
@@ -1107,7 +1118,7 @@ async function loadModeCatalogFromJson(mode,opts){
   catalogDatasetLoads[key]=(async function(){
     const urls=catalogDatasetUrls(mode);
     for(let i=0;i<urls.length;i++){
-      const data=await fetchJsonQuiet(urls[i],opts.timeout||1800);
+      const data=await fetchJsonQuiet(urls[i],opts.timeout||8000);
       if(!data){debugLines.push('catalog miss '+urls[i].split('?')[0]);continue;}
       const list=normalizeCatalogDataset(mode,data);
       if(list&&list.length){
@@ -1176,7 +1187,8 @@ async function refreshCatalogModeCounts(){
   await Promise.all(list.map(async function(mode){
     const key=(mode&&mode.key)||DEFAULT_MODE.key;
     const activeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
-    const needsActiveRows=key===activeKey&&(!shows.length||loadedCatalogModeKey!==key);
+    const targetKey=_modeSwitchTargetKey||activeKey;
+    const needsActiveRows=key===targetKey&&(!shows.length||loadedCatalogModeKey!==key);
     if(modeJsonCounts[key]&&!needsActiveRows)return;
     try{
       const urls=catalogDatasetUrls(mode);
@@ -1187,9 +1199,10 @@ async function refreshCatalogModeCounts(){
         if(rows.length){
           modeJsonCounts[key]=rows.length;
           mode.showCount=rows.length;
-          if(needsActiveRows&&activeMode&&activeMode.key===key){
+          if(needsActiveRows){
             const catalog=normalizeCatalogDataset(mode,data);
             if(catalog&&catalog.length){
+              if(_modeSwitchTargetKey===key)activeMode=mode;
               modeLiveCatalogs[key]=catalog;
               modeCatalogCache[key]={
                 schemaVersion:SHEET_CACHE_SCHEMA_VERSION,
@@ -1938,6 +1951,7 @@ async function changeMode(){
   _sheetRefreshToken++;
   window._gdSheetRefreshPending=false;
   cancelModeBackgroundWork();
+  activeMode=next;
   setHdrSt('Loading '+next.label+'…','busy');
   if(sel)sel.value=next.key;
   shows=[];
@@ -1981,7 +1995,7 @@ async function changeMode(){
   if(sp&&sp.classList.contains('open'))closeSetlist();
   try{
     const ok=await Promise.race([
-      renderModeCatalogJsonFirst(next,{modeSwitchToken:token}),
+      renderModeCatalogJsonFirst(next,{modeSwitchToken:token,timeout:10000}),
       new Promise(function(resolve){
         setTimeout(function(){
           debugLines.push('mode switch timeout '+next.label+' on '+APP_BUILD);
@@ -4734,6 +4748,11 @@ function kickVisibleSetlistLoads(){
 function renderList(){
   const el=document.getElementById('list');
   if(_modeSwitchBusy&&_modeSwitchTargetKey&&loadedCatalogModeKey!==_modeSwitchTargetKey)return;
+  if(!shows.length&&_modeSwitchTargetKey){
+    const mode=modes.find(function(m){return m.key===_modeSwitchTargetKey;})||activeMode||DEFAULT_MODE;
+    el.innerHTML='<div class="loading big"><span class="spinner"></span><div>Loading '+esc(mode.label||'shows')+' shows…</div><div class="loading-detail">Reading the local JSON catalog.</div></div>';
+    return;
+  }
   if(!filtered.length&&shows.length){
     filtered=currentFilteredShows();
   }
