@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.69</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.71</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.69</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.71</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.69';
+const APP_BUILD = '2.0.71';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -695,6 +695,71 @@ function modeScopedKey(base,mode){
 }
 function currentModeScopedKey(base){return modeScopedKey(base,activeMode);}
 function modeKeyScopedKey(base,mode){return modeScopedKey(base,mode||activeMode);}
+function isQuotaError(e){
+  return !!(e&&(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||String(e.message||e).toLowerCase().indexOf('quota')>=0));
+}
+function estimateStorageKB(){
+  try{
+    return Math.round(Object.keys(localStorage).reduce(function(sum,k){return sum+k.length+String(localStorage.getItem(k)||'').length;},0)/1024);
+  }catch(e){return 0;}
+}
+function pruneRebuildableStorage(protectKey){
+  const removed=[];
+  const protectedRoots={
+    gd_user:1,gd_pin:1,gd_current_user_cache:1,gd_users_cache:1,gd_modes_cache:1,
+    gd_favorites:1,gd_fav_removed:1,gd_fav_touch:1,gd_user_count_cache:1,
+    gd_play_history:1,gd_restore:1,gd_pos:1,gd_device_id:1
+  };
+  const rebuildableBases=[
+    'gd_catalog_cache','gd_sheet_cache','gd_meta_loaded','gd_relisten_avail',
+    'gd_relisten_avail_ts','gd_archive_source_cache','gd_scan_complete',
+    'gd_show_flags','gd_archive_hint_fp','gd_archive_id_backfill_stats',
+    'gd_archive_id_save_attempts','gd_archive_id_save_last','gd_archive_id_save_gate_stats'
+  ];
+  try{
+    const keys=[];
+    for(let i=0;i<localStorage.length;i++)keys.push(localStorage.key(i));
+    keys.forEach(function(k){
+      if(!k||k===protectKey||protectedRoots[k])return;
+      if(k.indexOf('gd_attended')===0)return;
+      const isRebuildable=rebuildableBases.some(function(base){return k===base||k.indexOf(base+'_')===0;});
+      if(!isRebuildable)return;
+      try{localStorage.removeItem(k);removed.push(k);}catch(e){}
+    });
+  }catch(e){}
+  window._gdStorageLast={reason:'prune-rebuildable',protectKey:protectKey||'',removed:removed,storageKB:estimateStorageKB(),at:Date.now()};
+  return removed;
+}
+function setLocalStorageItemSafe(key,value,opts){
+  opts=opts||{};
+  if(opts.rebuildable&&(estimateStorageKB()>3500||String(value||'').length>180000)){
+    try{localStorage.removeItem(key);}catch(e){}
+    window._gdStorageLast={key:key,reason:'skip-large-rebuildable',bytes:String(value||'').length,storageKB:estimateStorageKB(),at:Date.now()};
+    return false;
+  }
+  try{
+    localStorage.setItem(key,value);
+    return true;
+  }catch(e){
+    if(!isQuotaError(e)){
+      window._gdStorageLast={key:key,reason:'write-error',error:String(e&&e.message||e),storageKB:estimateStorageKB(),at:Date.now()};
+      return false;
+    }
+    pruneRebuildableStorage(key);
+    try{
+      localStorage.setItem(key,value);
+      window._gdStorageLast=Object.assign({},window._gdStorageLast||{},{key:key,reason:'quota-recovered',storageKB:estimateStorageKB(),at:Date.now()});
+      return true;
+    }catch(e2){
+      window._gdStorageLast={key:key,reason:'quota-still-full',error:String(e2&&e2.message||e2),storageKB:estimateStorageKB(),at:Date.now()};
+      if(opts.dropOnFailure){try{localStorage.removeItem(key);}catch(e3){}}
+      return false;
+    }
+  }
+}
+function setLocalStorageJsonSafe(key,obj,opts){
+  return setLocalStorageItemSafe(key,JSON.stringify(obj),opts);
+}
 function modeForShow(show){
   if(!show)return activeMode||DEFAULT_MODE;
   const key=show.modeKey||'';
@@ -1141,7 +1206,7 @@ async function loadModeCatalogFromJson(mode,opts){
           userLimit:userLimit,
           ts:Date.now()
         };
-        try{localStorage.setItem(modeKeyScopedKey('gd_catalog_cache',mode),JSON.stringify(modeCatalogCache[key]));}catch(e){}
+        setLocalStorageJsonSafe(modeKeyScopedKey('gd_catalog_cache',mode),modeCatalogCache[key],{dropOnFailure:true,rebuildable:true});
         return list;
       }
       debugLines.push('catalog empty '+urls[i].split('?')[0]);
@@ -1221,7 +1286,7 @@ async function refreshCatalogModeCounts(){
                 userLimit:userLimit,
                 ts:Date.now()
               };
-              try{localStorage.setItem(modeKeyScopedKey('gd_catalog_cache',mode),JSON.stringify(modeCatalogCache[key]));}catch(e){}
+              setLocalStorageJsonSafe(modeKeyScopedKey('gd_catalog_cache',mode),modeCatalogCache[key],{dropOnFailure:true,rebuildable:true});
               onLoaded(catalog,{fromJsonCatalog:true,fromCountRefresh:true});
             }
           }
@@ -1360,7 +1425,7 @@ function displayUserTotalCount(u){
   return (userCountCache&&userCountCache.totals&&userCountCache.totals[u])||attCount(u)||0;
 }
 function saveUserCountCache(){
-  try{localStorage.setItem('gd_user_count_cache',JSON.stringify({counts:userCountCache||{},ts:Date.now()}));}catch(e){}
+  setLocalStorageJsonSafe('gd_user_count_cache',{counts:userCountCache||{},ts:Date.now()});
 }
 function userCountsFromCachedShows(list){
   const counts={};
@@ -1406,8 +1471,23 @@ function writeAttendedCacheForMode(mode,list,cacheUsers){
       });
     });
     allUsers.forEach(function(u){if(!fresh[u])fresh[u]={};});
-    localStorage.setItem(modeKeyScopedKey('gd_attended',mode),JSON.stringify(fresh));
-  }catch(e){}
+    const key=modeKeyScopedKey('gd_attended',mode);
+    let old=null;
+    try{old=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}
+    const freshTrue=countAttendedCacheEntries(fresh);
+    const oldTrue=countAttendedCacheEntries(old);
+    if(!freshTrue&&oldTrue){
+      window._gdAttendanceLast={mode:mode.key,reason:'kept-existing-nonempty-cache',freshTrue:freshTrue,oldTrue:oldTrue,at:Date.now()};
+      return;
+    }
+    setLocalStorageJsonSafe(modeKeyScopedKey('gd_attended',mode),fresh);
+    window._gdAttendanceLast={mode:mode.key,reason:'wrote-cache',freshTrue:freshTrue,oldTrue:oldTrue,at:Date.now()};
+  }catch(e){window._gdAttendanceLast={mode:(mode&&mode.key)||'',reason:'write-error',error:String(e&&e.message||e),at:Date.now()};}
+}
+function countAttendedCacheEntries(cache,user){
+  if(!cache)return 0;
+  const names=user?[user]:Object.keys(cache);
+  return names.reduce(function(sum,u){return sum+Object.keys((cache&&cache[u])||{}).length;},0);
 }
 function isCurrentJsonCatalogCache(cache){
   return !!(cache&&cache.source==='json'&&cache.build===APP_BUILD);
@@ -1549,21 +1629,30 @@ function saveHistoryPosition(show, trackIdx, pos){
     // Move to top: remove from current position, reinsert at front (no duplicates)
     hist.splice(i,1);
     hist.unshift(entry);
-    localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+    if(!setLocalStorageJsonSafe(HISTORY_KEY,hist)){
+      hist=hist.slice(0,5);
+      setLocalStorageJsonSafe(HISTORY_KEY,hist,{dropOnFailure:true});
+    }
   }catch(e){}
 }
 function savePos(id,t){
   positions[id]=Math.floor(t);
   try{
-    localStorage.setItem('gd_pos',JSON.stringify(positions));
+    if(!setLocalStorageJsonSafe('gd_pos',positions)){
+      const slim={};
+      if(playingShow)slim[playingShow.id]=Math.floor(t);
+      setLocalStorageJsonSafe('gd_pos',slim,{dropOnFailure:true});
+      positions=slim;
+    }
     // Always save playingShow/playingTrackIdx, not curShow/curTrackIdx
     // curShow is whatever is open in the setlist panel — could be a different show
     if(playingShow&&audio){
-      localStorage.setItem('gd_restore',JSON.stringify({showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()}));
+      setLocalStorageJsonSafe('gd_restore',{showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()});
       // Keep the Recently Played entry in sync (throttled — history write is cheap but runs often)
       saveHistoryPosition(playingShow, playingTrackIdx, t);
+      window._gdSavePosLast={id:id,showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:Math.floor(t),at:Date.now()};
     }
-  }catch(e){}
+  }catch(e){window._gdSavePosLast={id:id,error:String(e&&e.message||e),at:Date.now()};}
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function parseDurationSeconds(v){
@@ -2236,7 +2325,9 @@ function applySheetUserOverlay(sheetList,mode){
   shows.forEach(function(show){
     const fresh=sheetList.find(function(s){return sameShowIdentity(show,s);});
     if(!fresh||!fresh.attended)return;
-    users.forEach(function(u){
+    const sheetUsers=[...new Set(users.concat(Object.keys(fresh.attended||{})).filter(Boolean))];
+    sheetUsers.forEach(function(u){
+      if(!users.includes(u))users.push(u);
       if(!show.attended)show.attended={};
       const next=!!fresh.attended[u];
       if(show.attended[u]!==next){show.attended[u]=next;changed++;}
@@ -2250,7 +2341,37 @@ function applySheetUserOverlay(sheetList,mode){
     updateViewStats();
     loadAttendedLocal();
   }
+  window._gdAttendanceLast={mode:mode.key,reason:'sheet-overlay',changed:changed,user:curUser||viewUser||'',runtimeCount:runtimeAttendedCount(curUser||viewUser),at:Date.now()};
   return changed;
+}
+
+function runtimeAttendedCount(user){
+  if(!user)return 0;
+  return (shows||[]).filter(function(s){return s&&s.attended&&s.attended[user];}).length;
+}
+
+function refreshActiveAttendanceFromCache(reason){
+  const mode=activeMode||DEFAULT_MODE;
+  const changed=applyCachedAttendanceOverlay(mode);
+  rebuildAttCache();
+  renderOthers();
+  applyFilters();
+  updateAttCount();
+  updateViewStats();
+  window._gdAttendanceLast={
+    mode:mode.key,
+    reason:reason||'cache-refresh',
+    changed:changed,
+    user:curUser||viewUser||'',
+    runtimeCount:runtimeAttendedCount(curUser||viewUser),
+    cacheKeyCount:countAttendedCacheEntries(readAttendedModeCache(mode),curUser||viewUser),
+    at:Date.now()
+  };
+  return changed;
+}
+
+function readAttendedModeCache(mode){
+  try{return JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_attended',mode||activeMode||DEFAULT_MODE))||'null');}catch(e){return null;}
 }
 
 function sheetListHasUserOverlay(list){
@@ -2266,16 +2387,23 @@ async function runBackgroundSheetSync(opts){
   const prior={users:users.slice(),pins:Object.assign({},userPins),limit:userLimit};
   let list=null;
   try{
+    window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'started',at:Date.now()};
     list=await tryScriptCatalogJSONP(mode);
     if(list&&list.length&&!sheetListHasUserOverlay(list)){
       const fullSheetList=await tryJSONP(mode);
       if(fullSheetList&&fullSheetList.length)list=fullSheetList;
     }
     if(!list||!list.length)list=await tryJSONP(mode);
-    if(!list||!list.length)return false;
+    if(!list||!list.length){
+      window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'empty',at:Date.now()};
+      return false;
+    }
     cacheUserCountsFromShows(list,mode);
     writeAttendedCacheForMode(mode,list,users.slice());
-    if(activeMode&&activeMode.key===mode.key)applySheetUserOverlay(list,mode);
+    if(activeMode&&activeMode.key===mode.key){
+      applySheetUserOverlay(list,mode);
+      refreshActiveAttendanceFromCache('after-sheet-sync-cache');
+    }
     writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
     try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
     if(activeMode&&activeMode.key===mode.key){
@@ -2300,10 +2428,12 @@ async function runBackgroundSheetSync(opts){
     }
     await loadFavorites();
     setHdrSt(opts.manual?'✓ Synced':'','ok');
+    window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'ok',shows:list.length,hasOverlay:sheetListHasUserOverlay(list),user:curUser||viewUser||'',runtimeCount:runtimeAttendedCount(curUser||viewUser),cacheKeyCount:countAttendedCacheEntries(readAttendedModeCache(mode),curUser||viewUser),at:Date.now()};
     return true;
   }catch(e){
     users=prior.users;userPins=prior.pins;userLimit=prior.limit;
     if(opts.manual)setHdrSt('⚠ Sync failed','err');
+    window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'error',error:String(e&&e.message||e),at:Date.now()};
     return false;
   }
 }
@@ -2365,7 +2495,7 @@ function _writeCacheSoon(list){
     ts:Date.now()
   };
   modeCatalogCache[modeKey]=snapshot;
-  const run=function(){try{localStorage.setItem(cacheKey,JSON.stringify(snapshot));}catch(e){}};
+  const run=function(){setLocalStorageJsonSafe(cacheKey,snapshot,{dropOnFailure:true,rebuildable:true});};
   try{
     if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
     else setTimeout(run,250);
@@ -2387,7 +2517,7 @@ function writeModeSheetCache(mode,list,cacheUsers,cachePins,cacheLimit){
   };
   modeCatalogCache[modeKey]=snapshot;
   try{
-    localStorage.setItem(modeKeyScopedKey('gd_sheet_cache',mode),JSON.stringify(snapshot));
+    setLocalStorageJsonSafe(modeKeyScopedKey('gd_sheet_cache',mode),snapshot,{dropOnFailure:true,rebuildable:true});
   }catch(e){}
 }
 
@@ -5602,6 +5732,14 @@ function renderHelpDiagSummary(){
   const delta=readSetlistDelta(activeMode);
   const dataset=readModeSetlistDataset(activeMode);
   const sourceCache=readArchiveSourceCache();
+  const diagUser=curUser||viewUser||'';
+  const attendedModeCache=readAttendedModeCache(activeMode);
+  let histCount=0,restoreLabel='(none)';
+  try{histCount=(JSON.parse(localStorage.getItem('gd_play_history')||'[]')||[]).length;}catch(e){}
+  try{
+    const restore=JSON.parse(localStorage.getItem('gd_restore')||'null');
+    if(restore&&restore.showId)restoreLabel=(restore.mode||'')+' · '+restore.showId+' · track '+((restore.trackIdx||0)+1)+' @ '+(restore.pos||0)+'s';
+  }catch(e){}
   let storageEstimate='';
   try{
     const approx=Object.keys(localStorage).reduce(function(sum,k){return sum+k.length+String(localStorage.getItem(k)||'').length;},0);
@@ -5611,6 +5749,18 @@ function renderHelpDiagSummary(){
     ['Build',APP_BUILD],
     ['Online',navigator.onLine?'yes':'no'],
     ['Location',location.protocol+'//'+location.host+(location.pathname||'')],
+    ['Mode',(activeMode&&activeMode.key||'')+' · loaded '+(loadedCatalogModeKey||'(none)')],
+    ['User',diagUser||'(none)'],
+    ['My Shows Runtime',diagUser?runtimeAttendedCount(diagUser):'(no user)'],
+    ['My Shows Cache',diagUser?countAttendedCacheEntries(attendedModeCache,diagUser)+' keys':'(no user)'],
+    ['Attendance State',window._gdAttendanceLast?JSON.stringify(window._gdAttendanceLast):'(none)'],
+    ['Sheet Sync',window._gdLastSheetSync?JSON.stringify(window._gdLastSheetSync):'(none)'],
+    ['History',histCount+' items'],
+    ['Last History',window._gdHistoryLast?JSON.stringify(window._gdHistoryLast):'(none)'],
+    ['Last Playback',window._gdStartPlaybackLast?JSON.stringify(window._gdStartPlaybackLast):'(none)'],
+    ['Last Save Pos',window._gdSavePosLast?JSON.stringify(window._gdSavePosLast):'(none)'],
+    ['Restore',restoreLabel],
+    ['Storage',storageEstimate+' · '+(window._gdStorageLast?JSON.stringify(window._gdStorageLast):'no recent pressure')],
     ['Shows Loaded',(shows&&shows.length)||0],
     ['Show',m.date+' · '+m.venue],
     ['Sheet Archive ID',m.archiveIdHint||'(blank)'],
@@ -6951,6 +7101,7 @@ function cancelPlayback(){
 
 function startPlayback(show,idx,resumeAt){
   blurActiveInput();
+  window._gdStartPlaybackLast={showId:show&&show.id,rawId:show&&showStorageId(show),mode:show&&showModeLabel(show),trackIdx:idx,resumeAt:resumeAt||0,at:Date.now()};
   // Use preloaded audio if available for this exact track (seamless transition)
   // Relisten tracks have direct mp3 URL; archive tracks need base URL + filename
   const track=show.tracks[idx];
@@ -7104,13 +7255,13 @@ function pauseAudio(){
   // Save restore state on pause so restart picks up paused position
   if(playingShow&&audio){
     try{
-      localStorage.setItem('gd_restore',JSON.stringify({
+    setLocalStorageJsonSafe('gd_restore',{
         showId:showStorageId(playingShow),
         mode:showModeLabel(playingShow),
         trackIdx:playingTrackIdx,
         pos:Math.floor(audio.currentTime||0),
         ts:Date.now()
-      }));
+      });
     }catch(e){}
     // Also update the Recently Played history entry
     saveHistoryPosition(playingShow, playingTrackIdx, audio.currentTime||0);
@@ -7125,6 +7276,7 @@ function resumeAudio(){
     audio.play().then(function(){
       playing=true;
       if('mediaSession' in navigator)navigator.mediaSession.playbackState='playing';
+      if(playingShow) addToHistory(playingShow,playingTrackIdx,sourceTrackTitle(playingShow,playingTrackIdx));
       touchFavoritePlayback(playingShow);
       updateSpPlayer();renderMiniPlayer();renderList();
     }).catch(function(e){if(e.name!=='AbortError'){playing=false;playIntent=false;updateSpPlayer();}});
@@ -7973,8 +8125,12 @@ function addToHistory(show,trackIdx,trackTitle){
       lastPosTs:fromPlayback?null:(existing.lastPosTs||null)
     });
     if(hist.length>HISTORY_MAX)hist=hist.slice(0,HISTORY_MAX);
-    localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
-  }catch(e){}
+    if(!setLocalStorageJsonSafe(HISTORY_KEY,hist)){
+      hist=hist.slice(0,5);
+      setLocalStorageJsonSafe(HISTORY_KEY,hist,{dropOnFailure:true});
+    }
+    window._gdHistoryLast={showId:show.id,rawId:showStorageId(show),mode:showModeLabel(show),trackIdx:trackIdx,trackTitle:trackTitle||'',count:hist.length,at:Date.now()};
+  }catch(e){window._gdHistoryLast={showId:show&&show.id,error:String(e&&e.message||e),at:Date.now()};}
   renderJamRecent();
 }
 
@@ -8002,9 +8158,36 @@ function seedHistoryFromRestore(){
       lastPosTs:restore.ts||Date.now()
     };
     hist=[entry];
-    localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+    setLocalStorageJsonSafe(HISTORY_KEY,hist);
     return hist;
   }catch(e){return [];}
+}
+
+function seedHistoryFromPlayingShow(){
+  try{
+    if(!playingShow||playingTrackIdx==null)return [];
+    const hist=[{
+      id:showStorageId(playingShow),
+      showId:playingShow.id,
+      rawId:showStorageId(playingShow),
+      stableKey:modeShowGroupKey(playingShow),
+      mode:showModeLabel(playingShow),
+      date:playingShow.date,
+      venue:playingShow.venue,
+      city:playingShow.city,
+      ts:Date.now(),
+      lastTrackIdx:playingTrackIdx,
+      lastTrackTitle:sourceTrackTitle(playingShow,playingTrackIdx)||null,
+      lastPos:(audio&&isFinite(audio.currentTime))?Math.floor(audio.currentTime||0):0,
+      lastPosTs:Date.now()
+    }];
+    setLocalStorageJsonSafe(HISTORY_KEY,hist);
+    window._gdHistoryLast={showId:playingShow.id,mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,count:hist.length,reason:'seed-from-playing',at:Date.now()};
+    return hist;
+  }catch(e){
+    window._gdHistoryLast={error:String(e&&e.message||e),reason:'seed-from-playing-error',at:Date.now()};
+    return [];
+  }
 }
 
 function toggleJamSection(listId,chevId){
@@ -8022,6 +8205,7 @@ function renderJamRecent(){
   let hist=[];
   try{hist=JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch(e){}
   if(!hist.length)hist=seedHistoryFromRestore();
+  if(!hist.length)hist=seedHistoryFromPlayingShow();
   if(!hist.length){
     el.innerHTML='<div class="jam-empty">No history yet — start listening!</div>';
     return;
@@ -8114,7 +8298,7 @@ function resolveRecentShow(entryOrId,modeLabel){
         hist[idx].date=show.date;
         hist[idx].venue=show.venue;
         hist[idx].city=show.city;
-        localStorage.setItem(HISTORY_KEY,JSON.stringify(hist));
+        setLocalStorageJsonSafe(HISTORY_KEY,hist);
       }
     }catch(e){}
   }
