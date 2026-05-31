@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.56</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.57</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.56</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.57</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.56';
+const APP_BUILD = '2.0.57';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -618,6 +618,7 @@ const SHEET_CACHE_SCHEMA_VERSION=4;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
 const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
+const LAST_VIEW_STATE_KEY='gd_last_view_state';
 let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
 const SETLIST_DATASET_PATHS={
   gd:'grateful-dead',
@@ -1260,6 +1261,7 @@ let curShow=null, audio=null, playing=false, curTrackIdx=0;
 let archiveAutoRetryTimer=null, archiveAutoRetryShowId=null, archiveAutoRetryCount=0;
 let playingShow=null, playingTrackIdx=0; // what's actually playing audio
 let myOnly=false, sortDesc=false;
+let _restoreViewState=null,_restoringViewState=false,_saveViewStateTimer=0,_listScrollBound=false;
 let positions={}, songIndex={}, metaCache={};
 let _legacySetlistCacheList=null,_legacyArchiveSourceCacheList=null;
 let _visibleSetlistHydrateRunning=false,_visibleSetlistHydrateLastAt=0;
@@ -1411,6 +1413,70 @@ function blurActiveInput(){
   }
 }
 
+function readLastViewState(){
+  try{return JSON.parse(localStorage.getItem(LAST_VIEW_STATE_KEY)||'null')||null;}catch(e){return null;}
+}
+function readLastViewStateForMode(modeKey){
+  const saved=readLastViewState();
+  modeKey=modeKey||((activeMode&&activeMode.key)||DEFAULT_MODE.key);
+  if(saved&&saved.modes&&saved.modes[modeKey])return saved.modes[modeKey];
+  if(saved&&saved.modeKey===modeKey)return saved;
+  return null;
+}
+function firstVisibleShowId(){
+  const list=document.getElementById('list');
+  if(!list)return '';
+  const rows=Array.from(list.querySelectorAll('.row[data-id]'));
+  if(!rows.length)return '';
+  const top=list.getBoundingClientRect().top;
+  const row=rows.find(function(r){return r.getBoundingClientRect().bottom>=top+4;})||rows[0];
+  return row?row.dataset.id||'':'';
+}
+function saveViewStateNow(){
+  if(_restoringViewState)return;
+  try{
+    const state={
+      modeKey:(activeMode&&activeMode.key)||DEFAULT_MODE.key,
+      viewUser:viewUser||'all',
+      myOnly:!!myOnly,
+      year:(document.getElementById('yrSel')||{}).value||'',
+      query:(document.getElementById('q')||{}).value||'',
+      sortDesc:!!sortDesc,
+      listScroll:(document.getElementById('list')||{}).scrollTop||0,
+      topShowId:firstVisibleShowId(),
+      ts:Date.now()
+    };
+    const saved=readLastViewState()||{};
+    const modes=Object.assign({},saved.modes||{});
+    modes[state.modeKey]=state;
+    localStorage.setItem(LAST_VIEW_STATE_KEY,JSON.stringify(Object.assign({},state,{modes:modes})));
+    localStorage.setItem(ACTIVE_MODE_KEY,state.modeKey);
+  }catch(e){}
+}
+function scheduleSaveViewState(){
+  clearTimeout(_saveViewStateTimer);
+  _saveViewStateTimer=setTimeout(saveViewStateNow,180);
+}
+function bindListScrollState(){
+  if(_listScrollBound)return;
+  const list=document.getElementById('list');
+  if(!list)return;
+  _listScrollBound=true;
+  list.addEventListener('scroll',scheduleSaveViewState,{passive:true});
+}
+function restoreListPosition(state){
+  if(!state)return;
+  requestAnimationFrame(function(){
+    const list=document.getElementById('list');
+    if(!list)return;
+    if(state.topShowId){
+      const row=list.querySelector('.row[data-id="'+String(state.topShowId).replace(/"/g,'\\"')+'"]');
+      if(row){list.scrollTop=row.offsetTop;return;}
+    }
+    if(state.listScroll)list.scrollTop=state.listScroll;
+  });
+}
+
 // ── DATA LOADING ──────────────────────────────────────────────────
 async function loadData(){
   debugLines=[];
@@ -1466,7 +1532,8 @@ function scheduleStartupLoadGuard(){
 }
 
 async function initModes(){
-  const saved=localStorage.getItem(ACTIVE_MODE_KEY)||DEFAULT_MODE.key;
+  _restoreViewState=readLastViewState();
+  const saved=(_restoreViewState&&_restoreViewState.modeKey)||localStorage.getItem(ACTIVE_MODE_KEY)||DEFAULT_MODE.key;
   let loadedModes=false;
   let cachedModePayload=null;
   try{cachedModePayload=JSON.parse(localStorage.getItem('gd_modes_cache')||'null');}catch(e){}
@@ -1479,6 +1546,7 @@ async function initModes(){
   if(!modes.some(function(m){return m.key===DEFAULT_MODE.key;}))modes.unshift(DEFAULT_MODE);
   if(!allModeShowTotal)allModeShowTotal=modes.reduce(function(sum,m){return sum+(Number(m.showCount)||0);},0);
   activeMode=modes.find(function(m){return m.key===saved||m.label===saved;})||DEFAULT_MODE;
+  _restoreViewState=readLastViewStateForMode(activeMode.key)||_restoreViewState;
   localStorage.setItem(ACTIVE_MODE_KEY,activeMode.key);
   renderModeSelect();
   discoverModesInBackground();
@@ -1700,7 +1768,9 @@ async function changeMode(){
     setHdrSt(next.label+' from cache','ok');
     return;
   }
+  saveViewStateNow();
   const hasCachedMode=!!(modeLiveCatalogs[next.key]&&modeLiveCatalogs[next.key].length);
+  _restoreViewState=readLastViewStateForMode(next.key);
   const prev=activeMode;
   const token=++_modeSwitchToken;
   _modeSwitchBusy=true;
@@ -3662,22 +3732,28 @@ function onLoaded(list,opts){
       renderLoginScreen();
       document.getElementById('loginScreen').style.display='none';
       if(users.includes(curUser)||savedIsPending){
-        viewUser=curUser;
         const usel=document.getElementById('usel');
-        if(usel)usel.value=curUser;
+        const hasSavedView=!!(_restoreViewState&&_restoreViewState.modeKey===((activeMode&&activeMode.key)||DEFAULT_MODE.key));
+        if(!hasSavedView){
+          viewUser='all';
+          myOnly=false;
+          if(usel)usel.value='all';
+        }
         const col=userColor(curUser);
         const av=document.getElementById('hdrAvatar');
         if(av){av.textContent=curUser[0];av.style.background=col+'22';av.style.color=col;}
         const hn=document.getElementById('hdrUserName');
         if(hn)hn.textContent=curUser;
-        myOnly=attCount(curUser)>0;
         const myBtn=document.getElementById('myBtn');
         if(myBtn)myBtn.classList.toggle('on',myOnly);
       }
     }
   }
 
+  applySavedViewStateForLoadedMode();
   renderOthers();applyFilters();
+  bindListScrollState();
+  restoreListPosition(_restoreViewState);
   if(!opts.fromSheetRefresh)scheduleModeSetlistHydration(activeMode);
   if(opts.fromSheetRefresh){
     updateSongCntProgress();
@@ -4095,7 +4171,7 @@ async function ensureUserRowForAction(user){
 }
 
 // ── FILTERS ───────────────────────────────────────────────────────
-function changeViewUser(){viewUser=document.getElementById('usel').value;applyFilters();updateViewStats();}
+function changeViewUser(){viewUser=document.getElementById('usel').value;applyFilters();updateViewStats();scheduleSaveViewState();}
 function toggleMy(){
   const myBtn=document.getElementById('myBtn');
   const tb=document.getElementById('theirBtn');
@@ -4122,6 +4198,7 @@ function toggleMy(){
     if(tb)tb.classList.remove('on');
   }
   applyFilters();updateAttCount();updateViewStats();
+  scheduleSaveViewState();
 }
 function updateSortButton(){
   const btn=document.getElementById('srtBtn');
@@ -4131,6 +4208,7 @@ function toggleSort(){
   sortDesc=!sortDesc;
   updateSortButton();
   applyFilters();
+  scheduleSaveViewState();
   requestAnimationFrame(function(){
     const el=document.getElementById('list');
     if(el)el.scrollTop=0;
@@ -4157,10 +4235,46 @@ function sortShowsByDate(list){
 }
 function applyYearFilter(){
   applyFilters();
+  scheduleSaveViewState();
   requestAnimationFrame(function(){
     const el=document.getElementById('list');
     if(el)el.scrollTop=0;
   });
+}
+
+function applySavedViewStateForLoadedMode(){
+  const state=_restoreViewState;
+  if(!state||!activeMode||state.modeKey!==activeMode.key)return;
+  _restoringViewState=true;
+  try{
+    const q=document.getElementById('q');
+    if(q)q.value=state.query||'';
+    sortDesc=!!state.sortDesc;
+    updateSortButton();
+    const yr=document.getElementById('yrSel');
+    if(yr&&Array.from(yr.options).some(function(o){return o.value===(state.year||'');}))yr.value=state.year||'';
+    const usel=document.getElementById('usel');
+    viewUser=state.viewUser||'all';
+    if(usel&&Array.from(usel.options).some(function(o){return o.value===viewUser;}))usel.value=viewUser;
+    else viewUser='all';
+    myOnly=!!state.myOnly&&viewUser!=='all';
+    const myBtn=document.getElementById('myBtn');
+    if(myBtn)myBtn.classList.toggle('on',myOnly&&viewUser===curUser);
+    const tb=document.getElementById('theirBtn');
+    if(tb){
+      if(myOnly&&viewUser!=='all'&&viewUser!==curUser){
+        tb.textContent=viewUser.substring(0,6)+' shows';
+        tb.style.display='';
+        tb.classList.add('on');
+        tb._user=viewUser;
+      }else{
+        tb.style.display='none';
+        tb.classList.remove('on');
+      }
+    }
+  }finally{
+    _restoringViewState=false;
+  }
 }
 function currentFilteredShows(){
   const q=document.getElementById('q').value.toLowerCase();
@@ -4287,6 +4401,7 @@ function applyFilters(){
   if(_total&&_loaded>=_total){setFullReindexRebuilding(false);writeScanComplete();}
   document.getElementById('cntbar').innerHTML=`<b>${list.length.toLocaleString()}</b> shows`+_prog+setlistHydrationLabel();
   updateAttCount();renderList();
+  scheduleSaveViewState();
   if(isFullReindexRebuilding()&&!scanCompleteStillValid()){
     setTimeout(bgLoadBatch,150);
     setTimeout(kickVisibleSetlistLoads,250);
@@ -4478,7 +4593,7 @@ function renderList(){
       const songs=rowSetlistSummary(s);
       if(songs)sub=`<div class="row-songs">${dot}${prefix}${esc(songs)}</div>`;
     }
-    return `<div class="row${ip?' playing':''}" onclick="openSetlist('${s.id}')">
+    return `<div class="row${ip?' playing':''}" data-id="${String(s.id).replace(/"/g,'&quot;')}" onclick="openSetlist('${s.id}')">
       <div class="row-date">${s.date}</div>
       <div class="row-info"><div class="row-venue">${esc(s.venue)}</div><div class="row-city">${esc(s.city)}</div>${sub}</div>
       <div class="row-right">
@@ -5351,7 +5466,7 @@ async function drainArchiveIdSaveQueue(){
 }
 
 function canRefreshArchiveSourceList(show){
-  return !!(show&&show.archiveIdHint&&!sourceNoAlt(show)&&!sourceLocked(show));
+  return !!(show&&isDefaultMode(modeForShow(show))&&show.archiveIdHint&&!sourceNoAlt(show)&&!sourceLocked(show));
 }
 
 function scheduleArchiveSourceListRefresh(show){
