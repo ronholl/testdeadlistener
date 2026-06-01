@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.3</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.3</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -617,7 +617,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0';
+const APP_BUILD = '2.0.3';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1425,6 +1425,26 @@ function rebuildAttCache(){
   saveUserCountCache();
 }
 function attCount(u){return attCache[u]||0;}
+function lastKnownAttCount(mode,user){
+  mode=mode||activeMode||DEFAULT_MODE;
+  if(!user)return 0;
+  const counts=userCountCache&&userCountCache.modes&&userCountCache.modes[mode.key];
+  return Number(counts&&counts[user])||0;
+}
+function displayAttCountFor(mode,user){
+  mode=mode||activeMode||DEFAULT_MODE;
+  if(!user||user==='all')return 0;
+  const current=attCount(user);
+  if(current>0)return current;
+  const last=lastKnownAttCount(mode,user);
+  if(!last)return current;
+  const state=attendanceLoadState[mode.key];
+  const lastSync=window._gdLastSheetSync;
+  const syncStarted=lastSync&&lastSync.mode===mode.key&&lastSync.status==='started';
+  const cacheHasUser=attendedCacheHasUser(mode,user);
+  if(state==='pending'||state==='error'||syncStarted||!cacheHasUser)return last;
+  return current;
+}
 function attendedCacheHasUser(mode,user){
   if(!user)return false;
   const cache=readAttendedModeCache(mode||activeMode||DEFAULT_MODE);
@@ -1454,7 +1474,7 @@ function rebuildUserTotalCounts(){
   userCountCache.totals=totals;
 }
 function displayUserModeCount(u){
-  return attCount(u);
+  return displayAttCountFor(activeMode,u);
 }
 function displayUserTotalCount(u){
   return (userCountCache&&userCountCache.totals&&userCountCache.totals[u])||attCount(u)||0;
@@ -2478,7 +2498,7 @@ async function runBackgroundSheetSync(opts){
     setHdrSt(opts.manual?'✓ Synced':'','ok');
     window._gdLastSheetSync={mode:mode.key,manual:!!opts.manual,status:'ok',shows:list.length,hasOverlay:sheetListHasUserOverlay(list),user:curUser||viewUser||'',runtimeCount:runtimeAttendedCount(curUser||viewUser),cacheKeyCount:countAttendedCacheEntries(readAttendedModeCache(mode),curUser||viewUser),at:Date.now()};
     setAttendanceLoadState(mode,'ready');
-    if(activeMode&&activeMode.key===mode.key){updateAttCount();updateViewStats();}
+    if(activeMode&&activeMode.key===mode.key){rebuildAttCache();updateAttCount();updateViewStats();}
     return true;
   }catch(e){
     users=prior.users;userPins=prior.pins;userLimit=prior.limit;
@@ -4890,18 +4910,18 @@ function applyFilters(){
 }
 function updateAttCount(){
   const u=(viewUser&&viewUser!=='all')?viewUser:curUser;
-  document.getElementById('s-att').textContent=u?(isAttendanceCountPending(activeMode,u)?'—':attCount(u).toLocaleString()):'—';
+  document.getElementById('s-att').textContent=u?(isAttendanceCountPending(activeMode,u)?'—':displayAttCountFor(activeMode,u).toLocaleString()):'—';
 }
 function updateViewStats(){
   const el=document.getElementById('ucnt');
   if(viewUser==='all'){el.innerHTML='';return;}
   const pending=isAttendanceCountPending(activeMode,viewUser);
-  const cnt=attCount(viewUser);
+  const cnt=displayAttCountFor(activeMode,viewUser);
   el.innerHTML=pending?'<b>—</b> shows':'<b>'+cnt+'</b> shows';
   const myBtn=document.getElementById('myBtn');
   if(myBtn){
     // Hide My Shows only if the LOGGED-IN user has 0 shows
-    const myCnt=curUser?attCount(curUser):0;
+    const myCnt=curUser?displayAttCountFor(activeMode,curUser):0;
     const myPending=curUser&&isAttendanceCountPending(activeMode,curUser);
     if(myCnt===0&&curUser&&!myPending){
       myBtn.style.display='none';
@@ -7518,13 +7538,14 @@ function renderMiniPlayer(){
 // ── ATTEND ────────────────────────────────────────────────────────
 async function markAttended(){
   if(!curShow)return;
-  if(guestMode){
+  const writeUser=activeWriteUser();
+  if(!writeUser){
     const btn=document.getElementById('sp-att');
     if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
     setTimeout(function(){promptSignup({type:'attended',showId:curShow.id});},800);
     return;
   }
-  const user=curUser||viewUser;
+  const user=writeUser;
   if(!user||user==='all'){
     const btn=document.getElementById('sp-att');
     if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
@@ -8086,6 +8107,31 @@ function myFavorites() {
   return activeFavorites(allFavorites).filter(f => f.user === user);
 }
 
+function activeWriteUser(){
+  if(curUser){
+    guestMode=false;
+    return curUser;
+  }
+  if(guestMode||localStorage.getItem('gd_prior_guest')==='1')return null;
+  try{
+    const saved=JSON.parse(localStorage.getItem('gd_current_user_cache')||'{}');
+    const name=saved.name||localStorage.getItem('gd_user')||'';
+    if(name){
+      curUser=name;
+      guestMode=false;
+      viewUser=(viewUser&&viewUser!=='all')?viewUser:name;
+      setHeaderGuestMode(false);
+      const col=userColor(name);
+      const av=document.getElementById('hdrAvatar');
+      const hn=document.getElementById('hdrUserName');
+      if(av){av.textContent=name[0];av.style.background=col+'22';av.style.color=col;}
+      if(hn)hn.textContent=name;
+      return name;
+    }
+  }catch(e){}
+  return null;
+}
+
 function isFavorited(showId) {
   if (!curUser) return false;
   return !!favoriteForShow(showId, curUser);
@@ -8157,7 +8203,8 @@ async function addFavoriteForUser(id,user){
 }
 
 async function toggleFavorite(id) {
-  if (guestMode || !curUser) {
+  const writeUser=activeWriteUser();
+  if (!writeUser) {
     // Find whichever button triggered this - row star or player star
     const rowBtn = document.querySelector('.fav-btn[data-id="' + id + '"]');
     const playerBtn = document.getElementById('sp-fav');
@@ -8175,12 +8222,12 @@ async function toggleFavorite(id) {
     const rmShow=shows.find(s => s.id === id);
     const rmId=rmShow?showStorageId(rmShow):rawShowId(id);
     const rmMode=rmShow?showModeLabel(rmShow):activeMode.label;
-    allFavorites = allFavorites.filter(f => !(f.user === curUser && f.showId === rmId && sameModeLabel(favoriteModeLabel(f),rmMode)));
+    allFavorites = allFavorites.filter(f => !(f.user === writeUser && f.showId === rmId && sameModeLabel(favoriteModeLabel(f),rmMode)));
     localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
     // Track this removal so background fetch doesn't restore it
     try{
       const removed=JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
-      removed.push({user:curUser,showId:rmId,mode:rmMode});
+      removed.push({user:writeUser,showId:rmId,mode:rmMode});
       localStorage.setItem('gd_fav_removed',JSON.stringify(removed));
     }catch(e){}
     document.querySelectorAll('.fav-btn[data-id="'+id+'"]').forEach(b=>{b.classList.remove('fav-on','fav-fresh','fav-stale');b.title='Add favorite';});
@@ -8188,7 +8235,7 @@ async function toggleFavorite(id) {
     renderList(); renderJamFavorites();
     setHdrSt('Removed from favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
-    postScriptAction({action:'removeFavorite',user:curUser,showId:rmId,mode:rmMode},2500);
+    postScriptAction({action:'removeFavorite',user:writeUser,showId:rmId,mode:rmMode},2500);
   } else {
     if (!show) return;
     // Check limit
@@ -8201,12 +8248,12 @@ async function toggleFavorite(id) {
     }
     try{
       setHdrSt('Saving…','busy');
-      await ensureUserRowForAction(curUser);
+      await ensureUserRowForAction(writeUser);
     }catch(e){
       setHdrSt('⚠ Save failed','err');
       return;
     }
-    await addFavoriteForUser(id,curUser);
+    await addFavoriteForUser(id,writeUser);
     updateSpFavBtn();
     setHdrSt('\u2605 Added to favorites', 'ok');
     setTimeout(() => setHdrSt('', ''), 2500);
@@ -8645,7 +8692,8 @@ function jamFavoriteBareRow(user,fav){
 }
 
 async function addFavoriteRecordFromJam(showId,modeLabel){
-  if(guestMode||!curUser){
+  const writeUser=activeWriteUser();
+  if(!writeUser){
     const btn=document.querySelector('.fav-btn[data-id="'+showId+'"]');
     if(btn)showMineTooltip(btn,'Join to save favorites →');
     setTimeout(function(){promptSignup({type:'favorite',showId:showId});},800);
@@ -8662,12 +8710,12 @@ async function addFavoriteRecordFromJam(showId,modeLabel){
   const sid=rawShowId(showId);
   const date=(show&&show.date)||(fav&&fav.date)||'';
   const venue=(show&&show.venue)||(fav&&fav.venue)||'';
-  if(!allFavorites.some(function(f){return f.user===curUser&&f.showId===sid&&sameModeLabel(favoriteModeLabel(f),modeLabel);})){
-    allFavorites.push({user:curUser,showId:sid,date:date,venue:venue,addedAt:nowStamp,lastPlayedAt:nowStamp,mode:modeLabel});
+  if(!allFavorites.some(function(f){return f.user===writeUser&&f.showId===sid&&sameModeLabel(favoriteModeLabel(f),modeLabel);})){
+    allFavorites.push({user:writeUser,showId:sid,date:date,venue:venue,addedAt:nowStamp,lastPlayedAt:nowStamp,mode:modeLabel});
   }
   localStorage.setItem('gd_favorites',JSON.stringify(allFavorites));
   renderList();renderJamFavorites();updateSpFavBtn();
-  postScriptAction({action:'addFavorite',user:curUser,showId:sid,date:date,venue:venue,mode:modeLabel},3500);
+  postScriptAction({action:'addFavorite',user:writeUser,showId:sid,date:date,venue:venue,mode:modeLabel},3500);
 }
 
 async function openFavoriteRecord(showId,modeLabel){
@@ -9494,14 +9542,15 @@ function enterGuestMode(){
 }
 
 async function toggleMine(id){
-  if(guestMode||!curUser||!viewUser||viewUser==='all'){
+  const writeUser=activeWriteUser();
+  if(!writeUser){
     // Show tooltip right on the button that was tapped
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
     if(btn) showMineTooltip(btn,'Join to add shows →');
     setTimeout(function(){promptSignup({type:'attended',showId:id});},800);
     return;
   }
-  const user=curUser||viewUser;
+  const user=writeUser;
   if(!user||user==='all'){
     const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
     if(btn) showMineTooltip(btn,'Join to add shows →');
