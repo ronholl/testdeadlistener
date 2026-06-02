@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.4</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.5</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.4</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.5</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -617,7 +617,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.4';
+const APP_BUILD = '2.1.5';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -6566,6 +6566,21 @@ function sourceTrackTitle(show,i){
   return (show&&show.songs&&show.songs[i])||('Track '+(i+1));
 }
 
+function isPlaceholderTrackTitle(title){
+  const s=String(title||'').trim();
+  return !s || /^loading(?:[.\u2026\s]*)?$/i.test(s) || /^(?:track\s*0?|undefined|null|-)$/i.test(s);
+}
+
+function playbackTrackTitle(show,i){
+  const t=show&&show.tracks&&show.tracks[i];
+  let title=sourceTrackTitle(show,i);
+  if(isPlaceholderTrackTitle(title)&&show&&show.songs&&show.songs[i])title=show.songs[i];
+  if(isPlaceholderTrackTitle(title)&&t&&t.title)title=t.title;
+  if(isPlaceholderTrackTitle(title)&&t&&t.name)title=cleanName(t.name);
+  if(isPlaceholderTrackTitle(title))title='Track '+((i||0)+1);
+  return title;
+}
+
 function buildVisibleTrackIndexMap(show){
   if(!show || !show.tracks) return [];
   if(show._visibleTrackMap) return show._visibleTrackMap;
@@ -7159,7 +7174,7 @@ function _postNativeNowPlaying(isPlaying,force){
     _nativeNowPlayingLastAt=now;
     const show=playingShow||curShow;
     const idx=playingShow?playingTrackIdx:curTrackIdx;
-    const title=(show&&show.tracks&&show.tracks[idx])?(sourceTrackTitle(show,idx)||displayTrackName(show,show.tracks[idx],idx)||cleanName(show.tracks[idx].name)):"Ron's Deadhead Listener";
+    const title=(show&&show.tracks&&show.tracks[idx])?playbackTrackTitle(show,idx):"Ron's Deadhead Listener";
     h.postMessage({
       title:title,
       artist:show?showModeLabel(show):'Deadhead Listener',
@@ -7419,7 +7434,7 @@ function startPlayback(show,idx,resumeAt){
   playIntent=true;
   if(!newAudio._preloaded)audio.src=url;
   _startBufferTimer(show,idx); // start timer only after src is set and play initiated
-  addToHistory(show,idx,sourceTrackTitle(show,idx));
+  addToHistory(show,idx,playbackTrackTitle(show,idx));
   audio.play().then(function(){
     playing=true;
     _interruptionResumeWanted=false;
@@ -7427,7 +7442,7 @@ function startPlayback(show,idx,resumeAt){
     _stopBufferTimer();
     _startAudioKeepAlive(); // keep iOS audio session alive in background
     // Refresh Box of Tapes now that actual playback has started
-    const _trackTitle=sourceTrackTitle(show,idx);
+    const _trackTitle=playbackTrackTitle(show,idx);
     addToHistory(show,idx,_trackTitle);
     touchFavoritePlayback(show);
     // Clear status and error banner on successful play
@@ -7445,7 +7460,7 @@ function startPlayback(show,idx,resumeAt){
     // Preload next track silently
     preloadNextTrack(show,idx+1);
     if('mediaSession' in navigator){
-      const _s=sourceTrackTitle(show,idx);
+      const _s=playbackTrackTitle(show,idx);
       navigator.mediaSession.metadata=new MediaMetadata({
         title:_s,artist:showModeLabel(show),
         album:(show.venue||'')+(show.date?' · '+show.date:''),
@@ -7524,7 +7539,7 @@ function resumeAudio(opts){
       _lastResumeBlockMsg='';
       _setMediaPlaybackState('playing');
       _postNativeNowPlaying(true,true);
-      if(playingShow) addToHistory(playingShow,playingTrackIdx,sourceTrackTitle(playingShow,playingTrackIdx));
+      if(playingShow) addToHistory(playingShow,playingTrackIdx,playbackTrackTitle(playingShow,playingTrackIdx));
       touchFavoritePlayback(playingShow);
       _setMpStatus(null);
       const errEl=document.getElementById('sp-audio-err');
@@ -7604,10 +7619,7 @@ function updateSpPlayer(){
   const ps=playingShow||curShow;
   const pi=playingShow?playingTrackIdx:curTrackIdx;
   if(now&&ps&&ps.tracks&&ps.tracks[pi]){
-    const t=ps.tracks[pi];
-    const vp = visiblePosForRaw(ps, pi);
-    const songName=(vp>=0)?visibleTrackLabel(ps,vp):displayTrackName(ps,t,pi);
-    now.textContent=songName||(t.mp3?t.name:cleanName(t.name));
+    now.textContent=playbackTrackTitle(ps,pi);
     if(sub)sub.textContent=(playing?'▶ ':audio?'⏸ ':'')+ps.date+' · '+ps.venue;
   } else if(now){
     now.textContent='';
@@ -7630,26 +7642,26 @@ function updateSpPlayer(){
 
 function renderMiniPlayer(){
   const el=document.getElementById('miniPlayer');
-  if(!curShow){
+  const miniShow=(playingShow&&audio)?playingShow:curShow;
+  const miniIdx=(miniShow===playingShow&&audio)?playingTrackIdx:curTrackIdx;
+  if(!miniShow){
     el.classList.add('idle');
     el.innerHTML='<div class="mp-idle">Tap a show to open its setlist ↑</div>';
     return;
   }
   el.classList.remove('idle');
   if(!audio){
-    el.innerHTML='<div class="mp-row"><div class="mp-info"><div class="mp-song">⏳ Loading '+esc(curShow.date)+'…</div><div class="mp-show">'+esc(curShow.venue)+'</div></div></div>';
+    const loadingName=(miniShow.tracks&&miniShow.tracks[miniIdx])?playbackTrackTitle(miniShow,miniIdx):'Loading '+miniShow.date;
+    el.innerHTML='<div class="mp-row"><div class="mp-info"><div class="mp-song">'+esc(loadingName)+'</div><div class="mp-show">'+esc(miniShow.venue)+'</div></div></div>';
     return;
   }
   const pct=audio&&audio.duration?(audio.currentTime/audio.duration*100):0;
-  // Use song name if available, fall back to cleaned filename
-  const _vp=visiblePosForRaw(curShow, curTrackIdx);
-  const songName=(curShow.tracks&&curShow.tracks[curTrackIdx])?((_vp>=0)?visibleTrackLabel(curShow,_vp):displayTrackName(curShow,curShow.tracks[curTrackIdx],curTrackIdx)):null;
-  const name=songName||(curShow.tracks&&curShow.tracks[curTrackIdx]?cleanName(curShow.tracks[curTrackIdx].name):'Loading…');
+  const name=(miniShow.tracks&&miniShow.tracks[miniIdx])?playbackTrackTitle(miniShow,miniIdx):'Track '+((miniIdx||0)+1);
   el.innerHTML=`
     <div class="mp-row">
       <div class="mp-info" onclick="openSetlistForCurrent()">
         <div class="mp-song">${esc(name)}</div>
-        <div class="mp-show">${esc(curShow.date)} · ${esc(curShow.venue)}</div>
+        <div class="mp-show">${esc(miniShow.date)} · ${esc(miniShow.venue)}</div>
       </div>
       <div class="mp-ctrls">
         <button class="mp-btn" onclick="event.stopPropagation();skipTrack(-1)" title="Previous">⏮</button>
@@ -7969,7 +7981,7 @@ function _castLoadCurrent(){
 
   const mediaInfo = new chrome.cast.media.MediaInfo(url, 'audio/mpeg');
   mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
-  mediaInfo.metadata.title   = track.title || ('Track ' + (playingTrackIdx + 1));
+  mediaInfo.metadata.title   = playbackTrackTitle(playingShow,playingTrackIdx);
   mediaInfo.metadata.artist  = showModeLabel(playingShow);
   mediaInfo.metadata.albumName = playingShow.date + ' · ' + playingShow.venue;
 
@@ -8479,7 +8491,7 @@ function seedHistoryFromPlayingShow(){
       city:playingShow.city,
       ts:Date.now(),
       lastTrackIdx:playingTrackIdx,
-      lastTrackTitle:sourceTrackTitle(playingShow,playingTrackIdx)||null,
+      lastTrackTitle:playbackTrackTitle(playingShow,playingTrackIdx)||null,
       lastPos:(audio&&isFinite(audio.currentTime))?Math.floor(audio.currentTime||0):0,
       lastPosTs:Date.now()
     }];
@@ -9698,7 +9710,7 @@ async function switchRecording(showId,newId){
             const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
             applyBestCachedSetlist(show,trackSongs);
             if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
-              var _ms=sourceTrackTitle(show,curTrackIdx);
+              var _ms=playbackTrackTitle(show,curTrackIdx);
               navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:showModeLabel(show),album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
             }
             renderSetlistBody(show);return;
@@ -10045,7 +10057,7 @@ function pauseAtPosition(show,trackIdx,pos){
   renderList();renderMiniPlayer();updateSpPlayer();
   // Set media session so lock screen/Watch/car shows song and controls work when paused
   if('mediaSession' in navigator&&track){
-    const sName=sourceTrackTitle(show,trackIdx);
+    const sName=playbackTrackTitle(show,trackIdx);
     navigator.mediaSession.metadata=new MediaMetadata({
       title:sName,artist:showModeLabel(show),
       album:(show.venue||'')+(show.date?' · '+show.date:''),
