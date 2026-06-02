@@ -420,7 +420,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.0.3</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.4</span></div>
     </div>
     
 
@@ -537,7 +537,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.0.3</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.4</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -617,7 +617,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.0.3';
+const APP_BUILD = '2.1.4';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -9233,6 +9233,9 @@ function loadRandomShow(){
 
 // ── BEST VERSIONS ─────────────────────────────────────────────────
 let jamSongTimer = null;
+let jamRatingRefreshRunning = false;
+let jamRatingRefreshQuery = '';
+let jamSetlistSearchRunning = false;
 function updateJamSongSearchClear(){
   updateSearchClear('jamSongQ','jamSongQClear');
 }
@@ -9249,24 +9252,89 @@ function jamSongSearch(){
   jamSongTimer = setTimeout(doJamSongSearch, 250);
 }
 
+function normalizedSongSearchText(v){
+  return String(v||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+}
+function jamSongMatchScore(song,query){
+  const s=normalizedSongSearchText(song);
+  const q=normalizedSongSearchText(query);
+  if(!s||!q)return 0;
+  if(s===q)return 3;
+  if(s.indexOf(q)===0)return 2;
+  return s.indexOf(q)>=0?1:0;
+}
+function jamShowBestRating(show){
+  if(!show)return 0;
+  let rating=Number(show.relistenRating||show.rating||0)||0;
+  (show.recordings||[]).forEach(function(r){
+    const rr=Number(r&&r.rating)||0;
+    if(rr>rating)rating=rr;
+  });
+  sourceRecordsForShow(show).forEach(function(r){
+    const rr=Number(r&&r.rating)||0;
+    if(rr>rating)rating=rr;
+  });
+  return rating;
+}
+
+function applyRelistenRatingCacheToShows(){
+  if(!isDefaultMode(activeMode))return 0;
+  let applied=0;
+  try{
+    const cache=JSON.parse(localStorage.getItem(currentModeScopedKey('gd_relisten_avail'))||'{}');
+    (shows||[]).forEach(function(s){
+      if(!s||s.archiveIdHint||s.archiveNoAudioHint)return;
+      const rc=cache[s.date];
+      if(!rc)return;
+      const hadRating=!!Number(s.relistenRating||s.rating||0);
+      s.relistenAvail=rc.avail;
+      s.relistenSources=rc.sources||0;
+      s.relistenSbd=rc.sbd||false;
+      s.relistenRating=rc.rating||0;
+      s.relistenDur=rc.dur||0;
+      if(rc.rating&&!hadRating)applied++;
+      if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
+    });
+  }catch(e){}
+  return applied;
+}
+
 function doJamSongSearch(){
   const q = (document.getElementById('jamSongQ')||{}).value||'';
   const el = document.getElementById('jamBestList');
   if(!el)return;
 
-  const query = q.trim().toLowerCase();
+  const query = normalizedSongSearchText(q);
   if(query.length < 2){
     el.innerHTML='<div class="jam-empty">Type at least 2 characters</div>';
     return;
   }
+  if(!readModeSetlistDataset(activeMode)){
+    el.innerHTML='<div class="jam-empty">Loading local song index...</div>';
+    if(!jamSetlistSearchRunning){
+      jamSetlistSearchRunning=true;
+      loadModeSetlistDataset(activeMode).then(function(){
+        hydrateShowsFromSetlistDataset(activeMode,shows,{skipSheetCache:true});
+      }).catch(function(){}).then(function(){
+        jamSetlistSearchRunning=false;
+        doJamSongSearch();
+      });
+    }
+    return;
+  }
+  if(readModeSetlistDataset(activeMode)){
+    hydrateShowsFromSetlistDataset(activeMode,shows,{skipSheetCache:true});
+  }
 
   // Search songIndex for matching songs
-  const matchedShows = new Map(); // showId -> {show, songName}
+  const matchedShows = new Map(); // showId -> {song, score}
   Object.keys(songIndex).forEach(function(key){
     if(key.includes(query)){
       songIndex[key].forEach(function(entry){
-        if(!matchedShows.has(entry.id)){
-          matchedShows.set(entry.id, entry.song);
+        const score=jamSongMatchScore(entry.song,query);
+        const prev=matchedShows.get(entry.id);
+        if(!prev||score>prev.score){
+          matchedShows.set(entry.id, {song:entry.song, score:score});
         }
       });
     }
@@ -9277,8 +9345,8 @@ function doJamSongSearch(){
     shows.forEach(function(s){
       if(!s.songs)return;
       s.songs.forEach(function(song){
-        if(song.toLowerCase().includes(query)&&!matchedShows.has(s.id)){
-          matchedShows.set(s.id, song);
+        if(normalizedSongSearchText(song).includes(query)&&!matchedShows.has(s.id)){
+          matchedShows.set(s.id, {song:song, score:jamSongMatchScore(song,query)});
         }
       });
     });
@@ -9291,17 +9359,17 @@ function doJamSongSearch(){
 
   // Get the show objects and sort by rating
   const results = [];
-  matchedShows.forEach(function(songName, showId){
+  matchedShows.forEach(function(match, showId){
     const s = shows.find(function(x){return x.id===showId;});
     if(s){
-      results.push({show:s, song:songName});
+      const rating=jamShowBestRating(s);
+      results.push({show:s, song:match.song, matchScore:match.score||0, rating:rating});
     }
   });
 
   results.sort(function(a,b){
-    const ra = a.show.relistenRating||a.show.rating||0;
-    const rb = b.show.relistenRating||b.show.rating||0;
-    if(rb!==ra)return rb-ra;
+    if(b.matchScore!==a.matchScore)return b.matchScore-a.matchScore;
+    if(b.rating!==a.rating)return b.rating-a.rating;
     return a.show.date.localeCompare(b.show.date);
   });
 
@@ -9311,19 +9379,39 @@ function doJamSongSearch(){
   }
 
   const total = results.length;
-  const rated = results.filter(function(r){return !!(r.show.relistenRating||r.show.rating);}).length;
-  const label = rated
-    ? total+' performance'+(total===1?'':'s')+' found, rated shows first'
-    : total+' performance'+(total===1?'':'s')+' found';
+  const rated = results.filter(function(r){return !!r.rating;}).length;
+  if(!rated){
+    if(applyRelistenRatingCacheToShows()){
+      doJamSongSearch();
+      return;
+    }
+    if(isDefaultMode(activeMode)&&!jamRatingRefreshRunning&&jamRatingRefreshQuery!==query){
+      jamRatingRefreshRunning=true;
+      jamRatingRefreshQuery=query;
+      el.innerHTML='<div class="jam-empty">Loading show ratings...</div>';
+      try{localStorage.removeItem(currentModeScopedKey('gd_relisten_avail_ts'));}catch(e){}
+      prefetchRelistenAvailability().then(function(){
+        applyRelistenRatingCacheToShows();
+      }).catch(function(){}).then(function(){
+        jamRatingRefreshRunning=false;
+        doJamSongSearch();
+      });
+      return;
+    }
+    el.innerHTML='<div class="jam-empty">No rated versions found yet for "'+esc(q.trim())+'". Use the Songs tab for chronological results.</div>';
+    return;
+  }
+  const display = results.filter(function(r){return r.rating>0;}).slice(0,50);
+  const label = 'Top rated versions · '+rated+' rated of '+total+' performance'+(total===1?'':'s');
   el.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">'+label+'</div>'+
-    results.map(function(r){
+    display.map(function(r){
       return jamShowCard(r.show, false, r.song);
     }).join('');
 }
 
 // ── SHARED SHOW CARD ──────────────────────────────────────────────
 function jamShowCard(s, showPlay, songName){
-  const rating = s.relistenRating||s.rating||0;
+  const rating = jamShowBestRating(s);
   const stars = rating ? '\u2605 '+rating.toFixed(1) : '';
   const sbd = s.relistenSbd ? '<span class="jam-show-sbd">SBD</span>' : '';
   const hasAudio = showLooksPlayable(s);
@@ -10340,7 +10428,7 @@ function stopArchiveAutoRetry(){
             🎵 <b style="color:#d8d0c0">Shows</b> — all <span id="help-show-count2">—</span> Dead, Jerry, Phil and Bob concerts available in the archive. Filter by year, search venue, city or date. Tap any show for its setlist &amp; player<br>
             🔍 <b style="color:#d8d0c0">Songs</b> — type any song to find every show it was played. Tap a result to jump straight there<br>
             💀 <b style="color:#d8d0c0">Deadheads</b> — other Deadheads show lists. Tap a name to browse their attended shows<br>
-            🎲 <b style="color:#d8d0c0">Jam</b> — discover shows: Favorites, On This Day, Play a Show, and Best Versions
+            🎲 <b style="color:#d8d0c0">Jam</b> — discover shows: Favorites, On This Day, and Play a Show
           </div>
         </div>
 
@@ -10350,8 +10438,7 @@ function stopArchiveAutoRetry(){
           <div style="font-size:14px;color:#b8b0a0;line-height:2.1">
             ⭐ <b style="color:#d8d0c0">Favorites</b> — starred shows from all listeners. Your favorites pin to the top of your list (max 5)<br>
             📅 <b style="color:#d8d0c0">On This Day</b> — shows from today's date across all years, sorted by rating<br>
-            🎲 <b style="color:#d8d0c0">Play a Show</b> — roll the dice for a surprise, weighted toward top rated shows<br>
-            🏆 <b style="color:#d8d0c0">Best Versions</b> — type any song name to find its highest rated performances
+            🎲 <b style="color:#d8d0c0">Play a Show</b> — roll the dice for a surprise, weighted toward top rated shows
           </div>
         </div>
 
@@ -10480,26 +10567,6 @@ function stopArchiveAutoRetry(){
       <div id="jamRollDice" class="jam-roll-control" role="button" tabindex="0" aria-label="Roll the Dice">
         <span>Roll the Dice</span><span aria-hidden="true">&#8635;</span>
       </div>
-    </div>
-
-    <!-- Best Versions -->
-    <div class="jam-card">
-      <div class="jam-card-hdr">
-        <span class="jam-icon">&#127942;</span>
-        <div>
-          <div class="jam-title">Best Versions</div>
-          <div class="jam-sub">Top rated performances of any song</div>
-        </div>
-      </div>
-      <div style="padding:0 0 10px">
-        <div style="position:relative;display:flex;align-items:center">
-        <input id="jamSongQ" class="manual-clear" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Type a song name&hellip;"
-          oninput="jamSongSearch()"
-          style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:11px 38px 11px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none">
-        <button class="search-clear" id="jamSongQClear" type="button" aria-label="Clear Jam song search" onclick="clearJamSongSearch()">×</button>
-        </div>
-      </div>
-      <div id="jamBestList" class="jam-results"></div>
     </div>
 
   </div>
