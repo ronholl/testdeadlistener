@@ -269,7 +269,8 @@ body{display:flex;justify-content:center}
 .cbtn.main:active{background:var(--gold2);transform:scale(.95)}
 .cbtn.skip{border-radius:50%;width:64px;height:64px;font-size:24px;padding:0;flex-shrink:0;background:rgba(200,168,75,.34);border:2px solid rgba(200,168,75,.9);color:var(--gold);font-family:var(--mono);font-weight:700}
 .cbtn.skip:active{background:var(--gold);border-color:var(--gold);color:#000;transform:scale(.95)}
-#sp-status [onclick*="retryPlayback"],#mp-status-row [onclick*="retryPlayback"]{display:inline-flex;align-items:center;justify-content:center;min-width:64px;min-height:44px;padding:0 14px;margin:4px 4px 0 8px;border:1px solid rgba(200,168,75,.45);border-radius:12px;background:rgba(200,168,75,.08);color:var(--gold)!important;text-decoration:none!important;font-size:13px;font-weight:600}
+#sp-status [onclick*="retryPlayback"],#mp-status-row [onclick*="retryPlayback"]{display:inline-flex;align-items:center;justify-content:center;min-width:94px;min-height:48px;padding:0 18px;margin:6px 6px 0 0;border:1.5px solid rgba(200,168,75,.65);border-radius:14px;background:rgba(200,168,75,.14);color:var(--gold)!important;text-decoration:none!important;font-size:14px;font-weight:700}
+#sp-status [onclick*="cancelPlayback"],#mp-status-row [onclick*="cancelPlayback"]{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;margin:6px 0 0 4px;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.04);color:var(--muted)!important;text-decoration:none!important;font-size:13px}
 #sp-fav{border-radius:12px;width:48px;min-width:48px;height:40px;font-size:12px;padding:0 4px;flex-shrink:0;border:1px solid rgba(200,168,75,.35);color:rgba(200,168,75,.7);gap:2px}
 #sp-fav.fav-active{border-color:var(--gold);color:var(--gold);background:rgba(200,168,75,.15)}
 #sp-fav.fav-fresh{border-color:var(--green);color:var(--green);background:rgba(82,183,136,.14)}
@@ -420,7 +421,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.5</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.8</span></div>
     </div>
     
 
@@ -537,7 +538,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.5</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.8</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -617,7 +618,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.5';
+const APP_BUILD = '2.1.8';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1593,7 +1594,9 @@ let _interruptionResumeTimer=0;
 let _lastResumeBlockMsg='';
 let _nativeNowPlayingLastAt=0;
 let _bufferTimer=null; // tracks elapsed seconds while buffering/stalled
-let _autoRetried=false;  // true if we've already auto-retried once this track
+let _autoRetryTrackKey='',_autoRetryCount=0;
+let _bufferLastPos=0,_bufferLastProgressAt=0;
+let _preloadTimer=0;
 // When connection comes back, nudge the user to retry if audio stalled offline
 window.addEventListener('online',function(){
   // If login screen is showing an error, auto-retry sheet load
@@ -1631,6 +1634,9 @@ window.addEventListener('offline',function(){
 });
 let _bufferSecs=0;     // elapsed seconds shown in loading indicator
 let _bufferShow=null,_bufferIdx=0; // show/idx being buffered (for retry)
+function nativeAudioBridgeActive(){
+  return !!(window._nativeBridgeInstalled&&window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.nativeAudioPlay);
+}
 
 // ── iOS BACKGROUND AUDIO KEEPALIVE ──────────────────────────────────────
 // iOS suspends the audio hardware when a PWA backgrounds, even if audio is
@@ -7125,18 +7131,32 @@ function quickPlay(id){
 
 // ── BUFFER / STALL TRACKING ──────────────────────────────────────
 function _startBufferTimer(show,idx){
+  if(nativeAudioBridgeActive())return;
   _stopBufferTimer();
   _bufferSecs=0; _bufferShow=show; _bufferIdx=idx;
+  _bufferLastPos=(audio&&isFinite(audio.currentTime))?audio.currentTime:0;
+  _bufferLastProgressAt=Date.now();
   _bufferTimer=setInterval(function(){
+    if(nativeAudioBridgeActive()){_stopBufferTimer();_setMpStatus(null);return;}
+    const pos=(audio&&isFinite(audio.currentTime))?audio.currentTime:0;
+    if(pos>_bufferLastPos+.25){
+      _bufferLastPos=pos;
+      _bufferLastProgressAt=Date.now();
+      _stopBufferTimer();
+      _setMpStatus(null);
+      return;
+    }
     _bufferSecs++;
     _updateBufferUI();
-    if(_bufferSecs>=30) _onBufferTimeout();
+    if(_bufferSecs>=15) _onBufferTimeout();
   },1000);
   _updateBufferUI();
 }
 function _stopBufferTimer(){
   if(_bufferTimer){clearInterval(_bufferTimer);_bufferTimer=null;}
   _bufferSecs=0;
+  _bufferLastPos=0;
+  _bufferLastProgressAt=0;
 }
 function _setMpStatus(msg){
   // Update status in setlist panel player (always visible when panel open)
@@ -7266,10 +7286,11 @@ function _attachAudioRecoveryHandlers(a,show,idx){
   a.addEventListener('ended',function(){if(a===audio){_interruptionResumeWanted=false;_setMediaPlaybackState('none');}});
 }
 function _updateBufferUI(){
+  if(nativeAudioBridgeActive()){_stopBufferTimer();_setMpStatus(null);return;}
   if(_bufferSecs>0){
     _setMpStatus('<span style="color:var(--gold)">⏳ Buffering… '+_bufferSecs+'s</span>'
-      +' <span onclick="retryPlayback()" style="cursor:pointer;color:var(--gold);margin-left:10px;text-decoration:underline">↺ retry</span>'
-      +' <span onclick="cancelPlayback()" style="cursor:pointer;color:var(--muted);margin-left:8px;text-decoration:underline">cancel</span>');
+      +'<br><span onclick="retryPlayback()">↺ Retry</span>'
+      +' <span onclick="cancelPlayback()">Cancel</span>');
   } else {
     _setMpStatus(null);
   }
@@ -7279,28 +7300,35 @@ function _updateBufferUI(){
 }
 function _onBufferTimeout(){
   _stopBufferTimer();
-  playing=false; playIntent=false;
+  if(nativeAudioBridgeActive()){_setMpStatus(null);return;}
+  const s=_bufferShow||playingShow;
+  const i=_bufferShow?_bufferIdx:playingTrackIdx;
+  const retryKey=s?(s.id+'|'+i):'';
   if(!navigator.onLine){
-    _setMpStatus('📶 No internet connection — reconnect and tap <b>↺ retry</b> to resume.');
+    playing=false; playIntent=false;
+    _setMpStatus('📶 No internet connection.<br><span onclick="retryPlayback()">↺ Retry</span>');
     updateSpPlayer();
     return;
   }
-  // Auto-retry once silently on timeout — handles brief archive.org hiccups
-  if(!_autoRetried){
-    _autoRetried=true;
-    _setMpStatus('<span style="color:var(--gold)">⏱ Slow load — retrying…</span>');
-    const s=_bufferShow||playingShow; const i=_bufferShow?_bufferIdx:playingTrackIdx;
-    if(s&&s.tracks){
-      const resumeAt=currentPlaybackResumePosition(s,i);
-      if(audio){playIntent=false;_interruptionResumeWanted=false;audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;audio.pause();audio=null;}
-      startPlayback(s,i,resumeAt);
-      return;
-    }
+  if(retryKey&&retryKey!==_autoRetryTrackKey){
+    _autoRetryTrackKey=retryKey;
+    _autoRetryCount=0;
   }
+  // Auto-retry a couple times per track — enough to ride out archive/network hiccups
+  // without looping forever on a bad connection.
+  if(s&&s.tracks&&_autoRetryCount<2){
+    _autoRetryCount++;
+    _setMpStatus('<span style="color:var(--gold)">⏱ Slow stream — retrying '+_autoRetryCount+'/2…</span>');
+    const resumeAt=currentPlaybackResumePosition(s,i);
+    if(audio){playIntent=false;_interruptionResumeWanted=false;audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;audio.pause();audio=null;}
+    startPlayback(s,i,resumeAt);
+    return;
+  }
+  playing=false; playIntent=false;
   // Second timeout — show error with manual retry option
-  _setMpStatus('⏱ Still loading after 60s — archive.org may be slow.'
-    +' <span onclick="retryPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--gold);margin-left:6px">↺ retry</span>'
-    +' <span onclick="cancelPlayback()" style="cursor:pointer;text-decoration:underline;color:var(--muted);margin-left:6px">cancel</span>');
+  _setMpStatus('⏱ Still buffering — archive.org or the connection may be slow.'
+    +'<br><span onclick="retryPlayback()">↺ Retry</span>'
+    +' <span onclick="cancelPlayback()">Cancel</span>');
   const ms=document.querySelector('.mp-song');
   if(ms)ms.innerHTML='<span style="color:var(--gold)">⏱ Still loading…</span>';
   updateSpPlayer();
@@ -7318,6 +7346,8 @@ function retryPlayback(){
   }
   _stopBufferTimer();
   const resumeAt=currentPlaybackResumePosition(s,i);
+  _autoRetryTrackKey=s.id+'|'+i;
+  _autoRetryCount=0;
   playing=false; playIntent=false; _interruptionResumeWanted=false;
   if(audio){audio.onerror=null;audio.oncanplay=null;audio.pause();audio=null;}
   const errEl=document.getElementById('sp-audio-err');
@@ -7366,7 +7396,12 @@ function startPlayback(show,idx,resumeAt){
   }
   // Stop current audio and any buffering timer
   _stopBufferTimer();
-  _autoRetried=false;
+  const trackRetryKey=show.id+'|'+idx;
+  if(trackRetryKey!==_autoRetryTrackKey){
+    _autoRetryTrackKey=trackRetryKey;
+    _autoRetryCount=0;
+  }
+  if(_preloadTimer){clearTimeout(_preloadTimer);_preloadTimer=0;}
   playing=false;playIntent=false;_interruptionResumeWanted=false;
   if(audio){audio.onended=null;audio.ontimeupdate=null;audio.onerror=null;audio.oncanplay=null;audio.onwaiting=null;audio.onstalled=null;audio.pause();audio=null;}
   if(!show.tracks||!show.tracks[idx])return;
@@ -7457,8 +7492,8 @@ function startPlayback(show,idx,resumeAt){
     renderSetlistBody(show);
     // If a Cast session is active, hand this track off to the Cast device
     if(castActive && castSession){ _castLoadCurrent(); }
-    // Preload next track silently
-    preloadNextTrack(show,idx+1);
+    // Preload next track silently after the current stream proves stable.
+    scheduleNextTrackPreload(show,idx);
     if('mediaSession' in navigator){
       const _s=playbackTrackTitle(show,idx);
       navigator.mediaSession.metadata=new MediaMetadata({
@@ -7505,6 +7540,22 @@ function preloadNextTrack(show,nextIdx){
   a._preloaded=true;
   preloadAudio=a;
   // Don't call play() - just let browser buffer it
+}
+
+function scheduleNextTrackPreload(show,idx){
+  if(_preloadTimer){clearTimeout(_preloadTimer);_preloadTimer=0;}
+  _preloadTimer=setTimeout(function(){
+    _preloadTimer=0;
+    if(!audio||!playing||!playingShow||playingShow.id!==show.id||playingTrackIdx!==idx)return;
+    if(_bufferTimer||audio.error||audio.paused||audio.ended)return;
+    const pos=(isFinite(audio.currentTime)?audio.currentTime:0);
+    // Give weak connections a few seconds to settle before opening the next stream.
+    if(pos<4){
+      scheduleNextTrackPreload(show,idx);
+      return;
+    }
+    preloadNextTrack(show,idx+1);
+  },5000);
 }
 
 function pauseAudio(){
