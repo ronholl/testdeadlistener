@@ -421,7 +421,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.8</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.9</span></div>
     </div>
     
 
@@ -538,7 +538,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.8</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.9</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -572,7 +572,7 @@ body{display:flex;justify-content:center}
       <div class="stat"><span class="stat-n" id="s-yrs">—</span><span class="stat-l">Years</span></div>
     </div>
     <div class="filters">
-      <div style="position:relative;display:flex;align-items:center"><input class="srch manual-clear" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="applyFilters()" style="width:100%"/><button class="search-clear" id="qClear" type="button" aria-label="Clear search" onclick="clearShowSearch()">×</button></div>
+      <div style="position:relative;display:flex;align-items:center"><input class="srch manual-clear" id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search venue, city, date, song..." oninput="scheduleShowSearch()" style="width:100%"/><button class="search-clear" id="qClear" type="button" aria-label="Clear search" onclick="clearShowSearch()">×</button></div>
       <div class="frow">
         <select class="fsel" id="yrSel" onchange="applyYearFilter()"><option value="">All years</option></select>
         <button class="ftog" id="myBtn" onclick="toggleMy()">My shows</button>
@@ -618,7 +618,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.8';
+const APP_BUILD = '2.1.9';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1667,6 +1667,9 @@ let pinTarget=null, pinBuffer='';
 let debugLines=[];
 
 try{const p=localStorage.getItem('gd_pos');if(p)positions=JSON.parse(p);}catch(e){}
+const PLAYBACK_POS_WRITE_MS=5000;
+const PLAYBACK_HISTORY_WRITE_MS=15000;
+let _lastPlaybackPosWriteAt=0,_lastPlaybackHistoryWriteAt=0,_pendingPlaybackPosTimer=0,_pendingPlaybackPos=null;
 // Update the Recently Played history entry for a show with its current playback position.
 // Defined here (near savePos) so it's available from both savePos and pauseAudio.
 function saveHistoryPosition(show, trackIdx, pos){
@@ -1700,24 +1703,48 @@ function saveHistoryPosition(show, trackIdx, pos){
     }
   }catch(e){}
 }
-function savePos(id,t){
-  positions[id]=Math.floor(t);
+function writePlaybackPositionNow(id,t,opts){
+  opts=opts||{};
   try{
+    if(_pendingPlaybackPosTimer){clearTimeout(_pendingPlaybackPosTimer);_pendingPlaybackPosTimer=0;}
+    _pendingPlaybackPos=null;
+    const pos=Math.floor(t||0);
     if(!setLocalStorageJsonSafe('gd_pos',positions)){
       const slim={};
-      if(playingShow)slim[playingShow.id]=Math.floor(t);
+      if(playingShow)slim[playingShow.id]=pos;
       setLocalStorageJsonSafe('gd_pos',slim,{dropOnFailure:true});
       positions=slim;
     }
-    // Always save playingShow/playingTrackIdx, not curShow/curTrackIdx
-    // curShow is whatever is open in the setlist panel — could be a different show
     if(playingShow&&audio){
-      setLocalStorageJsonSafe('gd_restore',{showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:Math.floor(t),ts:Date.now()});
-      // Keep the Recently Played entry in sync (throttled — history write is cheap but runs often)
-      saveHistoryPosition(playingShow, playingTrackIdx, t);
-      window._gdSavePosLast={id:id,showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:Math.floor(t),at:Date.now()};
+      setLocalStorageJsonSafe('gd_restore',{showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:pos,ts:Date.now()});
+      const now=Date.now();
+      if(opts.forceHistory||now-_lastPlaybackHistoryWriteAt>=PLAYBACK_HISTORY_WRITE_MS){
+        _lastPlaybackHistoryWriteAt=now;
+        saveHistoryPosition(playingShow, playingTrackIdx, pos);
+      }
+      _lastPlaybackPosWriteAt=now;
+      window._gdSavePosLast={id:id,showId:showStorageId(playingShow),mode:showModeLabel(playingShow),trackIdx:playingTrackIdx,pos:pos,at:now,throttled:!opts.force};
     }
   }catch(e){window._gdSavePosLast={id:id,error:String(e&&e.message||e),at:Date.now()};}
+}
+function schedulePlaybackPositionWrite(id,t,delay){
+  _pendingPlaybackPos={id:id,t:t};
+  if(_pendingPlaybackPosTimer)return;
+  _pendingPlaybackPosTimer=setTimeout(function(){
+    const p=_pendingPlaybackPos;
+    if(p)writePlaybackPositionNow(p.id,p.t);
+  },Math.max(250,delay||PLAYBACK_POS_WRITE_MS));
+}
+function flushPlaybackPosition(){
+  if(!_pendingPlaybackPos)return;
+  writePlaybackPositionNow(_pendingPlaybackPos.id,_pendingPlaybackPos.t,{force:true,forceHistory:true});
+}
+function savePos(id,t){
+  positions[id]=Math.floor(t);
+  const now=Date.now();
+  const due=now-_lastPlaybackPosWriteAt>=PLAYBACK_POS_WRITE_MS;
+  if(due)writePlaybackPositionNow(id,t);
+  else schedulePlaybackPositionWrite(id,t,PLAYBACK_POS_WRITE_MS-(now-_lastPlaybackPosWriteAt));
 }
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function parseDurationSeconds(v){
@@ -2391,13 +2418,39 @@ function sameShowIdentity(a,b){
     String(a.venue||'').trim().toLowerCase()===String(b.venue||'').trim().toLowerCase() &&
     String(a.city||'').trim().toLowerCase()===String(b.city||'').trim().toLowerCase();
 }
+function showIdentityKeys(show){
+  const keys=[];
+  if(!show)return keys;
+  function add(k){if(k&&keys.indexOf(k)<0)keys.push(k);}
+  add('id:'+String(show.id||''));
+  add('raw:'+showStorageId(show));
+  add('dvc:'+favoriteDateKey(show.date)+'|'+String(show.venue||'').trim().toLowerCase()+'|'+String(show.city||'').trim().toLowerCase());
+  return keys;
+}
+function buildShowIdentityLookup(list){
+  const map={};
+  (list||[]).forEach(function(show){
+    showIdentityKeys(show).forEach(function(k){
+      if(k&&!map[k])map[k]=show;
+    });
+  });
+  return map;
+}
+function findShowByIdentityFast(map,probe){
+  const keys=showIdentityKeys(probe);
+  for(let i=0;i<keys.length;i++){
+    if(map[keys[i]])return map[keys[i]];
+  }
+  return null;
+}
 
 function applySheetUserOverlay(sheetList,mode){
   mode=mode||activeMode||DEFAULT_MODE;
   let changed=0;
   if(!Array.isArray(sheetList)||!sheetList.length)return changed;
+  const sheetLookup=buildShowIdentityLookup(sheetList);
   shows.forEach(function(show){
-    const fresh=sheetList.find(function(s){return sameShowIdentity(show,s);});
+    const fresh=findShowByIdentityFast(sheetLookup,show);
     if(!fresh||!fresh.attended)return;
     const sheetUsers=[...new Set(users.concat(Object.keys(fresh.attended||{})).filter(Boolean))];
     sheetUsers.forEach(function(u){
@@ -4818,7 +4871,14 @@ function clearSearchInput(inputId,buttonId,afterClear,opts){
   else try{q.blur();}catch(e){}
 }
 function clearShowSearch(){
+  clearTimeout(showSearchTimer);
   clearSearchInput('q','qClear',applyFilters);
+}
+let showSearchTimer=null;
+function scheduleShowSearch(){
+  updateShowSearchClear();
+  clearTimeout(showSearchTimer);
+  showSearchTimer=setTimeout(applyFilters,120);
 }
 function setlistHydrationStats(mode,listOverride){
   mode=mode||activeMode||DEFAULT_MODE;
@@ -7563,17 +7623,8 @@ function pauseAudio(){
   playIntent=false;_interruptionResumeWanted=false;audio.pause();playing=false;
   // Save restore state on pause so restart picks up paused position
   if(playingShow&&audio){
-    try{
-    setLocalStorageJsonSafe('gd_restore',{
-        showId:showStorageId(playingShow),
-        mode:showModeLabel(playingShow),
-        trackIdx:playingTrackIdx,
-        pos:Math.floor(audio.currentTime||0),
-        ts:Date.now()
-      });
-    }catch(e){}
-    // Also update the Recently Played history entry
-    saveHistoryPosition(playingShow, playingTrackIdx, audio.currentTime||0);
+    // Pause is an intentional boundary; persist the exact spot immediately.
+    writePlaybackPositionNow(playingShow.id,audio.currentTime||0,{force:true,forceHistory:true});
   }
   _setMediaPlaybackState('paused');
   _postNativeNowPlaying(false,true);
@@ -10225,13 +10276,14 @@ async function refreshAttendance(force){
       }else if(cell.f){d=cell.f;}else if(cell.v!=null){d=String(cell.v).trim();}
       return displayDate(d);
     }
+    const showLookup=buildShowIdentityLookup(shows);
     function showForSheetRow(row,ri){
       const cells=(row&&row.c)||[];
       const d=gvizDate(cells[0]);
       const venue=cells[1]&&cells[1].v!=null?String(cells[1].v).trim():'';
       const city=cells[2]&&cells[2].v!=null?String(cells[2].v).trim():'';
       const probe={date:d,venue:venue,city:city,id:'',modeKey:(activeMode&&activeMode.key)||DEFAULT_MODE.key};
-      return shows.find(function(s){return sameShowIdentity(s,probe);})||shows[ri]||null;
+      return findShowByIdentityFast(showLookup,probe)||shows[ri]||null;
     }
     // Match attendance by show identity; mode catalogs can collapse duplicate sheet rows.
     let changed = 0;
