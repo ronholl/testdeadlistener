@@ -425,7 +425,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.10</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.12</span></div>
     </div>
     
 
@@ -542,7 +542,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.10</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.12</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -622,7 +622,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.10';
+const APP_BUILD = '2.1.12';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -7141,11 +7141,14 @@ function renderSetlistBody(show){
 
 function findTrackIdx(show,song){
   if(!show.tracks)return -1;
-  const q=song.toLowerCase().replace(/[^a-z0-9]/g,' ').trim().split(/\s+/);
+  const q=normalizeSongForMatch(song).split(/\s+/).filter(function(w){return w.length>2;});
+  if(!q.length)return -1;
   let best=-1,bestScore=0;
   show.tracks.forEach((t,i)=>{
-    const tn=cleanName(t.name).toLowerCase();
-    const score=q.filter(w=>w.length>2&&tn.includes(w)).length;
+    const tn=normalizeSongForMatch(playbackTrackTitle(show,i)||cleanName(t.name));
+    let score=q.filter(function(w){return tn.includes(w);}).length;
+    if(tn===q.join(' '))score+=3;
+    else if(tn.indexOf(q.join(' '))>=0)score+=2;
     if(score>bestScore){bestScore=score;best=i;}
   });
   return best;
@@ -9237,11 +9240,9 @@ function rollDiceLikelyPlayable(show, flagsMap){
 
 function rollDiceWeight(show){
   const rating=Number(show.relistenRating||show.rating||0);
-  const ratingBoost=Number.isFinite(rating)?Math.max(0,rating-3)*1.6:0;
-  const year=parseInt(show.year||show.date,10)||1995;
-  const olderBoost=Math.max(0,Math.min(5,(1995-year)/6));
-  const sbdBoost=show.relistenSbd?1.5:0;
-  return Math.max(.5,1+ratingBoost+olderBoost+sbdBoost+Math.random()*.75);
+  const ratingBoost=Number.isFinite(rating)?Math.max(0,rating-3)*1.25:0;
+  const sbdBoost=show.relistenSbd?1.1:0;
+  return Math.max(.5,1+ratingBoost+sbdBoost+Math.random()*.75);
 }
 
 function weightedRollPick(pool){
@@ -9254,6 +9255,29 @@ function weightedRollPick(pool){
     if(target<=0)return pool[i];
   }
   return pool[pool.length-1];
+}
+
+function rollDiceEra(show){
+  const y=parseInt(show&&show.year||show&&show.date,10)||0;
+  if(y<1970)return '60s';
+  if(y<1980)return '70s';
+  if(y<1990)return '80s';
+  return '90s';
+}
+
+function eraBalancedRollPick(pool){
+  if(!pool.length)return null;
+  const order=['60s','70s','80s','90s'];
+  const buckets={};
+  pool.forEach(function(s){
+    const era=rollDiceEra(s);
+    if(!buckets[era])buckets[era]=[];
+    buckets[era].push(s);
+  });
+  const available=order.filter(function(era){return buckets[era]&&buckets[era].length;});
+  if(!available.length)return weightedRollPick(pool);
+  const era=available[Math.floor(Math.random()*available.length)];
+  return weightedRollPick(buckets[era])||weightedRollPick(pool);
 }
 
 function jamTabIsVisible(){
@@ -9334,7 +9358,7 @@ function loadRandomShow(){
     return;
   }
 
-  let pick = weightedRollPick(pool);
+  let pick = eraBalancedRollPick(pool);
   if(!pick){
     el.innerHTML='<div class="jam-empty">Loading shows...</div>';
     setTimeout(refreshRandomShowIfWaiting,1200);
@@ -9342,7 +9366,7 @@ function loadRandomShow(){
   }
   if(pool.length>1 && pick.id===currentId){
     const alt=pool.filter(function(s){return s.id!==currentId;});
-    pick=weightedRollPick(alt)||pick;
+    pick=eraBalancedRollPick(alt)||pick;
   }
   rememberRolledShow(pick);
   el.dataset.currentShowId=pick.id;
@@ -9780,7 +9804,11 @@ function cancelLogin(){
 function finishSwitchRecording(show,resume){
   renderSetlistBody(show);
   if(!resume||!resume.resume)return;
-  const idx=Math.max(0,Math.min(Number(resume.trackIdx)||0,(show.tracks||[]).length-1));
+  let idx=Math.max(0,Math.min(Number(resume.trackIdx)||0,(show.tracks||[]).length-1));
+  if(resume.songTitle){
+    const songIdx=findTrackIdx(show,resume.songTitle);
+    if(songIdx>=0)idx=songIdx;
+  }
   const pos=Math.max(0,Number(resume.pos)||0);
   if(!show.tracks||!show.tracks[idx])return;
   curShow=show;
@@ -9804,9 +9832,10 @@ function tryAlternateSource(showId){
   if(!nextId||nextId===selected)return;
   const isCurrent=!!(audio&&playingShow&&playingShow.id===show.id);
   const trackIdx=isCurrent?playingTrackIdx:curTrackIdx;
+  const songTitle=(show.tracks&&show.tracks[trackIdx])?playbackTrackTitle(show,trackIdx):'';
   const pos=isCurrent&&isFinite(audio.currentTime)?Math.max(0,audio.currentTime-2):0;
   _setMpStatus('Trying alternate source...');
-  switchRecording(show.id,nextId,{resume:isCurrent,trackIdx:trackIdx,pos:pos});
+  switchRecording(show.id,nextId,{resume:isCurrent,trackIdx:trackIdx,songTitle:songTitle,pos:pos});
 }
 
 async function switchRecording(showId,newId,opts){
