@@ -233,6 +233,10 @@ body{display:flex;justify-content:center}
 .sp-meta-txt b{color:var(--gold)}
 .sp-meta-txt .stars{color:var(--gold2)}
 .sp-meta-txt select{box-sizing:border-box;max-width:100%;appearance:none;-webkit-appearance:none;padding-right:46px!important;background-image:linear-gradient(45deg,transparent 50%,var(--gold) 50%),linear-gradient(135deg,var(--gold) 50%,transparent 50%)!important;background-position:calc(100% - 24px) 50%,calc(100% - 17px) 50%!important;background-size:7px 7px,7px 7px!important;background-repeat:no-repeat!important}
+.source-row{display:flex;align-items:stretch;gap:8px;margin-top:4px}
+.source-row select{flex:1;min-width:0;margin-top:0!important}
+.alt-source-btn{min-width:108px;min-height:44px;border-radius:10px;border:1.5px solid rgba(200,168,75,.58);background:rgba(200,168,75,.12);color:var(--gold);font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
+.alt-source-btn:active{background:var(--gold);color:#000;transform:scale(.98)}
 .sp-arc{font-size:10px;color:var(--gold);background:transparent;border:1px solid rgba(200,168,75,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0}
 .sp-arc:active{background:rgba(200,168,75,.1)}
 .sp-body{overflow-y:auto;flex:1}
@@ -421,7 +425,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.9</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.10</span></div>
     </div>
     
 
@@ -538,7 +542,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.9</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.10</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -618,7 +622,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.9';
+const APP_BUILD = '2.1.10';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -9773,7 +9777,40 @@ function cancelLogin(){
   }
 }
 
-async function switchRecording(showId,newId){
+function finishSwitchRecording(show,resume){
+  renderSetlistBody(show);
+  if(!resume||!resume.resume)return;
+  const idx=Math.max(0,Math.min(Number(resume.trackIdx)||0,(show.tracks||[]).length-1));
+  const pos=Math.max(0,Number(resume.pos)||0);
+  if(!show.tracks||!show.tracks[idx])return;
+  curShow=show;
+  curTrackIdx=idx;
+  _setMpStatus('Trying alternate source...');
+  setTimeout(function(){startPlayback(show,idx,pos);},0);
+}
+
+function tryAlternateSource(showId){
+  const show=shows.find(function(s){return s.id===showId;});
+  if(!show)return;
+  const recs=sourceRecordsForShow(show).filter(function(r){
+    return r&&normalizeArchiveId(r.id||'')&&!r.restricted;
+  });
+  if(recs.length<2)return;
+  const selected=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
+  let curIdx=recs.findIndex(function(r){return normalizeArchiveId(r.id||'')===selected;});
+  if(curIdx<0)curIdx=0;
+  const next=recs[(curIdx+1)%recs.length];
+  const nextId=normalizeArchiveId(next&&next.id||'');
+  if(!nextId||nextId===selected)return;
+  const isCurrent=!!(audio&&playingShow&&playingShow.id===show.id);
+  const trackIdx=isCurrent?playingTrackIdx:curTrackIdx;
+  const pos=isCurrent&&isFinite(audio.currentTime)?Math.max(0,audio.currentTime-2):0;
+  _setMpStatus('Trying alternate source...');
+  switchRecording(show.id,nextId,{resume:isCurrent,trackIdx:trackIdx,pos:pos});
+}
+
+async function switchRecording(showId,newId,opts){
+  opts=opts||{};
   const show=shows.find(function(s){return s.id===showId;});
   newId=normalizeArchiveId(newId||'');
   if(!show||normalizeArchiveId(show.archiveId||'')===newId)return;
@@ -9815,7 +9852,7 @@ async function switchRecording(showId,newId){
               var _ms=playbackTrackTitle(show,curTrackIdx);
               navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:showModeLabel(show),album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
             }
-            renderSetlistBody(show);return;
+            finishSwitchRecording(show,opts);return;
           }
         }
       }
@@ -9843,7 +9880,7 @@ async function switchRecording(showId,newId){
     show.tracks=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
     if(!show.tracks.length)show.tracks=Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
     show.totalDur=show.tracks.reduce(function(s,f){return s+parseDurationSeconds(f.length);},0);
-    renderSetlistBody(show);
+    finishSwitchRecording(show,opts);
   }catch(e){
     document.getElementById('sp-body').innerHTML='<div class="sp-unavail">Could not load recording: '+e.message+'</div>';
   }
@@ -10349,6 +10386,10 @@ function sourceOptionLabel(rec,selectedId){
 function sourcePickerHtml(show,recs,selected){
   selected=normalizeArchiveId(selected||((show&&show.archiveId)||(show&&show.archiveIdHint)||''));
   recs=recs||sourceRecordsForShow(show);
+  const playableAltCount=recs.filter(function(r){return r&&normalizeArchiveId(r.id||'')&&!r.restricted;}).length;
+  const altBtn=(show&&playableAltCount>1)
+    ? '<button class="alt-source-btn" data-sid="'+show.id+'" onclick="event.stopPropagation();tryAlternateSource(this.dataset.sid)" title="Try the next recording source">alt source</button>'
+    : '';
   const canRetry=show&&canRefreshArchiveSourceList(show);
   const looking=canRetry&&show._sourceListRefreshRunning;
   const showSourceBtn=canRetry&&(looking||recs.length<=1||show._sourceListRefreshFailed);
@@ -10361,7 +10402,7 @@ function sourcePickerHtml(show,recs,selected){
       const label=sourceOptionLabel(r,selected);
       return '<option value='+JSON.stringify(id)+(id===selected?' selected':'')+'>'+esc(label)+'</option>';
     }).join('');
-    return '<br><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;margin-top:4px;width:'+(sourceBtn?'calc(100% - 76px)':'100%')+'">'+opts+'</select>'+sourceBtn;
+    return '<br><div class="source-row"><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;width:100%">'+opts+'</select>'+altBtn+sourceBtn+'</div>';
   }
   if(!selected)return '';
   return '<br><div style="background:var(--surf);color:var(--muted);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:4px 6px;margin-top:4px;width:100%;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
