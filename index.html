@@ -237,8 +237,14 @@ body{display:flex;justify-content:center}
 .source-row select{flex:1;min-width:0;margin-top:0!important}
 .alt-source-btn{min-width:108px;min-height:44px;border-radius:10px;border:1.5px solid rgba(200,168,75,.58);background:rgba(200,168,75,.12);color:var(--gold);font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
 .alt-source-btn:active{background:var(--gold);color:#000;transform:scale(.98)}
-.sp-arc{font-size:10px;color:var(--gold);background:transparent;border:1px solid rgba(200,168,75,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0}
+.sp-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px;flex-shrink:0;min-width:72px}
+.sp-arc{font-size:10px;color:var(--gold);background:transparent;border:1px solid rgba(200,168,75,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center}
 .sp-arc:active{background:rgba(200,168,75,.1)}
+.sp-wake{font-size:10px;color:var(--muted);background:transparent;border:1px solid var(--border);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center}
+.sp-wake.on{color:var(--green);border-color:rgba(82,183,136,.6);background:rgba(82,183,136,.12)}
+.sp-wake.pending{color:var(--gold);border-color:rgba(200,168,75,.45);background:rgba(200,168,75,.08)}
+.sp-wake.unsupported{opacity:.55}
+.sp-wake:active{background:rgba(82,183,136,.1)}
 .sp-body{overflow-y:auto;flex:1}
 .sp-tabs{display:flex;background:#111;border-bottom:1px solid var(--border)}
 .sp-tab{flex:1;padding:7px 4px;text-align:center;font-size:9px;color:var(--muted);cursor:pointer;letter-spacing:.5px;text-transform:uppercase;font-family:var(--mono);transition:all .15s;user-select:none}
@@ -425,7 +431,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.12</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.15</span></div>
     </div>
     
 
@@ -542,7 +548,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.12</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.15</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -622,7 +628,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.12';
+const APP_BUILD = '2.1.14';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -5267,7 +5273,7 @@ async function openSetlistShow(show){
   document.getElementById('sp-date').textContent=show.date;
   document.getElementById('sp-venue').textContent=show.venue;
   document.getElementById('sp-city').textContent=show.city;
-  updateSpAttBtn();updateSpPlayer();
+  updateSpAttBtn();updateSpPlayer();updateScreenWakeLockUI();
   const _hdr=document.querySelector('.hdr');
   const _hdrH=_hdr?_hdr.offsetHeight:65;
   const _mp=document.getElementById('miniPlayer');
@@ -5675,7 +5681,7 @@ function clearMetaLoaded(show){
   saveShowFlags(show);
 }
 
-const ARCHIVE_SOURCE_CACHE_KEY='gd_archive_source_cache_v1';
+const ARCHIVE_SOURCE_CACHE_KEY='gd_archive_source_cache_v2';
 function sourceCacheLimitFor(modeOrShow){
   const mode=(modeOrShow&&modeOrShow.id)?modeForShow(modeOrShow):(modeOrShow||activeMode||DEFAULT_MODE);
   return isDefaultMode(mode)?90:0;
@@ -5706,6 +5712,70 @@ function writeArchiveSourceCache(cache,modeOrShow){
       localStorage.setItem(key,JSON.stringify(c));
     }catch(e2){}
   }
+}
+function archiveFileBaseName(name){
+  return String(name||'').replace(/\.(mp3|ogg|flac|shn|wav|m4a)$/i,'');
+}
+function archiveTitleUsable(title){
+  const clean=cleanTrackLabel(String(title||''));
+  return !!(clean&&clean.length>1&&!/^Track \d+$/i.test(clean)&&!looksLikeTapeId(clean)&&!looksLikeArchiveNote(clean));
+}
+function archiveTitleRank(f){
+  if(!f||!archiveTitleUsable(f.title))return 0;
+  if(f.source==='original'||!f.original)return 4;
+  if(/\.(flac|shn|wav)$/i.test(f.name||''))return 3;
+  if(f.track)return 2;
+  return 1;
+}
+function archiveTrackTitleForFile(f,fileByName,titleByBase){
+  const original=(f&&f.original&&fileByName)?fileByName[f.original]:null;
+  const candidates=[
+    original&&original.title,
+    titleByBase&&titleByBase[archiveFileBaseName(f&&f.original||'')],
+    titleByBase&&titleByBase[archiveFileBaseName(f&&f.name||'')],
+    f&&f.title
+  ];
+  for(let i=0;i<candidates.length;i++){
+    if(archiveTitleUsable(candidates[i]))return String(candidates[i]||'').trim();
+  }
+  return '';
+}
+function archivePlayableTracksFromMeta(meta){
+  const files=(meta&&meta.files)||[];
+  const fileByName={};
+  const titleByBase={};
+  const rankByBase={};
+  files.forEach(function(f){
+    if(f&&f.name)fileByName[f.name]=f;
+  });
+  files.forEach(function(f){
+    if(!f||!f.name||!f.title)return;
+    const base=archiveFileBaseName(f.name);
+    const rank=archiveTitleRank(f);
+    if(base&&rank&&rank>(rankByBase[base]||0)){
+      rankByBase[base]=rank;
+      titleByBase[base]=String(f.title||'').trim();
+    }
+  });
+  const byBase={};
+  const fmtScore=function(n){return n.endsWith('.ogg')?5:n.includes('128')?4:n.endsWith('.mp3')&&!n.includes('64kb')?3:1;};
+  files.filter(function(f){return f.name&&(f.name.endsWith('.mp3')||f.name.endsWith('.ogg'))&&!f.name.includes('_sample');}).forEach(function(f){
+    const base=archiveFileBaseName(f.name);
+    const title=archiveTrackTitleForFile(f,fileByName,titleByBase);
+    const track=Object.assign({},f);
+    if(title)track.title=title;
+    if(!byBase[base]){
+      byBase[base]=track;
+    }else if(fmtScore(track.name)>fmtScore(byBase[base].name)){
+      if(!track.title&&byBase[base].title)track.title=byBase[base].title;
+      byBase[base]=track;
+    }else if(track.title&&!byBase[base].title){
+      byBase[base].title=track.title;
+    }
+  });
+  const tracks=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');});
+  const sorted=(tracks.length?tracks:Object.values(byBase)).sort(function(a,b){return a.name.localeCompare(b.name);});
+  return stripLeadingNonSongTracks(sorted);
 }
 function readArchiveSourceEntryForShow(show,archiveId){
   if(sourceCacheLimitFor(show)<=0){
@@ -6425,29 +6495,7 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
   const archiveOverride=!!show.archiveIdHint;
   const descSongs=parseSongs(Array.isArray(rawDesc)?rawDesc.join(' '):String(rawDesc));
   removeShowFromSongIndex(show);
-  const byBase={};
-  const titleByBase={};
-  const fmtScore=function(n){return n.endsWith('.ogg')?5:n.includes('128')?4:n.endsWith('.mp3')&&!n.includes('64kb')?3:1;};
-  (meta.files||[]).forEach(function(f){
-    if(!f.name||!f.title)return;
-    const base=f.name.replace(/\.(mp3|ogg|flac|shn|wav)$/i,'');
-    if(base&&!titleByBase[base])titleByBase[base]=f.title;
-  });
-  (meta.files||[]).filter(function(f){return f.name&&(f.name.endsWith('.mp3')||f.name.endsWith('.ogg'))&&!f.name.includes('_sample');}).forEach(function(f){
-    const base=f.name.replace(/\.(mp3|ogg)$/,'');
-    if(!f.title&&titleByBase[base])f.title=titleByBase[base];
-    if(!byBase[base]){
-      byBase[base]=f;
-    }else if(fmtScore(f.name)>fmtScore(byBase[base].name)){
-      if(!f.title&&byBase[base].title)f.title=byBase[base].title;
-      byBase[base]=f;
-    }else if(f.title&&!byBase[base].title){
-      byBase[base].title=f.title;
-    }
-  });
-  const allT=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
-  show.tracks=allT.length?allT:Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
-  show.tracks=stripLeadingNonSongTracks(show.tracks);
+  show.tracks=archivePlayableTracksFromMeta(meta);
   show.totalDur=show.tracks.reduce(function(s,f){return s+parseDurationSeconds(f.length);},0);
   if(show.tracks.length>0) show.allRestricted=false;
   const trackSongs=show.tracks.map(function(t){
@@ -7247,6 +7295,115 @@ function _setMpStatus(msg){
     if(mpEl)mpEl.remove();
   }
 }
+let screenWakeLock=null;
+let screenWakeLockWanted=false;
+let screenWakeLockPending=false;
+let nativeIdleTimerAwake=false;
+function nativeIdleTimerAvailable(){
+  return !!(typeof window!=='undefined'&&window.webkit&&window.webkit.messageHandlers&&window.webkit.messageHandlers.setIdleTimerDisabled);
+}
+function setNativeIdleTimerDisabled(disabled){
+  if(!nativeIdleTimerAvailable())return false;
+  try{
+    window.webkit.messageHandlers.setIdleTimerDisabled.postMessage({disabled:!!disabled});
+    nativeIdleTimerAwake=!!disabled;
+    return true;
+  }catch(e){
+    nativeIdleTimerAwake=false;
+    return false;
+  }
+}
+function screenWakeLockAvailable(){
+  return !!(typeof navigator!=='undefined'&&navigator.wakeLock&&navigator.wakeLock.request);
+}
+function updateScreenWakeLockUI(){
+  const btn=document.getElementById('sp-wake');
+  if(!btn)return;
+  const supported=nativeIdleTimerAvailable()||screenWakeLockAvailable();
+  const active=!!(nativeIdleTimerAwake||screenWakeLock);
+  btn.classList.toggle('on',active);
+  btn.classList.toggle('pending',screenWakeLockPending);
+  btn.classList.toggle('unsupported',!supported);
+  btn.setAttribute('aria-pressed',screenWakeLockWanted?'true':'false');
+  btn.textContent=screenWakeLockPending?'...':'awake';
+  btn.title=!supported
+    ? 'Keep awake is not supported here'
+    : (active?'Screen will stay awake while the app is visible':'Keep screen awake while this app stays open');
+}
+async function requestScreenWakeLock(){
+  if(screenWakeLockPending)return false;
+  if(nativeIdleTimerAvailable()){
+    screenWakeLockWanted=true;
+    screenWakeLockPending=false;
+    if(setNativeIdleTimerDisabled(true)){
+      updateScreenWakeLockUI();
+      _setMpStatus('Keep awake is on. Your screen should stay lit while the app is visible.');
+      return true;
+    }
+  }
+  if(!screenWakeLockAvailable()){
+    screenWakeLockWanted=false;
+    screenWakeLockPending=false;
+    updateScreenWakeLockUI();
+    _setMpStatus('Keep awake is not supported by this browser.');
+    return false;
+  }
+  screenWakeLockWanted=true;
+  screenWakeLockPending=true;
+  updateScreenWakeLockUI();
+  try{
+    screenWakeLock=await navigator.wakeLock.request('screen');
+    screenWakeLockPending=false;
+    screenWakeLock.addEventListener('release',function(){
+      screenWakeLock=null;
+      updateScreenWakeLockUI();
+      if(screenWakeLockWanted&&document.visibilityState==='visible'){
+        setTimeout(function(){
+          if(screenWakeLockWanted&&!screenWakeLock)requestScreenWakeLock();
+        },700);
+      }
+    });
+    updateScreenWakeLockUI();
+    _setMpStatus('Keep awake is on. Your screen should stay lit while the app is visible.');
+    return true;
+  }catch(e){
+    screenWakeLock=null;
+    screenWakeLockWanted=false;
+    screenWakeLockPending=false;
+    updateScreenWakeLockUI();
+    if(document.visibilityState==='visible'){
+      _setMpStatus('Keep awake could not start. Check Low Power Mode or browser support, then tap awake again.');
+    }
+    return false;
+  }
+}
+async function releaseScreenWakeLock(){
+  screenWakeLockWanted=false;
+  screenWakeLockPending=false;
+  setNativeIdleTimerDisabled(false);
+  const lock=screenWakeLock;
+  screenWakeLock=null;
+  updateScreenWakeLockUI();
+  if(lock){
+    try{await lock.release();}catch(e){}
+  }
+  _setMpStatus('Keep awake is off.');
+  setTimeout(function(){
+    const sp=document.getElementById('sp-status');
+    if(sp&&sp.textContent==='Keep awake is off.')_setMpStatus(null);
+  },1600);
+}
+function toggleScreenWakeLock(){
+  if(screenWakeLockWanted||screenWakeLock||screenWakeLockPending)releaseScreenWakeLock();
+  else requestScreenWakeLock();
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible'&&screenWakeLockWanted&&!nativeIdleTimerAwake&&!screenWakeLock&&!screenWakeLockPending){
+    requestScreenWakeLock();
+  }else{
+    updateScreenWakeLockUI();
+  }
+});
 function _setMediaPlaybackState(state){
   if('mediaSession' in navigator){
     try{navigator.mediaSession.playbackState=state;}catch(e){}
@@ -9855,6 +10012,7 @@ async function switchRecording(showId,newId,opts){
   show.numReviews=rec?rec.reviews:0;
   document.getElementById('sp-meta-txt').innerHTML='<span class="sp-meta-line"><span class="spinner"></span>Loading tracks</span>'+sourcePickerHtml(show,sourceRecordsForShow(show),newId);
   document.getElementById('sp-body').innerHTML='<div class="loading"><span class="spinner"></span>Fetching tracks…</div>';
+  let relistenFallbackTracks=null;
   try{
     // Try Relisten first (has song names + direct URLs)
     if(rec&&rec.relistenId){
@@ -9873,15 +10031,19 @@ async function switchRecording(showId,newId,opts){
           });
           if(tracks.length){
             const dd=dedupeSourceTracks(tracks);
-            show.tracks=dd;
-            show.totalDur=dd.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
             const trackSongs=dd.map(function(t){return t.name.replace(/\s*->$/,'').trim();}).filter(function(s){return s.length>1;});
-            applyBestCachedSetlist(show,trackSongs);
-            if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
-              var _ms=playbackTrackTitle(show,curTrackIdx);
-              navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:showModeLabel(show),album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
+            const usableTitleCount=trackSongs.filter(function(s){return !/^Track \d+$/i.test(s)&&archiveTitleUsable(s);}).length;
+            if(usableTitleCount>=Math.min(3,Math.ceil(dd.length*0.4))){
+              show.tracks=dd;
+              show.totalDur=dd.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
+              applyBestCachedSetlist(show,trackSongs);
+              if(curShow&&curShow.id===show.id&&playing&&'mediaSession' in navigator){
+                var _ms=playbackTrackTitle(show,curTrackIdx);
+                navigator.mediaSession.metadata=new MediaMetadata({title:_ms,artist:showModeLabel(show),album:(show.venue||'')+(show.date?' · '+show.date:''),artwork:[{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'512x512',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_180.png',sizes:'180x180',type:'image/png'},{src:'https://www.ronsdeadlistener.com/favicon_tight_32.png',sizes:'32x32',type:'image/png'}]});
+              }
+              finishSwitchRecording(show,opts);return;
             }
-            finishSwitchRecording(show,opts);return;
+            relistenFallbackTracks=dd;
           }
         }
       }
@@ -9893,24 +10055,18 @@ async function switchRecording(showId,newId,opts){
       if(!r.ok)throw new Error('HTTP '+r.status);
       meta=await r.json();metaCache[newId]=meta;
     }
-    const byBase={};
-    const fmtScore=function(n){return n.endsWith('.ogg')?5:n.endsWith('.mp3')&&!n.includes('64kb')?3:1;};
-    (meta.files||[]).filter(function(f){return f.name&&(f.name.endsWith('.mp3')||f.name.endsWith('.ogg'))&&!f.name.includes('_sample');}).forEach(function(f){
-      const base=f.name.replace(/\.(mp3|ogg)$/,'');
-      if(!byBase[base]){
-        byBase[base]=f;
-      }else if(fmtScore(f.name)>fmtScore(byBase[base].name)){
-        if(!f.title&&byBase[base].title)f.title=byBase[base].title;
-        byBase[base]=f;
-      }else if(f.title&&!byBase[base].title){
-        byBase[base].title=f.title;
-      }
-    });
-    show.tracks=Object.values(byBase).filter(function(f){return !f.name.includes('64kb');}).sort(function(a,b){return a.name.localeCompare(b.name);});
-    if(!show.tracks.length)show.tracks=Object.values(byBase).sort(function(a,b){return a.name.localeCompare(b.name);});
+    show.tracks=archivePlayableTracksFromMeta(meta);
     show.totalDur=show.tracks.reduce(function(s,f){return s+parseDurationSeconds(f.length);},0);
+    applyBestCachedSetlist(show,deriveSetlistFromTracks(show.tracks));
+    cacheArchiveSourceForShow(show,'archive.org');
     finishSwitchRecording(show,opts);
   }catch(e){
+    if(relistenFallbackTracks&&relistenFallbackTracks.length){
+      show.tracks=relistenFallbackTracks;
+      show.totalDur=show.tracks.reduce(function(s,t){return s+parseDurationSeconds(t.length);},0);
+      finishSwitchRecording(show,opts);
+      return;
+    }
     document.getElementById('sp-body').innerHTML='<div class="sp-unavail">Could not load recording: '+e.message+'</div>';
   }
 }
@@ -10770,7 +10926,10 @@ function stopArchiveAutoRetry(){
     </div>
     <div class="sp-meta" id="sp-meta">
       <div class="sp-meta-txt" id="sp-meta-txt"><span class="spinner"></span></div>
-      <button class="sp-arc" onclick="openArchive()">archive ↗</button>
+      <div class="sp-actions">
+        <button class="sp-arc" onclick="openArchive()">archive ↗</button>
+        <button class="sp-wake" id="sp-wake" onclick="toggleScreenWakeLock()" title="Keep screen awake while this app stays open">awake</button>
+      </div>
     </div>
     <div id="sp-audio-err" style="display:none;padding:10px 16px;background:rgba(180,140,40,.1);border-bottom:1px solid rgba(180,140,40,.25);font-size:12px;color:var(--text);font-family:var(--mono);line-height:1.6"></div>
     <div class="sp-body" id="sp-body">
