@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "mode": "Jerry Garcia",
   "modeKey": "jerry-garcia",
-  "updated": "2026-06-27T00:14:15.766Z",
+  "updated": "2026-08-12T16:58:30.402Z",
   "setlists": {
     "JerryGarcia1963-05-04.JerryandSaraGarciaTopoftheTangent": [
       "Deep Elem Blues",
@@ -7000,6 +7000,20 @@
       "Ripple",
       "Rueben And Cherise",
       "B (totals for 15 files, 0.5636 overall compression ratio)"
+    ],
+    "jg82-04-10.109415.solo.nak700.early.cousinit.sbeok.t-flac16": [
+      "Deep Elem Blues",
+      "Freight Train > Oh Babe It Ain't No Lie",
+      "Gomorrah",
+      "Dire Wolf",
+      "Little Sadie",
+      "Stagger Lee",
+      "Valerie",
+      "I've Been All Around This World",
+      "To Lay Me Down",
+      "Run For The Roses",
+      "Ripple",
+      "Rueben And Cherise"
     ],
     "jg82-04-21.014718.jgjk.sbd.late.jupille.sbeok.t-flac16": [
       "It Takes Alot to Laugh it Takes a Train to Cry",
@@ -22255,7 +22269,7 @@
     "jg82-04-10.011281.solo.aud.late.gardner.weiner.sbeok.t-flac16": [
       {
         "id": "jg82-04-10.011281.solo.aud.late.gardner.weiner.sbeok.t-flac16",
-        "title": "Jerry Garcia live at Capitol Theatre, Passaic, NJ on 1982-04-10",
+        "title": "Jerry Garcia live at Capitol Theatre, Passaic, NJ on Capitol Theatre (Early)",
         "trackCount": 30,
         "setlistCount": 15,
         "namedCount": 15,
@@ -22340,6 +22354,20 @@
         "genericCount": 0,
         "durationSeconds": 9561.57,
         "score": 33678.6,
+        "manual": true,
+        "sheetAlt": true,
+        "best": false
+      }
+    ],
+    "jg82-04-10.109415.solo.nak700.early.cousinit.sbeok.t-flac16": [
+      {
+        "id": "jg82-04-10.109415.solo.nak700.early.cousinit.sbeok.t-flac16",
+        "manual": true,
+        "sheetAlt": true,
+        "best": true
+      },
+      {
+        "id": "jg82-04-10.015847.solo.sbd.early.sbeok.t-flac16",
         "manual": true,
         "sheetAlt": true,
         "best": false

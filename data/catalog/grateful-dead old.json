@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "mode": "Grateful Dead",
   "modeKey": "gd",
-  "updated": "2026-08-12T17:11:40.118Z",
-  "playableShows": 1957,
-  "setlistCount": 1957,
+  "updated": "2026-05-30T22:32:30.747Z",
+  "playableShows": 1965,
+  "setlistCount": 1965,
   "shows": [
     {
       "date": "1965-11-01",
@@ -50887,6 +50887,214 @@
         }
       ],
       "bestSource": "gd1995-07-09.sbd.gardner.4091.shnf"
+    },
+    {
+      "date": "1973-07-21",
+      "venue": "Keystone (Old and in The Way)",
+      "city": "Berkeley, CA",
+      "row": 2296,
+      "archiveId": "old-in-the-way-1973-keystone-berkeley-kpfa",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "old-in-the-way-1973-keystone-berkeley-kpfa",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "old-in-the-way-1973-keystone-berkeley-kpfa"
+    },
+    {
+      "date": "1973-03-02",
+      "venue": "KSAN (Old and in The Way)",
+      "city": "San Francisco, CA",
+      "row": 2297,
+      "archiveId": "oldintheway-ksanrecordplant1973",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "oldintheway-ksanrecordplant1973",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "oldintheway-ksanrecordplant1973"
+    },
+    {
+      "date": "1991-02-02",
+      "venue": "Warfield (JGB)",
+      "city": "San Francisco, CA",
+      "row": 2298,
+      "archiveId": "jg91-02-02.030812.jgdg.bk4011.darroch-team.buick.t-flac16",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "jg91-02-02.030812.jgdg.bk4011.darroch-team.buick.t-flac16",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "jg91-02-02.030812.jgdg.bk4011.darroch-team.buick.t-flac16"
+    },
+    {
+      "date": "1981-09-07",
+      "venue": "Concord Pavilion (JGB)",
+      "city": "Concord, CA",
+      "row": 2299,
+      "archiveId": "jg81-09-07.111278.jgb.nak300.hoey.t-flac16",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "jg81-09-07.111278.jgb.nak300.hoey.t-flac16",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "jg81-09-07.111278.jgb.nak300.hoey.t-flac16"
+    },
+    {
+      "date": "1977-12-08",
+      "venue": "Palace Theater (JGB)",
+      "city": "Albany, NY",
+      "row": 2300,
+      "archiveId": "jg77-12-08.020680.jgb.sbd.miller.sbeok.t-flac16",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "jg77-12-08.020680.jgb.sbd.miller.sbeok.t-flac16",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "jg77-12-08.020680.jgb.sbd.miller.sbeok.t-flac16"
+    },
+    {
+      "date": "1981-11-04",
+      "venue": "Palace Theater (JGB)",
+      "city": "Albany, NY",
+      "row": 2301,
+      "archiveId": "jg81-11-04.076659.jgb.aud.vita.t-flac16",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "jg81-11-04.076659.jgb.aud.vita.t-flac16",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "jg81-11-04.076659.jgb.aud.vita.t-flac16"
+    },
+    {
+      "date": "1980-02-02",
+      "venue": "The Stone (JGB)",
+      "city": "San Francisco, CA",
+      "row": 2302,
+      "archiveId": "jg80-02-02.092369.jgb.fob-nak700.porray.t-flac16",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "jg80-02-02.092369.jgb.fob-nak700.porray.t-flac16",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "jg80-02-02.092369.jgb.fob-nak700.porray.t-flac16"
+    },
+    {
+      "date": "1981-08-21",
+      "venue": "Keystone (JGB)",
+      "city": "San Francisco, CA",
+      "row": 2303,
+      "archiveId": "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16",
+      "altArchiveIds": [],
+      "sourceLock": "",
+      "recordings": [
+        {
+          "id": "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16",
+          "rating": 0,
+          "reviews": 0,
+          "sbd": false,
+          "restricted": false,
+          "manual": true,
+          "sheetAlt": true,
+          "best": true,
+          "trackCount": 0,
+          "setlistCount": 0,
+          "namedCount": 0,
+          "durationSeconds": 0
+        }
+      ],
+      "bestSource": "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16"
     }
   ]
 }
