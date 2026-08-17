@@ -4721,6 +4721,9 @@ async function registerNewUser(){
       _pendingSignupAction=null;
     }
     msg.textContent=pendingAction?'Added. Logging you in…':'Saved on this device. Logging you in…';msg.className='nu-msg ok';
+    // A newly-created profile must receive the current Ron message even when
+    // another Deadhead already dismissed it on this same phone.
+    try{localStorage.setItem(adminMsgNewUserKey(name),'1');}catch(e){}
     setTimeout(function(){
       loginAs(name,true);
       restoreSignupUiState(returnState);
@@ -9902,7 +9905,15 @@ async function prefetchRelistenAvailability(){
 // ── ADMIN BROADCAST MESSAGE ────────────────────────────────────────
 // Ron updates the message by editing the sheet (Apps Script getMessage action).
 // Format returned: {id:'msg-001', text:'Hello Deadheads...'} or {id:'', text:''}
-// Client stores 'gd_msg_seen' = last seen id. Shows once per new id.
+// Seen state is per Deadhead, so a new profile on a shared phone still gets
+// the current message. The legacy device-wide key is migrated only for the
+// existing profile that was already saved on that device.
+function adminMsgUserToken(name){
+  return encodeURIComponent(String(name||'guest').trim().toLowerCase());
+}
+function adminMsgSeenKey(name){return 'gd_msg_seen_user_'+adminMsgUserToken(name);}
+function adminMsgNewUserKey(name){return 'gd_msg_new_user_pending_'+adminMsgUserToken(name);}
+const _legacyAdminMsgOwner=localStorage.getItem('gd_user')||'';
 async function checkAdminMsg(){
   try{
     const r=await fetch(SCRIPT_URL+'?action=getMessage',{signal:AbortSignal.timeout(6000)});
@@ -9911,31 +9922,49 @@ async function checkAdminMsg(){
     let d;
     try{d=JSON.parse(text);}catch(e){console.warn('getMessage bad JSON',text.slice(0,100));return;}
     if(!d.id||!d.text){console.log('getMessage: no active message',JSON.stringify(d));return;}
-    const seen=localStorage.getItem('gd_msg_seen')||'';
+    const userName=curUser||'guest';
+    const seenKey=adminMsgSeenKey(userName);
+    const newUserPending=localStorage.getItem(adminMsgNewUserKey(userName))==='1';
+    let seen=localStorage.getItem(seenKey)||'';
+    // Preserve the old once-only behavior for the profile that owned this
+    // device before per-user receipts were introduced. Never do this for a
+    // freshly registered profile.
+    if(!seen&&!newUserPending&&curUser&&_legacyAdminMsgOwner===curUser){
+      seen=localStorage.getItem('gd_msg_seen')||'';
+      if(seen)localStorage.setItem(seenKey,seen);
+    }
     if(seen===d.id){console.log('getMessage: already seen',d.id);return;}
     console.log('getMessage: showing message',d.id);
-    showMsg(d.id,d.text);
+    showMsg(d.id,d.text,userName);
   }catch(e){console.warn('checkAdminMsg error',e.message);}
 }
 let _adminMsgCheckScheduled=false;
 function scheduleAdminMsgCheck(delay){
   if(_adminMsgCheckScheduled)return;
   _adminMsgCheckScheduled=true;
-  setTimeout(checkAdminMsg, delay||3500);
+  setTimeout(function(){_adminMsgCheckScheduled=false;checkAdminMsg();}, delay||3500);
 }
-function showMsg(id,text){
+function showMsg(id,text,userName){
   const overlay=document.getElementById('msgOverlay');
   const el=document.getElementById('msgText');
   if(!overlay||!el)return;
   el.innerHTML=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   overlay._msgId=id;
+  overlay._msgUser=userName||curUser||'guest';
   overlay.style.display='flex';
   document.body.style.overflow='hidden';
 }
 function dismissMsg(){
   const overlay=document.getElementById('msgOverlay');
   if(!overlay)return;
-  if(overlay._msgId)try{localStorage.setItem('gd_msg_seen',overlay._msgId);}catch(e){}
+  if(overlay._msgId)try{
+    const messageUser=overlay._msgUser||curUser||'guest';
+    localStorage.setItem(adminMsgSeenKey(messageUser),overlay._msgId);
+    localStorage.removeItem(adminMsgNewUserKey(messageUser));
+    // Keep the old key during rollout for compatibility with an older app
+    // copy that may still be open on this phone.
+    localStorage.setItem('gd_msg_seen',overlay._msgId);
+  }catch(e){}
   overlay.style.display='none';
   document.body.style.overflow='';
 }
