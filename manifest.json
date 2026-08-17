@@ -21,16 +21,16 @@
       "purpose": "any maskable"
     },
     {
-      "src": "favicon_tight_180.png",
+      "src": "favicon_tight_192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "favicon_tight_180.png",
+      "src": "favicon_tight_512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ]
 }

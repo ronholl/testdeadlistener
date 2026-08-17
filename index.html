@@ -416,6 +416,23 @@ body{display:flex;justify-content:center}
   .pbtn{width:27px;height:27px}
 }
 
+/* ── ADD TO HOME SCREEN ── */
+.install-btn{display:none;background:rgba(82,183,136,.1);border:1.5px solid rgba(82,183,136,.65);border-radius:15px;height:30px;padding:0 9px;color:var(--green);font-family:var(--mono);font-size:9px;font-weight:800;letter-spacing:.35px;cursor:pointer;flex-shrink:0;align-items:center;justify-content:center}
+.install-btn:active{background:rgba(82,183,136,.2)}
+.install-overlay{display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.82);align-items:flex-end;justify-content:center;padding:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+.install-overlay.open{display:flex}
+.install-sheet{background:#140c0c;border:1px solid rgba(200,168,75,.42);border-radius:20px 20px 16px 16px;width:100%;max-width:460px;padding:24px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.9);position:relative}
+.install-close{position:absolute;top:12px;right:12px;width:34px;height:34px;border:0;border-radius:50%;background:rgba(255,255,255,.07);color:var(--muted);font-size:20px;cursor:pointer}
+.install-icon{width:64px;height:64px;border-radius:16px;display:block;margin:0 auto 13px}
+.install-kicker{text-align:center;color:var(--gold);font-size:10px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:7px}
+.install-title{text-align:center;color:var(--text);font-family:var(--serif);font-size:23px;line-height:1.2;margin:0 34px 9px}
+.install-copy{text-align:center;color:#b8b0a0;font-size:12px;line-height:1.65;margin-bottom:16px}
+.install-steps{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px 15px;color:#c8c0b0;font-size:13px;line-height:1.75;margin-bottom:14px}
+.install-steps b{color:var(--gold)}
+.install-primary{width:100%;border:0;border-radius:12px;padding:14px;background:linear-gradient(135deg,#c8a84b,#a87c28);color:#000;font-family:var(--mono);font-size:14px;font-weight:800;cursor:pointer}
+.install-secondary{width:100%;border:0;background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;padding:12px 8px 2px;cursor:pointer}
+@media (min-width:700px){.install-overlay{align-items:center}}
+
 </style>
   <link rel="icon" href="favicon_tight.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon_tight_32.png">
@@ -427,6 +444,19 @@ body{display:flex;justify-content:center}
 </head>
 <body>
 <div id="app">
+
+  <div id="installOverlay" class="install-overlay" role="dialog" aria-modal="true" aria-labelledby="installTitle" onclick="installOverlayBackdrop(event)">
+    <div class="install-sheet">
+      <button class="install-close" type="button" onclick="closeInstallHelp()" aria-label="Close install directions">&times;</button>
+      <img src="favicon_tight_180.png" class="install-icon" alt="">
+      <div class="install-kicker">Keep the music handy</div>
+      <div class="install-title" id="installTitle">Add to Home Screen</div>
+      <div class="install-copy" id="installCopy">It opens like an app and is much easier to find next time.</div>
+      <div class="install-steps" id="installSteps"></div>
+      <button id="installPrimary" class="install-primary" type="button" onclick="runInstallAction()">Install app</button>
+      <button class="install-secondary" type="button" onclick="closeInstallHelp()">Maybe later</button>
+    </div>
+  </div>
 
   <!-- ── LOGIN SCREEN ── -->
   <div id="loginScreen">
@@ -558,6 +588,7 @@ body{display:flex;justify-content:center}
       <div class="hdr-user-name" id="hdrUserName">—</div>
     </div>
     <button onclick="syncData()" id="syncBtn" title="Sync Deadheads, My Shows, and Favorites" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:50%;width:28px;height:28px;color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="Sync">&#8635;</button>
+    <button onclick="openInstallHelp()" id="installBtn" class="install-btn" type="button" title="Add this app to your Home Screen">INSTALL</button>
     <button onclick="showHelp()" title="Help" id="helpBtn" style="background:rgba(200,168,75,.08);border:1.5px solid rgba(200,168,75,.5);border-radius:50%;width:32px;height:32px;color:var(--gold);font-size:15px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;animation:helpPulse 3s ease-in-out infinite">?</button>
   </div>
 
@@ -10808,14 +10839,9 @@ function stopArchiveAutoRetry(){
         <div style="background:rgba(200,168,75,.1);border:2px solid rgba(200,168,75,.5);border-radius:12px;padding:18px 18px 16px;margin-bottom:16px;position:relative">
           <div style="position:absolute;top:-11px;left:16px;background:var(--gold);color:#000;font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;letter-spacing:.5px">INSTALL THE APP</div>
           <div style="font-size:13px;color:#c8c0b0;line-height:1.9;margin-top:4px">
-            Browse and play every Grateful Dead show right from your home screen — no App Store, no browser chrome, just music.<br><br>
-            <b style="color:var(--gold)">iPhone · Safari only:</b><br>
-            1&nbsp; Tap the <b style="color:#d8d0c0">Share ⎙</b> button at the bottom<br>
-            2&nbsp; Scroll down and tap <b style="color:#d8d0c0">Add to Home Screen</b><br>
-            3&nbsp; Tap <b style="color:#d8d0c0">Add</b> — done ✓<br><br>
-            <b style="color:var(--gold)">Android · Chrome:</b><br>
-            Tap <b style="color:#d8d0c0">⋮ Menu</b> → <b style="color:#d8d0c0">Add to Home screen</b>
+            Browse and play every show right from your home screen — no App Store and much easier to find next time.
           </div>
+          <button type="button" onclick="openInstallHelp()" style="width:100%;margin-top:13px;background:linear-gradient(135deg,#c8a84b,#a87c28);border:0;border-radius:10px;padding:12px;color:#000;font-family:var(--mono);font-size:13px;font-weight:800;cursor:pointer">Show steps for this phone</button>
         </div>
 
         <!-- What's Here -->
@@ -11021,6 +11047,101 @@ function stopArchiveAutoRetry(){
 </div>
 
 <script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Add to Home Screen helper
+// Android browsers can expose a real install prompt. iPhone/iPad browsers do
+// not, so the same button shows the exact Share-menu steps for that browser.
+let deferredInstallPrompt=null;
+
+function isHomeScreenApp(){
+  return window.matchMedia('(display-mode: standalone)').matches||
+    window.navigator.standalone===true||
+    /^capacitor:/i.test(window.location.protocol);
+}
+
+function installDevice(){
+  const ua=navigator.userAgent||'';
+  const ios=/iPad|iPhone|iPod/.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const android=/Android/i.test(ua);
+  const samsung=/SamsungBrowser/i.test(ua);
+  const chrome=/CriOS/i.test(ua);
+  const firefox=/FxiOS/i.test(ua);
+  const safari=ios&&!chrome&&!firefox;
+  return {ios:ios,android:android,samsung:samsung,chrome:chrome,firefox:firefox,safari:safari,mobile:ios||android};
+}
+
+function refreshInstallButton(){
+  const btn=document.getElementById('installBtn');
+  if(!btn)return;
+  const show=installDevice().mobile&&!isHomeScreenApp();
+  btn.style.display=show?'flex':'none';
+}
+
+function installDirectionsHtml(){
+  const d=installDevice();
+  if(deferredInstallPrompt){
+    return '<b>Ready to install.</b><br>Tap the gold button below, then confirm <b>Install</b>.';
+  }
+  if(d.ios&&d.safari){
+    return '<b>1.</b> Tap the <b>Share</b> button <span aria-label="share icon">□↑</span> at the bottom of Safari.<br><b>2.</b> Scroll down and tap <b>Add to Home Screen</b>.<br><b>3.</b> Tap <b>Add</b> in the top-right corner.';
+  }
+  if(d.ios){
+    return '<b>1.</b> Tap this browser’s <b>Share</b> button <span aria-label="share icon">□↑</span>.<br><b>2.</b> Tap <b>Add to Home Screen</b>.<br><b>3.</b> Tap <b>Add</b> to finish.<br><span style="color:var(--muted)">If you do not see that choice, open this page in Safari and use its Share button.</span>';
+  }
+  if(d.android&&d.samsung){
+    return '<b>1.</b> Tap the <b>≡ menu</b> at the bottom of Samsung Internet.<br><b>2.</b> Tap <b>Add page to</b>.<br><b>3.</b> Choose <b>Home screen</b>.';
+  }
+  if(d.android){
+    return '<b>1.</b> Tap the <b>⋮ menu</b> in the top-right corner.<br><b>2.</b> Tap <b>Install app</b> or <b>Add to Home screen</b>.<br><b>3.</b> Tap <b>Install</b> to confirm.';
+  }
+  return 'Open this page on your iPhone or Android phone, then use its browser menu to choose <b>Add to Home Screen</b> or <b>Install app</b>.';
+}
+
+function openInstallHelp(){
+  if(isHomeScreenApp())return;
+  const overlay=document.getElementById('installOverlay');
+  const steps=document.getElementById('installSteps');
+  const primary=document.getElementById('installPrimary');
+  if(!overlay||!steps||!primary)return;
+  steps.innerHTML=installDirectionsHtml();
+  primary.textContent=deferredInstallPrompt?'Install app now':'Got it';
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(function(){document.querySelector('#installOverlay .install-close')?.focus();},0);
+}
+
+function closeInstallHelp(){
+  document.getElementById('installOverlay')?.classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function installOverlayBackdrop(event){
+  if(event.target&&event.target.id==='installOverlay')closeInstallHelp();
+}
+
+async function runInstallAction(){
+  if(!deferredInstallPrompt){closeInstallHelp();return;}
+  const prompt=deferredInstallPrompt;
+  deferredInstallPrompt=null;
+  prompt.prompt();
+  try{await prompt.userChoice;}catch(e){}
+  closeInstallHelp();
+  refreshInstallButton();
+}
+
+window.addEventListener('beforeinstallprompt',function(event){
+  event.preventDefault();
+  deferredInstallPrompt=event;
+  refreshInstallButton();
+});
+window.addEventListener('appinstalled',function(){
+  deferredInstallPrompt=null;
+  closeInstallHelp();
+  refreshInstallButton();
+});
+window.addEventListener('DOMContentLoaded',refreshInstallButton);
+window.matchMedia('(display-mode: standalone)').addEventListener?.('change',refreshInstallButton);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Capacitor Native Bridge
 //
