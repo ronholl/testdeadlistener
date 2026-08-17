@@ -431,6 +431,11 @@ body{display:flex;justify-content:center}
 .install-steps b{color:var(--gold)}
 .install-primary{width:100%;border:0;border-radius:12px;padding:14px;background:linear-gradient(135deg,#c8a84b,#a87c28);color:#000;font-family:var(--mono);font-size:14px;font-weight:800;cursor:pointer}
 .install-secondary{width:100%;border:0;background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;padding:12px 8px 2px;cursor:pointer}
+.share-qr{width:176px;height:176px;border-radius:14px;border:2px solid rgba(200,168,75,.3);display:block;margin:2px auto 12px}
+.share-url{text-align:center;color:rgba(200,168,75,.72);font-size:11px;margin-bottom:15px}
+.share-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.share-copy{width:100%;border:1.5px solid rgba(200,168,75,.45);border-radius:12px;padding:13px;background:transparent;color:var(--gold);font-family:var(--mono);font-size:13px;font-weight:700;cursor:pointer}
+.share-status{text-align:center;color:var(--green);font-size:11px;min-height:16px;margin-top:10px}
 @media (min-width:700px){.install-overlay{align-items:center}}
 
 </style>
@@ -455,6 +460,24 @@ body{display:flex;justify-content:center}
       <div class="install-steps" id="installSteps"></div>
       <button id="installPrimary" class="install-primary" type="button" onclick="runInstallAction()">Install app</button>
       <button class="install-secondary" type="button" onclick="closeInstallHelp()">Maybe later</button>
+    </div>
+  </div>
+
+  <div id="shareOverlay" class="install-overlay" role="dialog" aria-modal="true" aria-labelledby="shareTitle" onclick="shareOverlayBackdrop(event)">
+    <div class="install-sheet">
+      <button class="install-close" type="button" onclick="closeShareHelp()" aria-label="Close sharing options">&times;</button>
+      <img src="favicon_tight_180.png" class="install-icon" alt="">
+      <div class="install-kicker">Pass it on</div>
+      <div class="install-title" id="shareTitle">Share the Listener</div>
+      <div class="install-copy">Send the link, or let another Deadhead scan the code.</div>
+      <img src="deadhead_share_qr.png" class="share-qr" alt="QR code for Ron's Deadhead Listener" loading="lazy" decoding="async">
+      <div class="share-url">ronsdeadlistener.com</div>
+      <div class="share-actions">
+        <button class="install-primary" type="button" onclick="shareListenerLink()">Share link</button>
+        <button class="share-copy" type="button" onclick="copyListenerLink()">Copy link</button>
+      </div>
+      <div class="share-status" id="shareStatus" role="status" aria-live="polite"></div>
+      <button class="install-secondary" type="button" onclick="closeShareHelp()">Done</button>
     </div>
   </div>
 
@@ -588,7 +611,7 @@ body{display:flex;justify-content:center}
       <div class="hdr-user-name" id="hdrUserName">—</div>
     </div>
     <button onclick="syncData()" id="syncBtn" title="Sync Deadheads, My Shows, and Favorites" style="background:transparent;border:1px solid rgba(255,255,255,.15);border-radius:50%;width:28px;height:28px;color:var(--muted);font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center" title="Sync">&#8635;</button>
-    <button onclick="openInstallHelp()" id="installBtn" class="install-btn" type="button" title="Add this app to your Home Screen">INSTALL</button>
+    <button onclick="handleInstallShare()" id="installBtn" class="install-btn" type="button" title="Add this app to your Home Screen">INSTALL</button>
     <button onclick="showHelp()" title="Help" id="helpBtn" style="background:rgba(200,168,75,.08);border:1.5px solid rgba(200,168,75,.5);border-radius:50%;width:32px;height:32px;color:var(--gold);font-size:15px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;animation:helpPulse 3s ease-in-out infinite">?</button>
   </div>
 
@@ -11081,6 +11104,8 @@ function stopArchiveAutoRetry(){
 // Android browsers can expose a real install prompt. iPhone/iPad browsers do
 // not, so the same button shows the exact Share-menu steps for that browser.
 let deferredInstallPrompt=null;
+const LISTENER_SHARE_URL='https://www.ronsdeadlistener.com/';
+const LISTENER_SHARE_TEXT='Check out Ron\'s Deadhead Listener — browse and play thousands of live shows.';
 
 function isHomeScreenApp(){
   return window.matchMedia('(display-mode: standalone)').matches||
@@ -11102,8 +11127,17 @@ function installDevice(){
 function refreshInstallButton(){
   const btn=document.getElementById('installBtn');
   if(!btn)return;
-  const show=installDevice().mobile&&!isHomeScreenApp();
-  btn.style.display=show?'flex':'none';
+  const mobile=installDevice().mobile;
+  const installed=isHomeScreenApp();
+  btn.style.display=mobile?'flex':'none';
+  btn.textContent=installed?'SHARE':'INSTALL';
+  btn.title=installed?'Share Ron\'s Deadhead Listener':'Add this app to your Home Screen';
+  btn.setAttribute('aria-label',btn.title);
+}
+
+function handleInstallShare(){
+  if(isHomeScreenApp())openShareHelp();
+  else openInstallHelp();
 }
 
 function installDirectionsHtml(){
@@ -11146,6 +11180,64 @@ function closeInstallHelp(){
 
 function installOverlayBackdrop(event){
   if(event.target&&event.target.id==='installOverlay')closeInstallHelp();
+}
+
+function openShareHelp(){
+  const overlay=document.getElementById('shareOverlay');
+  const status=document.getElementById('shareStatus');
+  if(!overlay)return;
+  if(status)status.textContent='';
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(function(){document.querySelector('#shareOverlay .install-close')?.focus();},0);
+}
+
+function closeShareHelp(){
+  document.getElementById('shareOverlay')?.classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function shareOverlayBackdrop(event){
+  if(event.target&&event.target.id==='shareOverlay')closeShareHelp();
+}
+
+async function shareListenerLink(){
+  const status=document.getElementById('shareStatus');
+  if(status)status.textContent='';
+  if(typeof navigator.share==='function'){
+    try{
+      await navigator.share({
+        title:"Ron's Deadhead Listener",
+        text:LISTENER_SHARE_TEXT,
+        url:LISTENER_SHARE_URL
+      });
+      if(status)status.textContent='Shared ✓';
+      return;
+    }catch(e){
+      if(e&&e.name==='AbortError')return;
+    }
+  }
+  await copyListenerLink();
+}
+
+async function copyListenerLink(){
+  const status=document.getElementById('shareStatus');
+  let copied=false;
+  try{
+    await navigator.clipboard.writeText(LISTENER_SHARE_URL);
+    copied=true;
+  }catch(e){
+    try{
+      const input=document.createElement('textarea');
+      input.value=LISTENER_SHARE_URL;
+      input.setAttribute('readonly','');
+      input.style.position='fixed';input.style.opacity='0';
+      document.body.appendChild(input);input.select();
+      copied=document.execCommand('copy');input.remove();
+    }catch(ignore){}
+  }
+  if(status)status.textContent=copied?'Link copied ✓':'Press and hold the address above to copy it.';
+  return copied;
 }
 
 async function runInstallAction(){
