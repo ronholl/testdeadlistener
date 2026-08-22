@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "mode": "Jerry Garcia",
   "modeKey": "jerry-garcia",
-  "updated": "2026-08-21T22:46:08.804Z",
+  "updated": "2026-08-22T00:57:08.052Z",
   "playableShows": 907,
   "setlistCount": 907,
   "shows": [
@@ -16380,7 +16380,7 @@
           "restricted": false,
           "manual": true,
           "sheetAlt": true,
-          "best": false,
+          "best": true,
           "trackCount": 22,
           "setlistCount": 11,
           "namedCount": 11,

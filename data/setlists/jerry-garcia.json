@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "mode": "Jerry Garcia",
   "modeKey": "jerry-garcia",
-  "updated": "2026-08-21T22:46:08.790Z",
+  "updated": "2026-08-22T00:57:08.041Z",
   "setlists": {
     "JerryGarcia1963-05-04.JerryandSaraGarciaTopoftheTangent": [
       "Deep Elem Blues",
@@ -6461,12 +6461,17 @@
       "Tangled Up in Blue"
     ],
     "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16": [
+      "They Love Each Other",
       "After Midnight",
       "Russian Lullaby",
-      "I Second That Emotion",
+      "I Second That Emotion >",
       "Tangled Up In Blue",
-      "Mission in the Rain",
-      "The Harder They Come"
+      "Mission In The Rain",
+      "Harder They Come",
+      "Let It Rock",
+      "Night They Drove Old Dixie Down >",
+      "Dear Prudence",
+      "Midnight Moonlight"
     ],
     "jg81-08-22.076345.jgb.nak300.vita.minches.sbeok.t-flac16": [
       "How Sweet It Is",
@@ -31051,5 +31056,6 @@
     "jg95-03-05.022194.jgb.set2.neumannKM54.vasseur.ladner.t-flac16": "jg95-03-05.079634.jgb.sonics.michaelB.goodbear.t-flac16",
     "jg95-04-14.017556.jgb.neumannKM54.vasseur.ladner.t-flac16": "jg95-04-14.024990.jgb.neuKM54vasseur.ladner.t-flac16",
     "jg95-04-22.004305.jgb.fob-neumannKM150.unknown.estim8ted.t-flac16": "jg95-04-22.097637.jgb.fob-sonicDSM6.unknown.sbeok.t-flac16"
-  }
+  },
+  "refreshNeeded": []
 }
