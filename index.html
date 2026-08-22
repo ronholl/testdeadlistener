@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.21</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.22</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.21</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.22</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.21';
+const APP_BUILD = '2.1.22';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1475,6 +1475,47 @@ function archiveSourceMatchesShowDate(show,archiveId){
   // IDs without a recognizable date are allowed; a recognizable conflicting
   // date is never allowed to attach to or play for this show.
   return !sourceDate||!showDate||sourceDate===showDate;
+}
+function catalogSourceIdsForShow(show){
+  const ids=[];
+  const add=function(v){
+    const id=normalizeArchiveId(v||'');
+    if(id&&ids.indexOf(id)<0)ids.push(id);
+  };
+  add(show&&show.archiveIdHint);
+  // At catalog-load time, sheetAlt marks alternates explicitly supplied by the
+  // current catalog. Sources discovered later from Archive are intentionally
+  // excluded here: they must never revive a source removed from the JSON.
+  (show&&show.recordings||[]).forEach(function(r){if(r&&r.sheetAlt)add(r.id);});
+  return ids;
+}
+function repairSourceRemovedFromCatalog(show,reason){
+  if(!show)return false;
+  const selected=normalizeArchiveId(show.archiveId||'');
+  const allowed=catalogSourceIdsForShow(show);
+  // An empty catalog source list is meaningful (no source assigned), but only
+  // repair when local storage is actually trying to restore an old selection.
+  if(!selected||allowed.indexOf(selected)>=0)return false;
+  show.archiveId=allowed[0]||null;
+  show.recordings=(show.recordings||[]).filter(function(r){
+    return allowed.indexOf(normalizeArchiveId(r&&r.id||''))>=0;
+  });
+  show.tracks=null;show.totalDur=0;show.songs=null;show.setBreaks=[];
+  show.metaLoaded=false;show.notAvail=false;show.cachePlayable=false;show.setlistCached=false;show.setlistTrusted=false;
+  show.archiveIdHintLoaded='';show._archiveHintRefreshNeeded=true;show._archiveHintChanged=true;
+  show._needsArchive=!!allowed.length;show._archiveTempFail=false;show._archiveDeferred=false;
+  show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
+  removeShowFromSongIndex(show);
+  try{
+    show._allowSetlistCacheClear=true;
+    clearCachedSetlistForShow(show);
+    show._allowSetlistCacheClear=false;
+    clearShowFlagsForShow(show);
+    clearMetaLoaded(show);
+  }catch(e){show._allowSetlistCacheClear=false;}
+  window._gdCatalogSourceRepair={at:Date.now(),reason:reason||'catalog',showId:show.id,date:show.date,venue:show.venue,removed:selected,allowed:allowed.slice()};
+  console.warn('[GD] Removed source no longer in catalog for '+show.date+': '+selected);
+  return true;
 }
 function repairWrongDateSource(show,reason){
   if(!show)return false;
@@ -4276,11 +4317,13 @@ function onLoaded(list,opts){
         if(showFlags[s.id].archiveId) s.archiveId=showFlags[s.id].archiveId;
         if(showFlags[s.id].archiveIdHintLoaded) s.archiveIdHintLoaded=showFlags[s.id].archiveIdHintLoaded;
       }
+      const removedSourceRepaired=repairSourceRemovedFromCatalog(s,'startup-catalog');
       const wrongDateRepaired=repairWrongDateSource(s,'startup-cache');
-      if(wrongDateRepaired)delete showFlags[s.id];
+      const sourceRepaired=removedSourceRepaired||wrongDateRepaired;
+      if(sourceRepaired)delete showFlags[s.id];
       // Restore the best cached setlist for this date into the search index.
       // Some dates exist under multiple show IDs; prefer the longest cached setlist.
-      const bestCachedSongs = wrongDateRepaired?datasetSetlistForShow(s):bestCachedSetlistForShow(cached, s);
+      const bestCachedSongs = sourceRepaired?datasetSetlistForShow(s):bestCachedSetlistForShow(cached, s);
       if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
@@ -4309,7 +4352,7 @@ function onLoaded(list,opts){
         if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
       if(s.songs&&s.songs.length) s.cachePlayable=true;
-      applyArchiveHintInvalidation(s,wrongDateRepaired?null:showFlags[s.id],archiveHintFp);
+      applyArchiveHintInvalidation(s,sourceRepaired?null:showFlags[s.id],archiveHintFp);
       if(showAssumedNoAudioNoSource(s)&&!showLooksIndexed(s)){
         s._needsArchive=false;
         s._archiveTempFail=false;
