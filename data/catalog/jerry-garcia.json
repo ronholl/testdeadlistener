@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "mode": "Jerry Garcia",
   "modeKey": "jerry-garcia",
-  "updated": "2026-08-12T16:58:30.419Z",
+  "updated": "2026-08-21T22:46:08.804Z",
   "playableShows": 907,
   "setlistCount": 907,
   "shows": [
@@ -16369,10 +16369,7 @@
       "city": "Berkeley, CA",
       "row": 767,
       "archiveId": "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16",
-      "altArchiveIds": [
-        "jg81-08-21.076344.jgb.nak300.vita.minches.t-flac16",
-        "jg81-08-21.110342.jgb.psbd.pasternak.flac16"
-      ],
+      "altArchiveIds": [],
       "sourceLock": "",
       "recordings": [
         {
@@ -16388,43 +16385,15 @@
           "setlistCount": 11,
           "namedCount": 11,
           "durationSeconds": 14040.82
-        },
-        {
-          "id": "jg81-08-21.076344.jgb.nak300.vita.minches.t-flac16",
-          "rating": 0,
-          "reviews": 0,
-          "sbd": false,
-          "restricted": false,
-          "manual": true,
-          "sheetAlt": true,
-          "best": false,
-          "trackCount": 18,
-          "setlistCount": 8,
-          "namedCount": 8,
-          "durationSeconds": 10202.52
-        },
-        {
-          "id": "jg81-08-21.110342.jgb.psbd.pasternak.flac16",
-          "rating": 0,
-          "reviews": 0,
-          "sbd": false,
-          "restricted": false,
-          "manual": true,
-          "sheetAlt": true,
-          "best": true,
-          "trackCount": 12,
-          "setlistCount": 13,
-          "namedCount": 13,
-          "durationSeconds": 9138.84
         }
       ],
-      "bestSource": "jg81-08-21.110342.jgb.psbd.pasternak.flac16"
+      "bestSource": "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16"
     },
     {
       "date": "1981-08-22",
       "venue": "Fairfax Pavilion",
       "city": "Fairfax, CA",
-      "row": 770,
+      "row": 768,
       "archiveId": "jg81-08-22.076345.jgb.nak300.vita.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16450,7 +16419,7 @@
       "date": "1981-08-23",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 771,
+      "row": 769,
       "archiveId": "jg81-08-23.077104.jgb.s1s2p.nak300.vita.minches.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16476,7 +16445,7 @@
       "date": "1981-09-07",
       "venue": "Concord Pavilion",
       "city": "Concord CA",
-      "row": 772,
+      "row": 770,
       "archiveId": "jg81-09-07.111278.jgb.nak300.hoey.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16502,7 +16471,7 @@
       "date": "1981-09-18",
       "venue": "Club Front",
       "city": "San Rafael, CA",
-      "row": 773,
+      "row": 771,
       "archiveId": "jg81-09-18.013881.jgb.sbd.rehearsals.unknown.t-flac16",
       "altArchiveIds": [
         "jg81-09-18.033742.jgb.aud.wise.minches.sbeok.t-flac16"
@@ -16544,7 +16513,7 @@
       "date": "1981-10-11",
       "venue": "Melk Weg",
       "city": "Amsterdam, Netherlands",
-      "row": 775,
+      "row": 773,
       "archiveId": "jg81-10-11.077796.jgbw.aud.unknown.stephens.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16570,7 +16539,7 @@
       "date": "1981-10-31",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 776,
+      "row": 774,
       "archiveId": "jg81-10-31.088958.jgb.nak300.levene.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16596,7 +16565,7 @@
       "date": "1981-11-01",
       "venue": "Tuttle North Gymnasium, State University of New York",
       "city": "Brockport, NY",
-      "row": 777,
+      "row": 775,
       "archiveId": "jg81-11-01.091112.jgb.1p-2p.nak100.gates.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16622,7 +16591,7 @@
       "date": "1981-11-03",
       "venue": "Painter's Mill",
       "city": "Owings Mills, MD",
-      "row": 778,
+      "row": 776,
       "archiveId": "jg81-11-03.015099.jgb.sbd.set2.unknown.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16648,7 +16617,7 @@
       "date": "1981-11-04",
       "venue": "Palace Theatre",
       "city": "Albany, NY",
-      "row": 779,
+      "row": 777,
       "archiveId": "jg81-11-04.076659.jgb.aud.vita.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16674,7 +16643,7 @@
       "date": "1981-11-06",
       "venue": "Capitol Theatre",
       "city": "Passaic, NJ",
-      "row": 780,
+      "row": 778,
       "archiveId": "jg81-11-06.024865.jgb.early.sonyECM23f.weinberg.t-flac16",
       "altArchiveIds": [
         "jg81-11-06.089217.jgb.late.partial.fob-nak300.unknown.t-flac16",
@@ -16731,7 +16700,7 @@
       "date": "1981-11-07",
       "venue": "McDonough Arena, Georgetown University",
       "city": "Washington, DC",
-      "row": 783,
+      "row": 781,
       "archiveId": "jg81-11-07.024991.jgb.sbd.partial.unknown.t-flac16",
       "altArchiveIds": [
         "jg81-11-07.089466.jgb.nak300.biodtl-sirmick.sbeok.t-flac16"
@@ -16773,7 +16742,7 @@
       "date": "1981-11-08",
       "venue": "Alumni Gymnasium, Rider College",
       "city": "Lawrence Township, NJ",
-      "row": 785,
+      "row": 783,
       "archiveId": "jg81-11-08.014008.jgb.beyerM160.hance.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16799,7 +16768,7 @@
       "date": "1981-11-10",
       "venue": "The Palladium",
       "city": "New York, NY",
-      "row": 786,
+      "row": 784,
       "archiveId": "jg81-11-10.010173.jgb.late.beyerM160.unknown.t-flac16",
       "altArchiveIds": [
         "jg81-11-10.027760.jgb.early.nak700.cohen.jjoops.t-flac16",
@@ -16871,7 +16840,7 @@
       "date": "1981-11-12",
       "venue": "Springfield Symphony Hall",
       "city": "Springfield, MA",
-      "row": 790,
+      "row": 788,
       "archiveId": "jg81-11-12.008079.jgb.nak300.stone.jjoops.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16897,7 +16866,7 @@
       "date": "1981-11-13",
       "venue": "Orpheum Theatre",
       "city": "Boston, MA",
-      "row": 791,
+      "row": 789,
       "archiveId": "jg81-11-13.012989.jgb.nak700.rolfe.t-flac16",
       "altArchiveIds": [
         "jg81-11-13.089005.jgb.late.nak300.levene.t-flac16",
@@ -16969,7 +16938,7 @@
       "date": "1981-11-14",
       "venue": "Patrick Gymnasium, University of Vermont",
       "city": "Burlington, VT",
-      "row": 795,
+      "row": 793,
       "archiveId": "jg81-11-14.028791.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -16995,7 +16964,7 @@
       "date": "1981-11-15",
       "venue": "Palace Theater (Ocean State Performing Arts Center)",
       "city": "Providence, RI",
-      "row": 796,
+      "row": 794,
       "archiveId": "jg81-11-15.020609.jgb.nak700.rolfe.sbeok.t-flac16",
       "altArchiveIds": [
         "jg81-11-15.097807.jgb.nak300.friend.t-flac16",
@@ -17052,7 +17021,7 @@
       "date": "1981-11-17",
       "venue": "Uptown Theatre",
       "city": "Chicago, IL",
-      "row": 799,
+      "row": 797,
       "archiveId": "jg81-11-17.079043.jgb.aud.unknown.minches.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17078,7 +17047,7 @@
       "date": "1981-11-19",
       "venue": "Rainbow Music Hall",
       "city": "Denver, CO",
-      "row": 800,
+      "row": 798,
       "archiveId": "jg81-11-19.025792.jgb.aud.vamarty.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17104,7 +17073,7 @@
       "date": "1981-12-07",
       "venue": "Club Front",
       "city": "San Rafael, CA",
-      "row": 801,
+      "row": 799,
       "archiveId": "jg81-12-07.030372.jgb.sbd.rehearsal.wally.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17130,7 +17099,7 @@
       "date": "1981-12-18",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 802,
+      "row": 800,
       "archiveId": "jg81-12-18.016379.jgb.nak700.martin.jupille.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17156,7 +17125,7 @@
       "date": "1981-12-19",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 803,
+      "row": 801,
       "archiveId": "jg81-12-19.017839.jgb.nak700.martin.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17182,7 +17151,7 @@
       "date": "1982-01-11",
       "venue": "Old Waldorf",
       "city": "San Francisco, CA",
-      "row": 804,
+      "row": 802,
       "archiveId": "jg82-01-11.084012.jgb.sbd.gmb.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17208,7 +17177,7 @@
       "date": "1982-01-13",
       "venue": "Old Waldorf",
       "city": "San Francisco, CA",
-      "row": 805,
+      "row": 803,
       "archiveId": "jg82-01-13.095067.jgb.aud.GEMS.sbeok.flac16",
       "altArchiveIds": [
         "jg82-01-13.098706.jgb.aud..knudsen.gems.flac16"
@@ -17250,7 +17219,7 @@
       "date": "1982-02-02",
       "venue": "Catalyst",
       "city": "Santa Cruz, CA",
-      "row": 807,
+      "row": 805,
       "archiveId": "jg82-02-02.110350.jgb.nak300.hoey.t-flac16",
       "altArchiveIds": [
         "jg82-02-02.nak300.hoey.126225.flac24",
@@ -17307,7 +17276,7 @@
       "date": "1982-02-03",
       "venue": "Catalyst",
       "city": "Santa Cruz, CA",
-      "row": 810,
+      "row": 808,
       "archiveId": "jg82-02-03.017015.jgb.nak300.hoey.misshn.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-02-03.110534.jgb.nak300.hoey.t-flac16",
@@ -17364,7 +17333,7 @@
       "date": "1982-02-04",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 813,
+      "row": 811,
       "archiveId": "jg82-02-04.083952.jgb.sbd.gmb.sbefail.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17390,7 +17359,7 @@
       "date": "1982-02-05",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 814,
+      "row": 812,
       "archiveId": "jg82-02-05.018071.jgb.sbd.pset2.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-02-05.095186.jgb.aud.set1.GEMS.flac16",
@@ -17447,7 +17416,7 @@
       "date": "1982-02-26",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 817,
+      "row": 815,
       "archiveId": "jg82-02-26.091123.jgb.sonyECM23F.ohr.t-flac16",
       "altArchiveIds": [
         "jg82-02-26.091280.jgb.sbd.metz-edited.patched.sbefail.t-flac16"
@@ -17489,7 +17458,7 @@
       "date": "1982-02-27",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 819,
+      "row": 817,
       "archiveId": "jg82-02-27.083879.jgb.sbd.gmb.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17515,7 +17484,7 @@
       "date": "1982-02-28",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 820,
+      "row": 818,
       "archiveId": "jg82-02-28.083880.jgb.sbd.gmb.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17541,7 +17510,7 @@
       "date": "1982-03-03",
       "venue": "Barbary Coast Room, San Francisco State University",
       "city": "San Francisco, CA",
-      "row": 821,
+      "row": 819,
       "archiveId": "jg82-03-03.111509.jgb.gems.knudsen.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17567,7 +17536,7 @@
       "date": "1982-03-07",
       "venue": "The Saddle Rack",
       "city": "San Jose, CA",
-      "row": 822,
+      "row": 820,
       "archiveId": "jg82-03-07.025945.jgb.fm.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-03-07.097487.jgb.aud.burrowes.minches.t-flac16",
@@ -17639,7 +17608,7 @@
       "date": "1982-03-17",
       "venue": "Acker Gymnasium, Chico State University",
       "city": "Chico, CA",
-      "row": 826,
+      "row": 824,
       "archiveId": "jg82-03-17.013560.jgb.sbd.sbefail.t-flac16",
       "altArchiveIds": [
         "jg82-03-17.083495.jgb.sbd.gmb.t-flac16"
@@ -17681,7 +17650,7 @@
       "date": "1982-03-18",
       "venue": "Mojo's",
       "city": "Arcata, CA",
-      "row": 828,
+      "row": 826,
       "archiveId": "jg82-03-18.015193.jgb.vallee.gale.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17707,7 +17676,7 @@
       "date": "1982-03-19",
       "venue": "Mojo's",
       "city": "Arcata, CA",
-      "row": 829,
+      "row": 827,
       "archiveId": "jg82-03-19.028694.jgb.aud.vallee.gale-sirmick.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17733,7 +17702,7 @@
       "date": "1982-03-20",
       "venue": "Mateel Community Center",
       "city": "Garberville, CA",
-      "row": 830,
+      "row": 828,
       "archiveId": "jg82-03-20.029759.jgb.fm.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -17759,7 +17728,7 @@
       "date": "1982-03-27",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 831,
+      "row": 829,
       "archiveId": "jg82-03-27.006605.jgb.sbd.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-03-27.j111727.gb.knudsen.aud.GEMS.flac16"
@@ -17801,7 +17770,7 @@
       "date": "1982-04-10",
       "venue": "Capitol Theatre (Early)",
       "city": "Passaic, NJ",
-      "row": 833,
+      "row": 831,
       "archiveId": "jg82-04-10.109415.solo.nak700.early.cousinit.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-04-10.015847.solo.sbd.early.sbeok.t-flac16"
@@ -17843,7 +17812,7 @@
       "date": "1982-04-10",
       "venue": "Capitol Theatre (Late)",
       "city": "Passaic, NJ",
-      "row": 835,
+      "row": 833,
       "archiveId": "jg82-04-10.011281.solo.aud.late.gardner.weiner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-04-10.015848.solo.sbd.late.sbeok.t-flac16",
@@ -17865,20 +17834,6 @@
           "setlistCount": 15,
           "namedCount": 15,
           "durationSeconds": 9291.480000000001
-        },
-        {
-          "id": "jg82-04-10.015847.solo.sbd.early.sbeok.t-flac16",
-          "rating": 0,
-          "reviews": 0,
-          "sbd": false,
-          "restricted": false,
-          "manual": true,
-          "sheetAlt": true,
-          "best": false,
-          "trackCount": 26,
-          "setlistCount": 13,
-          "namedCount": 13,
-          "durationSeconds": 7938.980000000001
         },
         {
           "id": "jg82-04-10.015848.solo.sbd.late.sbeok.t-flac16",
@@ -17909,34 +17864,6 @@
           "durationSeconds": 9558.87
         },
         {
-          "id": "jg82-04-10.109415.solo.nak700.early.cousinit.sbeok.t-flac16",
-          "rating": 0,
-          "reviews": 0,
-          "sbd": false,
-          "restricted": false,
-          "manual": true,
-          "sheetAlt": true,
-          "best": false,
-          "trackCount": 24,
-          "setlistCount": 12,
-          "namedCount": 12,
-          "durationSeconds": 7636.969999999999
-        },
-        {
-          "id": "jg82-04-10.127046.beyerM88.stankiewicz.2496",
-          "rating": 0,
-          "reviews": 0,
-          "sbd": false,
-          "restricted": false,
-          "manual": true,
-          "sheetAlt": true,
-          "best": false,
-          "trackCount": 24,
-          "setlistCount": 25,
-          "namedCount": 25,
-          "durationSeconds": 7760.239999999999
-        },
-        {
           "id": "jg82-04-10.132111.mtx.seamons.ht105.flac16",
           "rating": 0,
           "reviews": 0,
@@ -17957,7 +17884,7 @@
       "date": "1982-04-21",
       "venue": "Beacon Theatre",
       "city": "New York, NY",
-      "row": 839,
+      "row": 837,
       "archiveId": "jg82-04-21.014718.jgjk.sbd.late.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-04-21.029187.jgjk.senn421.early.nolan.t-flac16",
@@ -18014,7 +17941,7 @@
       "date": "1982-04-25",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 842,
+      "row": 840,
       "archiveId": "jg82-04-25.jgb.knudsen-smith.96966.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18040,7 +17967,7 @@
       "date": "1982-04-26",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 843,
+      "row": 841,
       "archiveId": "jg82-04-26.102417.jgb.aud.unknown.tenner.t-flac16",
       "altArchiveIds": [
         "jg82-04-26.121153.jgb.aud.knudsen.flac16"
@@ -18082,7 +18009,7 @@
       "date": "1982-05-01",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 845,
+      "row": 843,
       "archiveId": "jg82-05-01.jgb.knudsen-smith.97549.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18108,7 +18035,7 @@
       "date": "1982-05-05",
       "venue": "Unknown Venue",
       "city": "",
-      "row": 846,
+      "row": 844,
       "archiveId": "jg82-05-05.017900.jgjk.sbd.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18134,7 +18061,7 @@
       "date": "1982-05-08",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 847,
+      "row": 845,
       "archiveId": "jg82-05-08.017751.jgb.sbd.jjoops.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-05-08.jgb.GEMS.Knudsen.100400.flac16"
@@ -18176,7 +18103,7 @@
       "date": "1982-05-14",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 849,
+      "row": 847,
       "archiveId": "jg82-05-14.jgb.GEMS.knudsen.smith.patched.107855.flac16",
       "altArchiveIds": [
         "jg82-05-14.jgb.aud.GEMS.95775.flac",
@@ -18233,7 +18160,7 @@
       "date": "1982-05-15",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 852,
+      "row": 850,
       "archiveId": "jg82-05-15.102404.jgb.aud.knudsen.smith.GEMS.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18259,7 +18186,7 @@
       "date": "1982-05-31",
       "venue": "River Theatre",
       "city": "Guerneville, CA",
-      "row": 853,
+      "row": 851,
       "archiveId": "jg82-05-31.jgb.aud.GEMS.95427.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18285,7 +18212,7 @@
       "date": "1982-06-04",
       "venue": "Neighbors Of Woodcraft",
       "city": "Portland, OR",
-      "row": 854,
+      "row": 852,
       "archiveId": "jg82-06-04.020578.jgjk.sbd.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-06-04.095421.jgjk.sony.rice.jjoops-waddell.GEMS.flac16",
@@ -18357,7 +18284,7 @@
       "date": "1982-06-05",
       "venue": "Oregon State Penitentiary",
       "city": "Salem, OR",
-      "row": 858,
+      "row": 856,
       "archiveId": "jg82-06-05.95430.jgjk.rice.GEMS.sbeok.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18383,7 +18310,7 @@
       "date": "1982-06-06",
       "venue": "Auditorium, South Eugene High School",
       "city": "Eugene, OR",
-      "row": 859,
+      "row": 857,
       "archiveId": "jg82-06-06.008060.jgjk.sbd.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-06-06.089675.jgjk.nak700.eggiman-navarre.sbeok.t-flac16"
@@ -18425,7 +18352,7 @@
       "date": "1982-06-11",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 861,
+      "row": 859,
       "archiveId": "jg82-06-11.120868.aud.knudsen.flac16",
       "altArchiveIds": [
         "jg82-06-11.jgb.aud.GEMS.95649.flac"
@@ -18467,7 +18394,7 @@
       "date": "1982-06-12",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 863,
+      "row": 861,
       "archiveId": "jg82-06-12.107913.jgb.aud.martin-knudsen.smith.patched.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18493,7 +18420,7 @@
       "date": "1982-06-16",
       "venue": "Music Mountain",
       "city": "South Fallsburg, NY",
-      "row": 864,
+      "row": 862,
       "archiveId": "jg82-06-16.033417.jgb.aud.wise-minches..sbeok.flac16",
       "altArchiveIds": [
         "jg82-06-16.088972.jgb.fob-nak300.steinthal.motb.0057.t-flac16",
@@ -18580,7 +18507,7 @@
       "date": "1982-06-17",
       "venue": "New Haven Coliseum Veterans Memorial Coliseum",
       "city": "New Haven, CT",
-      "row": 869,
+      "row": 867,
       "archiveId": "jg82-06-17.033418.jgb.senn421.wise.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18606,7 +18533,7 @@
       "date": "1982-06-18",
       "venue": "Cape Cod Coliseum",
       "city": "South Yarmouth, MA",
-      "row": 870,
+      "row": 868,
       "archiveId": "jg82-06-18.108318.jgb.nak700.rolfe.miller.t-flac16",
       "altArchiveIds": [
         "jg82-06-18.119095.jgb.nak300.morrone-friend.flac16"
@@ -18648,7 +18575,7 @@
       "date": "1982-06-20",
       "venue": "Cumberland County Civic Center",
       "city": "Portland, ME",
-      "row": 872,
+      "row": 870,
       "archiveId": "jg82-06-20.110317.jgb.fob-nak700.rolfe.miller.t-flac16",
       "altArchiveIds": [
         "jg82-06-20.121457.jgb.senn441.lamarre.berger.t-flac16"
@@ -18690,7 +18617,7 @@
       "date": "1982-06-22",
       "venue": "Mosque",
       "city": "Richmond, VA",
-      "row": 874,
+      "row": 872,
       "archiveId": "jg82-06-22.100707.jgb.aud.brentz.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18716,7 +18643,7 @@
       "date": "1982-06-23",
       "venue": "Stanley Theatre",
       "city": "Pittsburgh, PA",
-      "row": 875,
+      "row": 873,
       "archiveId": "jg82-06-23.090876.jgb.aud.uncleduke.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18742,7 +18669,7 @@
       "date": "1982-06-24",
       "venue": "Capitol Theatre",
       "city": "Passaic, NJ",
-      "row": 876,
+      "row": 874,
       "archiveId": "jg82-06-24.033419.jgb.senn421.wise.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-06-24.079428.jgb.sbd.late.sbeok.t-flac16"
@@ -18784,7 +18711,7 @@
       "date": "1982-06-25",
       "venue": "The Palladium",
       "city": "New York, NY",
-      "row": 878,
+      "row": 876,
       "archiveId": "jg82-06-25.033420.jgjk.senn421.wise.minches.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18810,7 +18737,7 @@
       "date": "1982-06-26",
       "venue": "Warner Theatre",
       "city": "Washington, DC",
-      "row": 879,
+      "row": 877,
       "archiveId": "jg82-06-26.004421.jgjk.sbd.early.lai-metz.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-06-26.101296.jgjk.aud.brentz.t-flac16",
@@ -18867,7 +18794,7 @@
       "date": "1982-06-27",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 882,
+      "row": 880,
       "archiveId": "jg82-06-27.089570.jgjk.senn.late.weidner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-06-27.124137.jgjk.sbd.late.t-flac16"
@@ -18909,7 +18836,7 @@
       "date": "1982-06-28",
       "venue": "Opera House",
       "city": "Boston, MA",
-      "row": 884,
+      "row": 882,
       "archiveId": "jg82-06-28.089503.jgjk.nak300.levene.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18935,7 +18862,7 @@
       "date": "1982-06-30",
       "venue": "Auditorium Theatre",
       "city": "Rochester, NY",
-      "row": 885,
+      "row": 883,
       "archiveId": "jg82-06-30.034985.jgjk.aud.herbst.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -18961,7 +18888,7 @@
       "date": "1982-07-01",
       "venue": "Auditorium Theatre",
       "city": "Chicago, IL",
-      "row": 886,
+      "row": 884,
       "archiveId": "jg82-07-01.088339.jgjk.sony.sirmick.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-07-01.122157.jgjk.aud.unknown.t-flac16",
@@ -19018,7 +18945,7 @@
       "date": "1982-07-02",
       "venue": "Macky Auditorium, University of Colorado",
       "city": "Boulder, CO",
-      "row": 889,
+      "row": 887,
       "archiveId": "jg82-07-02.013982.jgjk.aud.early.gibian.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-07-02.014014.jgjk.aud.late.gibian.jupille.sbeok.t-flac16"
@@ -19060,7 +18987,7 @@
       "date": "1982-08-23",
       "venue": "Kabuki Nightclub",
       "city": "San Francisco, CA",
-      "row": 891,
+      "row": 889,
       "archiveId": "jg82-08-23.012586.jgjk.nak700.menke.t-flac16",
       "altArchiveIds": [
         "jg82-08-23.106691.jgjk.aud.early.jaret.t-flac16"
@@ -19102,7 +19029,7 @@
       "date": "1982-09-06",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 893,
+      "row": 891,
       "archiveId": "jg82-09-06.121113.jgjk.marantz.set1.knudsen.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19128,7 +19055,7 @@
       "date": "1982-09-07",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 894,
+      "row": 892,
       "archiveId": "jg82-09-07.102416.jgjk.aud.knudsen.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19154,7 +19081,7 @@
       "date": "1982-10-13",
       "venue": "Catalyst",
       "city": "Santa Cruz, CA",
-      "row": 895,
+      "row": 893,
       "archiveId": "jg82-10-13.110792.jgb.senn441.hoey.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19180,7 +19107,7 @@
       "date": "1982-10-21",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 896,
+      "row": 894,
       "archiveId": "jg82-10-21.099530.jgb.sonyECM.anzaldo.t-flac16",
       "altArchiveIds": [
         "jg82-10-21.112273.jgb.aud.GEMS.Knudsen.Smith.flac16"
@@ -19222,7 +19149,7 @@
       "date": "1982-10-22",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 898,
+      "row": 896,
       "archiveId": "jg82-10-22.099208.jgb.sonyECM.anzaldo.t-flac16",
       "altArchiveIds": [
         "jg82-10-22.112274.jgb.marantz.knudsen-smith.gems.flac16"
@@ -19264,7 +19191,7 @@
       "date": "1982-10-23",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 900,
+      "row": 898,
       "archiveId": "jg82-10-23.112275.jgb.aud.GEMS.Knudsen.Smith.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19290,7 +19217,7 @@
       "date": "1982-10-24",
       "venue": "River Theatre",
       "city": "Guerneville, CA",
-      "row": 901,
+      "row": 899,
       "archiveId": "jg82-10-24.099221.jgb.sonyECM.anzaldo.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19316,7 +19243,7 @@
       "date": "1982-10-28",
       "venue": "Rissmiller's Country Club",
       "city": "Reseda, CA",
-      "row": 902,
+      "row": 900,
       "archiveId": "jg82-10-28.009704.jgb.sonyECM.early.late-partial.keshavan.t-flac16",
       "altArchiveIds": [
         "jg82-10-28.132076.jgb.naks.mason.flac16"
@@ -19358,7 +19285,7 @@
       "date": "1982-10-30",
       "venue": "Mesa Community Center Amphitheatre",
       "city": "Mesa, AZ",
-      "row": 904,
+      "row": 902,
       "archiveId": "jg82-10-30.033805.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-10-30.120334.jgb.aud.maurins.flac16"
@@ -19400,7 +19327,7 @@
       "date": "1982-11-01",
       "venue": "Opry House",
       "city": "Austin, TX",
-      "row": 906,
+      "row": 904,
       "archiveId": "jg82-11-01.100575.jgb.aud.dogman.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19426,7 +19353,7 @@
       "date": "1982-11-02",
       "venue": "Cardi's",
       "city": "Houston, TX",
-      "row": 907,
+      "row": 905,
       "archiveId": "jg82-11-02.100554.jgb.aud.dogman.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19452,7 +19379,7 @@
       "date": "1982-11-03",
       "venue": "Riverboat President",
       "city": "New Orleans, LA",
-      "row": 908,
+      "row": 906,
       "archiveId": "jg82-11-03.008178.jgb.sbd.unknown.t-flac16",
       "altArchiveIds": [
         "jg82-11-03.137644.jgb.sbd.flac1644"
@@ -19494,7 +19421,7 @@
       "date": "1982-11-05",
       "venue": "Chrysler Auditorium",
       "city": "Norfolk, VA",
-      "row": 910,
+      "row": 908,
       "archiveId": "jg82-11-05.034855.jgb.aud.brentz.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19520,7 +19447,7 @@
       "date": "1982-11-06",
       "venue": "Ritchie Coliseum, University of Maryland",
       "city": "College Park, MD",
-      "row": 911,
+      "row": 909,
       "archiveId": "jg82-11-06.aud.schuncke.110572.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19546,7 +19473,7 @@
       "date": "1982-11-07",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 912,
+      "row": 910,
       "archiveId": "jg82-11-07.034590.jgb.aud.brentz.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19572,7 +19499,7 @@
       "date": "1982-11-09",
       "venue": "E.M. Loew's Center for the Performing Arts",
       "city": "Worcester, MA",
-      "row": 913,
+      "row": 911,
       "archiveId": "jg82-11-09.089126.jgb.aud-senn421.levene.sbefail.flac16",
       "altArchiveIds": [
         "jg82-11-09.110490.jgb.nak700.rolfe.miller.t-flac16",
@@ -19629,7 +19556,7 @@
       "date": "1982-11-10",
       "venue": "Livingston Gymnasium, Rutgers University",
       "city": "Piscataway Township, NJ",
-      "row": 916,
+      "row": 914,
       "archiveId": "jg82-11-10.035141.jgb.nak100.adelman.koucky-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-11-10.120063.jgb.nak700.dyche.t-flac16"
@@ -19671,7 +19598,7 @@
       "date": "1982-11-11",
       "venue": "Felt Forum, Madison Square Garden",
       "city": "New York, NY",
-      "row": 918,
+      "row": 916,
       "archiveId": "jg82-11-11.034710.jgb.aud.wise.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-11-11.120087.jgb.early.nak700.dyche.t-flac16",
@@ -19728,7 +19655,7 @@
       "date": "1982-11-13",
       "venue": "Bushnell Auditorium",
       "city": "Hartford, CT",
-      "row": 921,
+      "row": 919,
       "archiveId": "jg82-11-13.033422.jgb.fob-senn421s.wise.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-11-13.135182.jgb.senn441.lamarre-berger.flac16"
@@ -19770,7 +19697,7 @@
       "date": "1982-11-14",
       "venue": "Shapiro Gym, Brandeis University",
       "city": "Waltham, MA",
-      "row": 923,
+      "row": 921,
       "archiveId": "jg82-11-14.102006.jgb.nak300.morris.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19796,7 +19723,7 @@
       "date": "1982-11-15",
       "venue": "Wilkins Theatre, Kean College",
       "city": "Union, NJ",
-      "row": 924,
+      "row": 922,
       "archiveId": "jg82-11-15.023339.jgb.late.sbd.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg82-11-15.078008.jgb.late.senn421.vita.minches.t-flac16"
@@ -19838,7 +19765,7 @@
       "date": "1983-01-13",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 926,
+      "row": 924,
       "archiveId": "jg83-01-13.084227.jgb.sbd.gmb.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19864,7 +19791,7 @@
       "date": "1983-01-15",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 927,
+      "row": 925,
       "archiveId": "jg83-01-15.102434.jgb.aud.unknown.tenner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19890,7 +19817,7 @@
       "date": "1983-01-18",
       "venue": "Catalyst",
       "city": "Santa Cruz, CA",
-      "row": 928,
+      "row": 926,
       "archiveId": "jg83-01-18.102436.jgb.aud.unknown.tenner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19916,7 +19843,7 @@
       "date": "1983-01-21",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 929,
+      "row": 927,
       "archiveId": "jg83-01-21.020506.interview.estades.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -19942,7 +19869,7 @@
       "date": "1983-01-22",
       "venue": "Phoenix Theatre",
       "city": "Petaluma, CA",
-      "row": 930,
+      "row": 928,
       "archiveId": "jg83-01-22.08653.jgb.sbd.jupille.sbeok.shnf",
       "altArchiveIds": [
         "jg83-01-22.112901.jgb.sbd-patched.flac16",
@@ -19999,7 +19926,7 @@
       "date": "1983-01-23",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 933,
+      "row": 931,
       "archiveId": "jg83-01-23.008061.jgb.set2.nak100.jones.jjoops.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-01-23.019965.jgb.set1.sbd.minches-ladner.sbeok.t-flac16"
@@ -20041,7 +19968,7 @@
       "date": "1983-01-24",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 935,
+      "row": 933,
       "archiveId": "jg83-01-24.019966.jgb.sbd.minches-ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20067,7 +19994,7 @@
       "date": "1983-02-26",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 936,
+      "row": 934,
       "archiveId": "jg83-02-26.032137.jgb.set2.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-02-26.102505.jgb.aud.unknown.tenner.t-flac16"
@@ -20109,7 +20036,7 @@
       "date": "1983-02-27",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 938,
+      "row": 936,
       "archiveId": "jg83-02-27.020588.jgb.psbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-02-27.102574.jgb.aud.unknown.tenner.t-flac16"
@@ -20151,7 +20078,7 @@
       "date": "1983-02-28",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 940,
+      "row": 938,
       "archiveId": "jg83-02-28.020765.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20177,7 +20104,7 @@
       "date": "1983-03-02",
       "venue": "San Francisco Civic Auditorium",
       "city": "San Francisco, CA",
-      "row": 941,
+      "row": 939,
       "archiveId": "jg83-03-02.114374.jgbw.all.fm-jaret.flac16",
       "altArchiveIds": [
         "jg83-03-02.88963.jgbw.all.fm-keenan.flac16"
@@ -20219,7 +20146,7 @@
       "date": "1983-03-05",
       "venue": "Santa Cruz Civic Auditorium",
       "city": "Santa Cruz, CA",
-      "row": 943,
+      "row": 941,
       "archiveId": "jg83-03-05.014445.jgb.sbd.sanders.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-03-05.090919.jgb.sbd.gmb.t-flac16",
@@ -20276,7 +20203,7 @@
       "date": "1983-03-07",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 946,
+      "row": 944,
       "archiveId": "jg83-03-07.102491.jgb.aud.unknown.tenner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20302,7 +20229,7 @@
       "date": "1983-03-11",
       "venue": "Arlington Theatre",
       "city": "Santa Barbara, CA",
-      "row": 947,
+      "row": 945,
       "archiveId": "jg83-03-11.020710.jgb.psbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20328,7 +20255,7 @@
       "date": "1983-03-12",
       "venue": "Beverly Theatre",
       "city": "Beverly Hills, CA",
-      "row": 948,
+      "row": 946,
       "archiveId": "jg83-03-12.017147.jgb.late.nak300.unknown.jjoops.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-03-12.026207.jgb.early.aud.unknown.ladner.sbeok.t-flac16"
@@ -20370,7 +20297,7 @@
       "date": "1983-05-07",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 950,
+      "row": 948,
       "archiveId": "jg83-05-07.122981.jgb.aud.unknown.moore-berger.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20396,7 +20323,7 @@
       "date": "1983-05-20",
       "venue": "Rainbow Music Hall",
       "city": "Denver, CO",
-      "row": 951,
+      "row": 949,
       "archiveId": "jg83-05-20.091122.jgb.sennK403.white.minches.t-flac16",
       "altArchiveIds": [
         "jg83-05-20.30140.jgb.aud.unknown.sbeok.shnf"
@@ -20438,7 +20365,7 @@
       "date": "1983-05-21",
       "venue": "Rainbow Music Hall",
       "city": "Denver, CO",
-      "row": 953,
+      "row": 951,
       "archiveId": "jg83-05-21.091115.jgb.panasonic610.johnson.minches.t-flac16",
       "altArchiveIds": [
         "jg83-05-21.096908.jgb.marcsound.moran.minches.t-flac16"
@@ -20480,7 +20407,7 @@
       "date": "1983-05-23",
       "venue": "Stages",
       "city": "Granite City, IL",
-      "row": 955,
+      "row": 953,
       "archiveId": "jg83-05-23.024498.jgb.sony.shayman.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20506,7 +20433,7 @@
       "date": "1983-05-25",
       "venue": "Shea's Buffalo Theater",
       "city": "Buffalo, NY",
-      "row": 956,
+      "row": 954,
       "archiveId": "jg83-05-25.130353.jgb.aud.unknown.flac2448",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20532,7 +20459,7 @@
       "date": "1983-05-26",
       "venue": "Auditorium Theatre",
       "city": "Rochester, NY",
-      "row": 957,
+      "row": 955,
       "archiveId": "jg83-05-26.091117.jgb.aud.crandel.andrewf.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20558,7 +20485,7 @@
       "date": "1983-05-28",
       "venue": "Cape Cod Coliseum",
       "city": "South Yarmouth, MA",
-      "row": 958,
+      "row": 956,
       "archiveId": "jg83-05-28.007328.jgb.atm11.horvath.welch.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-05-28.074081.jgb.fob-senn421.vita.minches.sbeok.t-flac16",
@@ -20630,7 +20557,7 @@
       "date": "1983-05-29",
       "venue": "Bushnell Auditorium",
       "city": "Hartford, CT",
-      "row": 962,
+      "row": 960,
       "archiveId": "jg83-05-29.076910.jgb.senn421.vita.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-05-29.106095.jgb.nak300.morris.sbeok.t-flac16a"
@@ -20672,7 +20599,7 @@
       "date": "1983-05-30",
       "venue": "Bushnell Auditorium",
       "city": "Hartford, CT",
-      "row": 964,
+      "row": 962,
       "archiveId": "jg83-05-30.022225.jgb.senn441.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-05-30.077715.jgb.senn421.vita.minches.sbeok.t-flac16",
@@ -20744,7 +20671,7 @@
       "date": "1983-05-31",
       "venue": "Roseland Ballroom",
       "city": "New York, NY",
-      "row": 968,
+      "row": 966,
       "archiveId": "jg83-05-31.015617.jgb.fob-nak700.cohen.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-05-31.076578.jgb.senn421.vita.minches.sbeok.t-flac16"
@@ -20786,7 +20713,7 @@
       "date": "1983-06-01",
       "venue": "Roseland Ballroom",
       "city": "New York, NY",
-      "row": 970,
+      "row": 968,
       "archiveId": "jg83-06-01.010962.jgb.nak701.beach.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-06-01.015618.jgb.fob-nak700.cohen.minches.sbeok.t-flac16",
@@ -20843,7 +20770,7 @@
       "date": "1983-06-03",
       "venue": "Capitol Theatre",
       "city": "Passaic, NJ",
-      "row": 973,
+      "row": 971,
       "archiveId": "jg83-06-03.078622.jgb.senn421.vita.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20869,7 +20796,7 @@
       "date": "1983-06-04",
       "venue": "The Chance",
       "city": "Poughkeepsie, NY",
-      "row": 974,
+      "row": 972,
       "archiveId": "jg83-06-04.015619.jgb.early.fob-nak700.cohen.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-06-04.015620.jgb.late.fob.cohen.vita.minches.sbeok.t-flac16",
@@ -20926,7 +20853,7 @@
       "date": "1983-06-05",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 977,
+      "row": 975,
       "archiveId": "jg83-06-05.076973.jgb.nak300.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20952,7 +20879,7 @@
       "date": "1983-07-21",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 978,
+      "row": 976,
       "archiveId": "jg83-07-21.132096.jgb.aud.unknown.berger.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -20978,7 +20905,7 @@
       "date": "1983-07-24",
       "venue": "Nevada County Fairgrounds",
       "city": "Grass Valley, CA",
-      "row": 979,
+      "row": 977,
       "archiveId": "jg83-07-24.020736.jgb.nak700.menke.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-07-24.aud.motb.0231.flac16"
@@ -21020,7 +20947,7 @@
       "date": "1983-09-30",
       "venue": "The Country Club",
       "city": "Reseda, CA",
-      "row": 981,
+      "row": 979,
       "archiveId": "jg83-09-30.030875.jgb.aud.unknown.vertiklman.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21046,7 +20973,7 @@
       "date": "1983-10-01",
       "venue": "Beverly Theatre",
       "city": "Beverly Hills, CA",
-      "row": 982,
+      "row": 980,
       "archiveId": "jg83-10-01.031811.jgb.sony939.pinedo.mandel.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21072,7 +20999,7 @@
       "date": "1983-11-12",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 983,
+      "row": 981,
       "archiveId": "jg83-11-12.022512.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-11-12.025629.jgb.sbd.braveman.sbeok.t-flac16"
@@ -21114,7 +21041,7 @@
       "date": "1983-11-14",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 985,
+      "row": 983,
       "archiveId": "jg83-11-14.016715.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-11-14.aud.motb.0214.flac16",
@@ -21171,7 +21098,7 @@
       "date": "1983-11-15",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 988,
+      "row": 986,
       "archiveId": "jg83-11-15.018332.jgb.aud.corley.jjoops.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21197,7 +21124,7 @@
       "date": "1983-11-23",
       "venue": "Arie Crown Theater",
       "city": "Chicago, IL",
-      "row": 989,
+      "row": 987,
       "archiveId": "jg83-11-23.031281.jgb.senn421.cohen.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21223,7 +21150,7 @@
       "date": "1983-11-25",
       "venue": "Cleveland Music Hall",
       "city": "Cleveland, OH",
-      "row": 990,
+      "row": 988,
       "archiveId": "jg83-11-25.032359.jgb.fob.unknown.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-11-25.032836.jgb.mtx.chappell.sb17.sbeok.t-flac16",
@@ -21280,7 +21207,7 @@
       "date": "1983-11-26",
       "venue": "Forum",
       "city": "Binghamton, NY",
-      "row": 993,
+      "row": 991,
       "archiveId": "jg83-11-26.020657.jgb.sbd.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-11-26.126144.jgb.shure_pe9.ackerman.flac16"
@@ -21322,7 +21249,7 @@
       "date": "1983-11-27",
       "venue": "D.A.R. Constitution Hall",
       "city": "Washington, DC",
-      "row": 995,
+      "row": 993,
       "archiveId": "jg83-11-27.016791.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21348,7 +21275,7 @@
       "date": "1983-11-29",
       "venue": "Veteran's Memorial Auditorium",
       "city": "Providence, RI",
-      "row": 996,
+      "row": 994,
       "archiveId": "jg83-11-29.012026.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-11-29123916.jgb.aud.morrone-friend.flac16"
@@ -21390,7 +21317,7 @@
       "date": "1983-11-30",
       "venue": "Hartford Agora",
       "city": "Hartford, CT",
-      "row": 998,
+      "row": 996,
       "archiveId": "jg83-11-30.023650.jgb.aiwa.laurentus.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-11-30.aud.nak300.flac16"
@@ -21432,7 +21359,7 @@
       "date": "1983-12-02",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 1000,
+      "row": 998,
       "archiveId": "jg83-12-02.013730.jgb.sbd.metz-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-02.076618.jgb.aud.unknown.minches.t-flac16"
@@ -21474,7 +21401,7 @@
       "date": "1983-12-03",
       "venue": "Orpheum Theatre",
       "city": "Boston, MA",
-      "row": 1002,
+      "row": 1000,
       "archiveId": "jg83-12-03.004413.jgb.sbd.clugston.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-03.077716.jgb.senn421.unknown.minches.sbeok.t-flac16",
@@ -21531,7 +21458,7 @@
       "date": "1983-12-04",
       "venue": "Pritchard Gym, S.U.N.Y.",
       "city": "Stony Brook, NY",
-      "row": 1005,
+      "row": 1003,
       "archiveId": "jg83-12-04.016479.jgb.fob-beyer.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-04.020735.jgb.sbd-senn421.ladner.sbeok.t-flac16",
@@ -21588,7 +21515,7 @@
       "date": "1983-12-06",
       "venue": "Flynn Theater",
       "city": "Burlington, VT",
-      "row": 1008,
+      "row": 1006,
       "archiveId": "jg83-12-06.018818.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-06.123065.jgb.Early.Late.mixed-aud.JB.Keo.Flac16",
@@ -21660,7 +21587,7 @@
       "date": "1983-12-07",
       "venue": "The Cage, Amherst College",
       "city": "Amherst, MA",
-      "row": 1012,
+      "row": 1010,
       "archiveId": "jg83-12-07.006625.jgb.set1.atm11.horvath.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-07.016869.jgb.aud.unknown.ladner.sbeok.t-flac16",
@@ -21717,7 +21644,7 @@
       "date": "1983-12-09",
       "venue": "Beacon Theatre",
       "city": "New York, NY",
-      "row": 1015,
+      "row": 1013,
       "archiveId": "jg83-12-09.015621.jgb.early.fob-nak700.cohen.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-09.015622.jgb.late.fob-nak700.cohen.minches.sbeok.t-flac16"
@@ -21759,7 +21686,7 @@
       "date": "1983-12-10",
       "venue": "Capitol Theatre",
       "city": "Passaic, NJ",
-      "row": 1017,
+      "row": 1015,
       "archiveId": "jg83-12-10.031086.jgb.senn421.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21785,7 +21712,7 @@
       "date": "1983-12-11",
       "venue": "Laker Hall, Sate University of New York (SUNY) Oswego",
       "city": "Oswego, NY",
-      "row": 1018,
+      "row": 1016,
       "archiveId": "jg83-12-11.030622.jgb.partial.fob-shure.ackerman.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-11.126714.jgb.shure_pe9.ackerman.flac16"
@@ -21827,7 +21754,7 @@
       "date": "1983-12-13",
       "venue": "Wilkins Theatre, Kean College",
       "city": "Union, NJ",
-      "row": 1020,
+      "row": 1018,
       "archiveId": "jg83-12-13.031253.jgb.aud.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg83-12-13.077710.jgb.nak300.newberger.goodbear.sbeok.t-flac16"
@@ -21869,7 +21796,7 @@
       "date": "1984-01-01",
       "venue": "Jerry Garcia Radio Inteview",
       "city": "New York, NY",
-      "row": 1022,
+      "row": 1020,
       "archiveId": "jg84-xx-xx.011885.int.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -21895,7 +21822,7 @@
       "date": "1984-01-13",
       "venue": "Paramount Northwest Theatre",
       "city": "Seattle, WA",
-      "row": 1023,
+      "row": 1021,
       "archiveId": "jg84-01-13.032037.jgb.ecm270.lee.minches.t-flac16",
       "altArchiveIds": [
         "jg84-01-13.089196.jgb.nak700.severson.minches.t-flac16",
@@ -21952,7 +21879,7 @@
       "date": "1984-01-14",
       "venue": "Portland Civic Auditorium",
       "city": "Portland, OR",
-      "row": 1026,
+      "row": 1024,
       "archiveId": "jg84-01-14.032333.jgb.sonyECM99a.andrewf.t-flac16",
       "altArchiveIds": [
         "jg84-01-14.101128.jgb.parital.sbd.russjcan.sbeok.t-flac16"
@@ -21994,7 +21921,7 @@
       "date": "1984-01-16",
       "venue": "Silva Concert Hall, Hult Center For The Performing Arts",
       "city": "Eugene, OR",
-      "row": 1028,
+      "row": 1026,
       "archiveId": "jg84-01-16.026715.jgb.senn441.otto.faintych.t-flac16",
       "altArchiveIds": [
         "jg84-01-16.032136.jgb.s2-partial.sbd.gale.sbeok.t-flac16"
@@ -22036,7 +21963,7 @@
       "date": "1984-03-02",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1030,
+      "row": 1028,
       "archiveId": "jg84-03-02.085293.jgb.sbd.gmb.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22062,7 +21989,7 @@
       "date": "1984-03-04",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1031,
+      "row": 1029,
       "archiveId": "jg84-03-04.085294.jgb.sbd.gmb.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22088,7 +22015,7 @@
       "date": "1984-03-09",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1032,
+      "row": 1030,
       "archiveId": "jg84-03-09.020708.jgb.sonyECM939.gale.t-flac16",
       "altArchiveIds": [
         "jg84-03-09.023891.jgb.nak700.corley.sbeok.t-flac16"
@@ -22130,7 +22057,7 @@
       "date": "1984-03-10",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 1034,
+      "row": 1032,
       "archiveId": "jg84-03-10.015188.jgb.sonyECM939LT.gale.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-03-10.017555.jgb.sbd.ladner.sbeok.t-flac16"
@@ -22172,7 +22099,7 @@
       "date": "1984-03-21",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 1036,
+      "row": 1034,
       "archiveId": "jg84-03-21.012027.jgb.partial.sbd.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22198,7 +22125,7 @@
       "date": "1984-03-22",
       "venue": "Keystone",
       "city": "Berkeley, CA",
-      "row": 1037,
+      "row": 1035,
       "archiveId": "jg84-03-22.022191.jgb.nak700.corley.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22224,7 +22151,7 @@
       "date": "1984-05-12",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1038,
+      "row": 1036,
       "archiveId": "jg84-05-12.025240.jgb.pzm.douglas.flair.t-flac16",
       "altArchiveIds": [
         "jg84-05-12.085568.jgb.sony.dearth.t-flac16"
@@ -22266,7 +22193,7 @@
       "date": "1984-05-18",
       "venue": "Irvine Meadows Amphitheatre",
       "city": "Irvine, CA",
-      "row": 1040,
+      "row": 1038,
       "archiveId": "jg84-05-18.032156.jgb.fm.ladner.t-flac16",
       "altArchiveIds": [
         "jg84-05-18.084138.jgb.RH.senn421.french.sbeok.t-flac16"
@@ -22308,7 +22235,7 @@
       "date": "1984-05-19",
       "venue": "Arlington Theatre",
       "city": "Santa Barbara, CA",
-      "row": 1042,
+      "row": 1040,
       "archiveId": "jg84-05-19.108319.jgb.aud.seaweed.flac16",
       "altArchiveIds": [
         "jg84-05-19.124791.nak300.rossi.ford.sbeok.t-flac16",
@@ -22365,7 +22292,7 @@
       "date": "1984-05-20",
       "venue": "The Country Club",
       "city": "Reseda, CA",
-      "row": 1045,
+      "row": 1043,
       "archiveId": "jg84-05-20.079553.jgb.nak300.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22391,7 +22318,7 @@
       "date": "1984-06-03",
       "venue": "Kabuki Nightclub",
       "city": "San Francisco, CA",
-      "row": 1046,
+      "row": 1044,
       "archiveId": "jg84-06-03.010134.jgjk.sbd.kmiller.t-flac16",
       "altArchiveIds": [
         "jg84-06-03.093922.jgjk.nak300.abrams.t-flac16"
@@ -22433,7 +22360,7 @@
       "date": "1984-07-28",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1048,
+      "row": 1046,
       "archiveId": "jg84-07-28.014428.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22459,7 +22386,7 @@
       "date": "1984-07-29",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1049,
+      "row": 1047,
       "archiveId": "jg84-07-29.012587.jgb.nak700.connor.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22485,7 +22412,7 @@
       "date": "1984-07-31",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1050,
+      "row": 1048,
       "archiveId": "jg84-07-31.014429.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-07-31.149282.jgb.sennmk441.tb.flac16"
@@ -22527,7 +22454,7 @@
       "date": "1984-08-01",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1052,
+      "row": 1050,
       "archiveId": "jg84-08-01.009303.jgb.akg.mance.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-08-01.149281.jgb.sennmk441.tb.flac16",
@@ -22584,7 +22511,7 @@
       "date": "1984-08-07",
       "venue": "Mann Music Center",
       "city": "Philadelphia, PA",
-      "row": 1055,
+      "row": 1053,
       "archiveId": "jg84-08-07.013410.jgb.fob-beyer160.ficca.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22610,7 +22537,7 @@
       "date": "1984-08-08",
       "venue": "D.A.R. Constitution Hall",
       "city": "Washington, DC",
-      "row": 1056,
+      "row": 1054,
       "archiveId": "jg84-08-08.032239.jgb.senn441.schuncke.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -22636,7 +22563,7 @@
       "date": "1984-08-10",
       "venue": "Rocky Glen Amusement Park",
       "city": "Moosic, PA",
-      "row": 1057,
+      "row": 1055,
       "archiveId": "jg84-08-10.020750.jgb.fob-nak300.reutelhuber.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-08-10.077917.jgb.senn421.vita.minches.t-flac16"
@@ -22678,7 +22605,7 @@
       "date": "1984-08-11",
       "venue": "Caldwell College",
       "city": "Caldwell, NJ",
-      "row": 1059,
+      "row": 1057,
       "archiveId": "jg84-08-11.021718.jgb.fob-nak300.reutelhuber.miller.t-flac16",
       "altArchiveIds": [
         "jg84-08-11.078159.jgb.senn421.vita.minches.sbeok.t-flac16",
@@ -22765,7 +22692,7 @@
       "date": "1984-08-12",
       "venue": "Club Casino Ballroom",
       "city": "Hampton Beach, NH",
-      "row": 1064,
+      "row": 1062,
       "archiveId": "jg84-08-12.024496.jgb.fob-senn441.unknown.sbefail.t-flac16",
       "altArchiveIds": [
         "jg84-08-12.092244.jgb.fob-beyerM160.mccabe.motb.0074.t-flac16"
@@ -22807,7 +22734,7 @@
       "date": "1984-08-13",
       "venue": "Club Casino Ballroom",
       "city": "Hampton Beach, NH",
-      "row": 1066,
+      "row": 1064,
       "archiveId": "jg84-08-13.004388.jgb.nak300.ziemba.lai-metz.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-08-13.032070.jgb.aud.unknown.trumland.sbeok.t-flac16",
@@ -22894,7 +22821,7 @@
       "date": "1984-08-15",
       "venue": "Orange County Community College",
       "city": "Middletown, NY",
-      "row": 1071,
+      "row": 1069,
       "archiveId": "jg84-08-15.030231.jgb.senn441.lukeR.acohen.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-08-15.030833.jgb.fob-senn421.pauline-berger.minches.sbeok.t-flac16"
@@ -22936,7 +22863,7 @@
       "date": "1984-08-16",
       "venue": "Port Haven Music Hall (Good Skates Roller Rink)",
       "city": "East Setauket, NY",
-      "row": 1073,
+      "row": 1071,
       "archiveId": "jg84-08-16.091442.jgb.nak300.damico.t-flac16",
       "altArchiveIds": [
         "jg84-08-16.109687.jgb.beyerM160.senn421.daweez.d5scott.sbeok.t-flac16"
@@ -22978,7 +22905,7 @@
       "date": "1984-08-18",
       "venue": "UIC Pavilion, University of Illinois, Chicago",
       "city": "Chicago, IL",
-      "row": 1075,
+      "row": 1073,
       "archiveId": "jg84-08-18.022084.jgb.senn421.unknown.t-flac16",
       "altArchiveIds": [
         "jg84-08-18.148834.jgb.senn.me80.hessberg.miller.clugston.flac1648",
@@ -23035,7 +22962,7 @@
       "date": "1984-08-24",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1078,
+      "row": 1076,
       "archiveId": "jg84-08-24.124940.jgb.set1.aud.unknown.jjoops.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23061,7 +22988,7 @@
       "date": "1984-08-26",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1079,
+      "row": 1077,
       "archiveId": "jg84-08-26.027504.jgb.nak700.corley.t-flac16",
       "altArchiveIds": [
         "jg84-08-26.084568.jgb.sony.dearth.moses.sbefail.t-flac16"
@@ -23103,7 +23030,7 @@
       "date": "1984-08-27",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1081,
+      "row": 1079,
       "archiveId": "jg84-08-27.015029.jgb.nak700.corley.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23129,7 +23056,7 @@
       "date": "1984-08-28",
       "venue": "Wolfgang's",
       "city": "San Francisco, CA",
-      "row": 1082,
+      "row": 1080,
       "archiveId": "jg84-08-28.031801.jgjk.aud.unknown.sirmick.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-08-28.149292.jg-jk.PandP-aud.tobin.flac16"
@@ -23171,7 +23098,7 @@
       "date": "1984-09-15",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1084,
+      "row": 1082,
       "archiveId": "jg84-09-15.027921.jgb.sbd.warner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23197,7 +23124,7 @@
       "date": "1984-09-16",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1085,
+      "row": 1083,
       "archiveId": "jg84-09-16.097573.jgb.aud.jjoops.gems.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23223,7 +23150,7 @@
       "date": "1984-09-28",
       "venue": "River Theatre",
       "city": "Guerneville, CA",
-      "row": 1086,
+      "row": 1084,
       "archiveId": "jg84-09-28.092996.jgjk.nak700.corley.sirmick.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23249,7 +23176,7 @@
       "date": "1984-11-16",
       "venue": "Eisenhower Auditorium, Pennsylvania State University",
       "city": "University Park, PA",
-      "row": 1087,
+      "row": 1085,
       "archiveId": "jg84-11-16.016870.jgjk.aud.unknown.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23275,7 +23202,7 @@
       "date": "1984-11-17",
       "venue": "Orpheum Theatre",
       "city": "Boston, MA",
-      "row": 1088,
+      "row": 1086,
       "archiveId": "jg84-11-17.110537.jgjk.aud.unknown.drew-seaweed-andrewf.flac16",
       "altArchiveIds": [
         "jg84-11-17.113549.jgjk.aud.unknown.t-flac16",
@@ -23332,7 +23259,7 @@
       "date": "1984-11-18",
       "venue": "Avery Fisher Hall",
       "city": "New York, NY",
-      "row": 1091,
+      "row": 1089,
       "archiveId": "jg84-11-18.008411.jgjk.akg.mance.wise.t-flac16",
       "altArchiveIds": [
         "jg84-11-18.083166.jgjk.fob-beyer.unknown.sbeok.t-flac16"
@@ -23374,7 +23301,7 @@
       "date": "1984-11-20",
       "venue": "D.A.R. Constitution Hall",
       "city": "Washington, DC",
-      "row": 1093,
+      "row": 1091,
       "archiveId": "jg84-11-20.030935.jgjk.fob-audiotechnica.onedrop.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23400,7 +23327,7 @@
       "date": "1984-11-21",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 1094,
+      "row": 1092,
       "archiveId": "jg84-11-21.028785.jgjk.nak100.unknown.jjoops.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23426,7 +23353,7 @@
       "date": "1984-11-23",
       "venue": "Chrysler Auditorium",
       "city": "Norfolk, VA",
-      "row": 1095,
+      "row": 1093,
       "archiveId": "jg84-11-23.024490.jgjk.aud.unknown.ladner.t-flac16",
       "altArchiveIds": [
         "jg84-11-23.091846.jgjk.rh.sennME80.unknown.sbeok.t-flac16"
@@ -23468,7 +23395,7 @@
       "date": "1984-11-24",
       "venue": "Capitol Theatre",
       "city": "Passaic, NJ",
-      "row": 1097,
+      "row": 1095,
       "archiveId": "jg84-11-24.028789.jgjk.aud.early.late.ackerman.sbeok.shnf",
       "altArchiveIds": [
         "jg84-11-24.126154.jgjk.at835.ackerman.flac16"
@@ -23510,7 +23437,7 @@
       "date": "1984-11-26",
       "venue": "Bushnell Auditorium",
       "city": "Hartford, CT",
-      "row": 1099,
+      "row": 1097,
       "archiveId": "jg84-11-26.011602.jgjk.fob-nak300.unknown.tartus.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-11-26.109348.jgjk.sbd.flac2448",
@@ -23567,7 +23494,7 @@
       "date": "1984-11-27",
       "venue": "Auditorium Theatre",
       "city": "Rochester, NY",
-      "row": 1102,
+      "row": 1100,
       "archiveId": "jg84-11-27.025411.jgjk.aud.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23593,7 +23520,7 @@
       "date": "1984-12-02",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1103,
+      "row": 1101,
       "archiveId": "jg84-12-02.012588.jgb.nak700.corley.ward.t-flac16",
       "altArchiveIds": [
         "jg84-12-02.094637.jgb.senn.ty.minches.t-flac16"
@@ -23635,7 +23562,7 @@
       "date": "1984-12-05",
       "venue": "Silva Concert Hall, Hult Center For The Performing Arts",
       "city": "Eugene, OR",
-      "row": 1105,
+      "row": 1103,
       "archiveId": "jg84-12-05.079642.jgb.set2.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23661,7 +23588,7 @@
       "date": "1984-12-06",
       "venue": "Starry Night",
       "city": "Portland, OR",
-      "row": 1106,
+      "row": 1104,
       "archiveId": "jg84-12-06.020325.jgb.sbd.angus.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-12-06.124941.jgb.aud.OttoRice.gems.t-flac16"
@@ -23703,7 +23630,7 @@
       "date": "1984-12-07",
       "venue": "Starry Night",
       "city": "Portland, OR",
-      "row": 1108,
+      "row": 1106,
       "archiveId": "jg84-12-07.089197.jgb.nak700.severson.minches.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23729,7 +23656,7 @@
       "date": "1984-12-08",
       "venue": "Paramount Northwest Theatre",
       "city": "Seattle, WA",
-      "row": 1109,
+      "row": 1107,
       "archiveId": "jg84-12-08.020626.jgb.sbd.angus-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg84-12-08.089290.jgb.sonyECM270.lee.minches.t-flac16",
@@ -23786,7 +23713,7 @@
       "date": "1985-03-02",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1112,
+      "row": 1110,
       "archiveId": "jg85-03-02.023146.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg85-03-02.099524.jgb.aud.unknown.flac16"
@@ -23828,7 +23755,7 @@
       "date": "1985-03-03",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1114,
+      "row": 1112,
       "archiveId": "jg85-03-03.018858.jgb.nak700.unknown.bass.sbeok.t-flac16",
       "altArchiveIds": [
         "jg85-03-03.087650.jgb.shure.holtz.GEMS.sbeok.t-flac16"
@@ -23870,7 +23797,7 @@
       "date": "1985-05-31",
       "venue": "Beverly Theatre",
       "city": "Beverly Hills, CA",
-      "row": 1116,
+      "row": 1114,
       "archiveId": "jg85-05-31.032007.jgjk.early.sony939.pinedo.mandel.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23896,7 +23823,7 @@
       "date": "1985-06-01",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1117,
+      "row": 1115,
       "archiveId": "jg85-06-01.020921.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23922,7 +23849,7 @@
       "date": "1985-06-03",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1118,
+      "row": 1116,
       "archiveId": "jg85-06-03.020920.jgb.nak700.corley.ladner.t-flac16.first.set.85-08-05.second.set.85-06-03",
       "altArchiveIds": [
         "jg85-06-03.092786.jgb.pzm.russjcan.sbeok.t-flac16"
@@ -23964,7 +23891,7 @@
       "date": "1985-08-04",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1120,
+      "row": 1118,
       "archiveId": "jg85-08-04.011041.jgb.nak700.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -23990,7 +23917,7 @@
       "date": "1985-08-05",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1121,
+      "row": 1119,
       "archiveId": "jg85-08-05.011121.jgb.fob-nak700.connor.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24016,7 +23943,7 @@
       "date": "1985-08-09",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1122,
+      "row": 1120,
       "archiveId": "jg85-08-09.011131.jgb.fob-nak700.connor.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24042,7 +23969,7 @@
       "date": "1985-08-10",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1123,
+      "row": 1121,
       "archiveId": "jg85-08-10.011145.jgb.nak700.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24068,7 +23995,7 @@
       "date": "1985-08-17",
       "venue": "River Theatre",
       "city": "Guerneville, CA",
-      "row": 1124,
+      "row": 1122,
       "archiveId": "jg85-08-17.020898.jgjk.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24094,7 +24021,7 @@
       "date": "1985-08-18",
       "venue": "Dunsmuir House And Gardens",
       "city": "Oakland, CA",
-      "row": 1125,
+      "row": 1123,
       "archiveId": "jg85-08-18.013520.jgjk.fob-nak700.menke.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg85-08-18.088019.jgjk.nak100.holtz.GEMS.t-flac16",
@@ -24151,7 +24078,7 @@
       "date": "1985-09-27",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1128,
+      "row": 1126,
       "archiveId": "jg85-09-27.084821.jgjk.sony.dearth.moses.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24177,7 +24104,7 @@
       "date": "1985-09-28",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1129,
+      "row": 1127,
       "archiveId": "jg85-09-28.105757.jgjk.aud.quirk.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24203,7 +24130,7 @@
       "date": "1985-10-11",
       "venue": "River Theatre",
       "city": "Guerneville, CA",
-      "row": 1130,
+      "row": 1128,
       "archiveId": "jg85-10-11.030623.jgjk.set1.sbd.jjoops.sbeok.t-flac16",
       "altArchiveIds": [
         "jg85-10-11.086944.jgjk.set1.sbd.gmb.sbeok.t-flac16"
@@ -24245,7 +24172,7 @@
       "date": "1985-10-13",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1132,
+      "row": 1130,
       "archiveId": "jg85-10-13.020922.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24271,7 +24198,7 @@
       "date": "1985-10-16",
       "venue": "Catalyst",
       "city": "Santa Cruz, CA",
-      "row": 1133,
+      "row": 1131,
       "archiveId": "jg85-10-16.024072.jgjk.sbd.murphy.sbeok.t-flac16",
       "altArchiveIds": [
         "jg85-10-16.034905.jgjk.sbd.unknown.sbeok.t-flac16",
@@ -24328,7 +24255,7 @@
       "date": "1985-12-21",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1136,
+      "row": 1134,
       "archiveId": "jg85-12-21.014980.jgb.sonyECM939LT.gale.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24354,7 +24281,7 @@
       "date": "1985-12-22",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1137,
+      "row": 1135,
       "archiveId": "jg85-12-22.014981.jgb.sonyECM939LT.gale.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24380,7 +24307,7 @@
       "date": "1986-01-16",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1138,
+      "row": 1136,
       "archiveId": "jg86-01-16.116914.jgjk.sbd.s2.seaweed.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24406,7 +24333,7 @@
       "date": "1986-01-25",
       "venue": "Tower Theater",
       "city": "Upper Darby, PA",
-      "row": 1139,
+      "row": 1137,
       "archiveId": "jg86-01-25.09491.jgjk.aud.ackerman.9491.sbeok.shnf",
       "altArchiveIds": [
         "jg86-01-25.126711.jgjk.at835.akgD12e.ackerman.flac16"
@@ -24448,7 +24375,7 @@
       "date": "1986-01-27",
       "venue": "The Ritz",
       "city": "New York, NY",
-      "row": 1141,
+      "row": 1139,
       "archiveId": "jg86-01-27.004386.jgjk.sbd.cole.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-01-27.132179.jgjk.aud.unknown.JB-Keo.flac16"
@@ -24490,7 +24417,7 @@
       "date": "1986-01-28",
       "venue": "The Ritz",
       "city": "New York, NY",
-      "row": 1143,
+      "row": 1141,
       "archiveId": "jg86-01-28.004385.jgjk.sbd.cole.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24516,7 +24443,7 @@
       "date": "1986-01-30",
       "venue": "Bushnell Auditorium",
       "city": "Hartford, CT",
-      "row": 1144,
+      "row": 1142,
       "archiveId": "jg86-01-30.084402.jgjk.nak100.daveh.GEMS.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-01-30.124213.jgjk.aud.seaweed.flac16"
@@ -24558,7 +24485,7 @@
       "date": "1986-01-31",
       "venue": "Capitol Theatre",
       "city": "Passaic, NJ",
-      "row": 1146,
+      "row": 1144,
       "archiveId": "jg86-01-31.017901.jgjk.nak300.johnson.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24584,7 +24511,7 @@
       "date": "1986-02-01",
       "venue": "Orpheum Theatre",
       "city": "Boston, MA",
-      "row": 1147,
+      "row": 1145,
       "archiveId": "jg86-02-01.011341.jgjk.sonyECM939.pasternak.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-02-01.079919.jgjk.senn441.koucky.gmb.sbeok.t-flac16"
@@ -24626,7 +24553,7 @@
       "date": "1986-02-02",
       "venue": "Orpheum Theatre",
       "city": "Boston, MA",
-      "row": 1149,
+      "row": 1147,
       "archiveId": "jg86-02-02.015881.jgjk.aud.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-02-02.079935.jgjk.senn441.koucky.gmb.sbeok.t-flac16"
@@ -24668,7 +24595,7 @@
       "date": "1986-02-21",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1151,
+      "row": 1149,
       "archiveId": "jg86-02-21.024154.jgb.nak700.corley.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24694,7 +24621,7 @@
       "date": "1986-02-28",
       "venue": "Marin Veterans Memorial Auditorium",
       "city": "San Rafael, CA",
-      "row": 1152,
+      "row": 1150,
       "archiveId": "jg86-02-28.014797.jgjk.sonyECM939LT.gale.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24720,7 +24647,7 @@
       "date": "1986-03-09",
       "venue": "Keystone Palo Alto",
       "city": "Palo Alto, CA",
-      "row": 1153,
+      "row": 1151,
       "archiveId": "jg86-03-09.021274.jgb.fob-nak700.corley.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24746,7 +24673,7 @@
       "date": "1986-03-10",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1154,
+      "row": 1152,
       "archiveId": "jg86-03-10.019392.jgb.nak700.corley.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24772,7 +24699,7 @@
       "date": "1986-05-24",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1155,
+      "row": 1153,
       "archiveId": "jg86-05-24.091364.jgb.sonyECM939.pinedo.mandel.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24798,7 +24725,7 @@
       "date": "1986-05-30",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1156,
+      "row": 1154,
       "archiveId": "jg86-05-30.004384.jgb.fob-nak300.cole.tobin.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24824,7 +24751,7 @@
       "date": "1986-05-31",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1157,
+      "row": 1155,
       "archiveId": "jg86-05-31.004383.jgb.fob-nak300.cole.tobin.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24850,7 +24777,7 @@
       "date": "1986-10-04",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1158,
+      "row": 1156,
       "archiveId": "jg86-10-04.016190.jgb.nak700.corley.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24876,7 +24803,7 @@
       "date": "1986-10-05",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1159,
+      "row": 1157,
       "archiveId": "jg86-10-05.020923.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24902,7 +24829,7 @@
       "date": "1986-10-18",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1160,
+      "row": 1158,
       "archiveId": "jg86-10-18.021300.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-10-18.116850.jgb.sbd-patched-112794.flac16"
@@ -24944,7 +24871,7 @@
       "date": "1986-10-19",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1162,
+      "row": 1160,
       "archiveId": "jg86-10-19.GEMS.KnudsenSmith.108519.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -24970,7 +24897,7 @@
       "date": "1986-10-31",
       "venue": "Henry J. Kaiser Convention Center",
       "city": "Oakland, CA",
-      "row": 1163,
+      "row": 1161,
       "archiveId": "jg86-10-31.018869.jgb.fob-schoeps.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-10-31.022730.jgb.fob-beyerM88.reutelhuber.miller.sbeok.t-flac16"
@@ -25012,7 +24939,7 @@
       "date": "1986-11-10",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1165,
+      "row": 1163,
       "archiveId": "jg86-11-10.017749.jgb.nak700.corley.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25038,7 +24965,7 @@
       "date": "1986-11-11",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1166,
+      "row": 1164,
       "archiveId": "jg86-11-11.015006.jgb.nak700.corley.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg86-11-11.094632.jgb.fob-nak100.ty.minches.sbeok.t-flac16"
@@ -25080,7 +25007,7 @@
       "date": "1986-11-14",
       "venue": "Marin Veterans Memorial Auditorium",
       "city": "San Rafael, CA",
-      "row": 1168,
+      "row": 1166,
       "archiveId": "jg86-11-14.082409.jgjk.sbd.koucky.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25106,7 +25033,7 @@
       "date": "1986-11-23",
       "venue": "American Legion Post 179 Log Cabin",
       "city": "San Anselmo, CA",
-      "row": 1169,
+      "row": 1167,
       "archiveId": "jg86-11-23.106755.lcb.sonyECM939t.marcus.miller.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25132,7 +25059,7 @@
       "date": "1986-11-30",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1170,
+      "row": 1168,
       "archiveId": "jg86-11-30.021301.jgb.fob-nak700.corley.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25158,7 +25085,7 @@
       "date": "1986-12-08",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1171,
+      "row": 1169,
       "archiveId": "jg86-12-08.020733.jgb.fob-nak700.corley.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25184,7 +25111,7 @@
       "date": "1986-12-21",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1172,
+      "row": 1170,
       "archiveId": "jg86-12-21.016206.jgb.fob-nak700.corley.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25210,7 +25137,7 @@
       "date": "1987-01-24",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1173,
+      "row": 1171,
       "archiveId": "jg87-01-24.111850.jgb.akg460.muir.sirmick.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25236,7 +25163,7 @@
       "date": "1987-01-25",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1174,
+      "row": 1172,
       "archiveId": "jg87-01-25.019810.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-01-25.095724.jgb.nak700.ty.minches.t-flac16"
@@ -25278,7 +25205,7 @@
       "date": "1987-02-10",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1176,
+      "row": 1174,
       "archiveId": "jg87-02-10.019900.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25304,7 +25231,7 @@
       "date": "1987-02-20",
       "venue": "Marin Veterans Memorial Auditorium",
       "city": "San Rafael, CA",
-      "row": 1177,
+      "row": 1175,
       "archiveId": "jg87-02-20.014977.jgb.sonyECM939LT.gale.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25330,7 +25257,7 @@
       "date": "1987-02-21",
       "venue": "Lawlor Events Center, University of Nevada",
       "city": "Reno, NV",
-      "row": 1178,
+      "row": 1176,
       "archiveId": "jg87-02-21.014978.jgb.sonyECM939LT.gale.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25356,7 +25283,7 @@
       "date": "1987-02-24",
       "venue": "Santa Cruz Civic Auditorium",
       "city": "Santa Cruz, CA",
-      "row": 1179,
+      "row": 1177,
       "archiveId": "jg87-02-24.082618.jgb.fob-beyerM88.pinney.cansler.GEMS.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25382,7 +25309,7 @@
       "date": "1987-03-06",
       "venue": "U.S.S. Carl Vinson",
       "city": "Alameda, CA",
-      "row": 1180,
+      "row": 1178,
       "archiveId": "jg87-03-06.026179.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25408,7 +25335,7 @@
       "date": "1987-03-08",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1181,
+      "row": 1179,
       "archiveId": "jg87-03-08.012634.jgb.nak700.corley.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25434,7 +25361,7 @@
       "date": "1987-03-09",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1182,
+      "row": 1180,
       "archiveId": "jg87-03-09.012688.jgb.nak700.corley.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25460,7 +25387,7 @@
       "date": "1987-03-10",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1183,
+      "row": 1181,
       "archiveId": "jg87-03-10.019942.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25486,7 +25413,7 @@
       "date": "1987-03-13",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1184,
+      "row": 1182,
       "archiveId": "jg87-03-13.031977.jgb.sonyECM939.pinedo.mandel.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25512,7 +25439,7 @@
       "date": "1987-03-14",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1185,
+      "row": 1183,
       "archiveId": "jg87-03-14.032006.jgb.sonyECM939.unknown.mandel.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-03-14.124257.jgb.fob-toaK1.AA.flac2448"
@@ -25554,7 +25481,7 @@
       "date": "1987-03-18",
       "venue": "Old Fillmore",
       "city": "San Francisco, CA",
-      "row": 1187,
+      "row": 1185,
       "archiveId": "jg87-03-18.022299.jgab.aud.unknown.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25580,7 +25507,7 @@
       "date": "1987-04-06",
       "venue": "Lone Star Café",
       "city": "New York, NY",
-      "row": 1188,
+      "row": 1186,
       "archiveId": "jg87-04-06.101075.cali-bros.aud.unknown.scottelaro.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25606,7 +25533,7 @@
       "date": "1987-04-23",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1189,
+      "row": 1187,
       "archiveId": "jg87-04-23.019990.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25632,7 +25559,7 @@
       "date": "1987-04-24",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1190,
+      "row": 1188,
       "archiveId": "jg87-04-24.019991.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25658,7 +25585,7 @@
       "date": "1987-05-27",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1191,
+      "row": 1189,
       "archiveId": "jg87-05-27.020583.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25684,7 +25611,7 @@
       "date": "1987-05-28",
       "venue": "The Stone",
       "city": "San Francisco, CA",
-      "row": 1192,
+      "row": 1190,
       "archiveId": "jg87-05-28.020587.jgb.nak700.corley.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25710,7 +25637,7 @@
       "date": "1987-08-29",
       "venue": "French's Camp on the Eel River",
       "city": "Piercy, CA",
-      "row": 1193,
+      "row": 1191,
       "archiveId": "jg87-08-29.030876.jgab.jgb.fob-schoeps.webber-small.minches.t-flac16",
       "altArchiveIds": [
         "jg87-08-29.031639.jgab.jgb.mtx.dan.t-flac16",
@@ -25767,7 +25694,7 @@
       "date": "1987-08-30",
       "venue": "William Randolph Hearst Greek Theatre, UC Berkeley",
       "city": "Berkeley, CA",
-      "row": 1196,
+      "row": 1194,
       "archiveId": "jg87-08-30.025624.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-08-30.095573.jgb.all.aud-schoepsmk41.yt.t-flac16",
@@ -25824,7 +25751,7 @@
       "date": "1987-10-15",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1199,
+      "row": 1197,
       "archiveId": "jg87-10-15.091776.jgab.jgb.fob-nak300.damico.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25850,7 +25777,7 @@
       "date": "1987-10-16",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1200,
+      "row": 1198,
       "archiveId": "jg87-10-16.097085.jgb.aud.jjoops.flac16",
       "altArchiveIds": [
         "jg87-10-16.097360.jgb.nak300.damico.flac16",
@@ -25907,7 +25834,7 @@
       "date": "1987-10-17",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1203,
+      "row": 1201,
       "archiveId": "jg87-10-17.083514.jgb.sbd.berger.flac16",
       "altArchiveIds": [
         "jg87-10-17.118655.jgb.sbd.berger.83514-repair.flac16"
@@ -25949,7 +25876,7 @@
       "date": "1987-10-20",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1205,
+      "row": 1203,
       "archiveId": "jg87-10-20.080132.jgb.set2.nak100.karl.andrewf.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -25975,7 +25902,7 @@
       "date": "1987-10-21",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1206,
+      "row": 1204,
       "archiveId": "jg87-10-21.006350.jgab.jgb.early.p-late.sbd.cole.tobin.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-10-21.080043.jgb.late.set2.nak300.unknown.andrewf.sbeok.t-flac16"
@@ -26017,7 +25944,7 @@
       "date": "1987-10-23",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1208,
+      "row": 1206,
       "archiveId": "jg87-10-23.080293.jgab.jgb.nak300.gmb.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26043,7 +25970,7 @@
       "date": "1987-10-24",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1209,
+      "row": 1207,
       "archiveId": "jg87-10-24.080294.jgab.jgb.nak300.koucky.ladner.t-flac16",
       "altArchiveIds": [
         "jg87-10-24.115871.jgab.jgb.nak300.doll-messina.berger.t-flac16"
@@ -26085,7 +26012,7 @@
       "date": "1987-10-25",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1211,
+      "row": 1209,
       "archiveId": "jg87-10-25.080295.jgb.early.nak300.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-10-25.080377.jgab.jgb.late.sbd-nak300.unknown.ladner.t-flac16"
@@ -26127,7 +26054,7 @@
       "date": "1987-10-28",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1213,
+      "row": 1211,
       "archiveId": "jg87-10-28.079902.jgab.jgb.late.nak300.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-10-28.080044.jgb.early.nak300.unknown.ladner.t-flac16",
@@ -26184,7 +26111,7 @@
       "date": "1987-10-30",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1216,
+      "row": 1214,
       "archiveId": "jg87-10-30.080695.jgb.nak300.unknown.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26210,7 +26137,7 @@
       "date": "1987-10-31",
       "venue": "Lunt-Fontanne Theatre",
       "city": "New York, NY",
-      "row": 1217,
+      "row": 1215,
       "archiveId": "jg87-10-31.080696.jgb.early.nak300.unknown.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26236,7 +26163,7 @@
       "date": "1987-11-27",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1218,
+      "row": 1216,
       "archiveId": "jg87-11-27.080133.jgab.jgb.sennMKE2002.andrewf.t-flac16",
       "altArchiveIds": [
         "jg87-11-27.100140.jgab.jgb.nak700.ty.russjcan.t-flac16",
@@ -26293,7 +26220,7 @@
       "date": "1987-11-28",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1221,
+      "row": 1219,
       "archiveId": "jg87-11-28.100125.jgab.jgb.nak700.ty.russjcan.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26319,7 +26246,7 @@
       "date": "1987-11-29",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1222,
+      "row": 1220,
       "archiveId": "jg87-11-29.022149.jgab.aud.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26345,7 +26272,7 @@
       "date": "1987-12-03",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1223,
+      "row": 1221,
       "archiveId": "jg87-12-03.084002.jgab.jgb.radioshack.tdarian.french.t-flac16",
       "altArchiveIds": [
         "jg87-12-03.084003.jgab.jgb.fob-sennMKE2002.french.sbeok.t-flac16"
@@ -26387,7 +26314,7 @@
       "date": "1987-12-04",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1225,
+      "row": 1223,
       "archiveId": "jg87-12-04.076098.jgab.jgb.sbd.gems.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-12-04.084005.jgab.jgb.sennMKE2002.tdarian.french.sbeok.t-flac16"
@@ -26429,7 +26356,7 @@
       "date": "1987-12-05",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1227,
+      "row": 1225,
       "archiveId": "jg87-12-05.013983.jgab.jgb.sennMKE2002.tdarian.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg87-12-05.089285.jgab.jgb.sennMKE2002.tdarian.french.t-flac16"
@@ -26471,7 +26398,7 @@
       "date": "1987-12-06",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1229,
+      "row": 1227,
       "archiveId": "jg87-12-06.013984.jgab.jgb.radioshackomnis.tomd.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26497,7 +26424,7 @@
       "date": "1987-12-17",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1230,
+      "row": 1228,
       "archiveId": "jg87-12-17.007673.gwk.sbd.unknown.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26523,7 +26450,7 @@
       "date": "1988-01-23",
       "venue": "Henry J. Kaiser Convention Center",
       "city": "Oakland, CA",
-      "row": 1231,
+      "row": 1229,
       "archiveId": "jg88-01-23.022376.bfs.nak700.unknown.powell-ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26549,7 +26476,7 @@
       "date": "1988-02-05",
       "venue": "Veterans Memorial Auditorium",
       "city": "Santa Rosa, CA",
-      "row": 1232,
+      "row": 1230,
       "archiveId": "jg88-02-05.125717.jgb.aud.remaster-121594.andrewf.flac16",
       "altArchiveIds": [
         "jg88-02-05.xxxxxx.jgb.all.aud-CC.flac2448"
@@ -26591,7 +26518,7 @@
       "date": "1988-02-06",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1234,
+      "row": 1232,
       "archiveId": "jg88-02-06.018421.jgb.aud.lucian.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26617,7 +26544,7 @@
       "date": "1988-03-05",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1235,
+      "row": 1233,
       "archiveId": "jg88-03-05.016790.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26643,7 +26570,7 @@
       "date": "1988-04-26",
       "venue": "Marin Veterans Memorial Auditorium",
       "city": "San Rafael, CA",
-      "row": 1236,
+      "row": 1234,
       "archiveId": "jg88-04-26.007672.jgjk.fob-sonyECM77b.cole.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-04-26.091407.jgjk.aud.corley.waddell.gems.t-flac16",
@@ -26700,7 +26627,7 @@
       "date": "1988-05-06",
       "venue": "Old Fillmore",
       "city": "San Francisco, CA",
-      "row": 1239,
+      "row": 1237,
       "archiveId": "jg88-05-06.008418.jgb.fob-schoeps.unknown.miller.jjoops.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26726,7 +26653,7 @@
       "date": "1988-05-07",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1240,
+      "row": 1238,
       "archiveId": "jg88-05-07.013986.jgb.sonyECM77b.cole.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-05-07.020749.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -26768,7 +26695,7 @@
       "date": "1988-07-07",
       "venue": "Cotati Cabaret",
       "city": "Cotati, CA",
-      "row": 1242,
+      "row": 1240,
       "archiveId": "jg88-07-07.007671.jgab.aud.ward-cnm.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26794,7 +26721,7 @@
       "date": "1988-07-09",
       "venue": "Frost Amphitheatre, Stanford University",
       "city": "Palo Alto, CA",
-      "row": 1243,
+      "row": 1241,
       "archiveId": "jg88-07-09.084650.jgab.fob-nak700.corley.fixed-82171.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26820,7 +26747,7 @@
       "date": "1988-07-10",
       "venue": "William Randolph Hearst Greek Theatre, UC Berkeley",
       "city": "Berkeley, CA",
-      "row": 1244,
+      "row": 1242,
       "archiveId": "jg88-07-10.017635.jgb.nak700.corley.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-07-10.025416.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -26862,7 +26789,7 @@
       "date": "1988-07-16",
       "venue": "Spreckles Temple of Music Bandshell, Golden Gate Park",
       "city": "San Francisco, CA",
-      "row": 1246,
+      "row": 1244,
       "archiveId": "jg88-07-16.010125.zero.senn441.olson.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26888,7 +26815,7 @@
       "date": "1988-10-31",
       "venue": "Henry J. Kaiser Convention Center",
       "city": "Oakland, CA",
-      "row": 1247,
+      "row": 1245,
       "archiveId": "jg88-10-31.004378.jgb.fob-schoeps.travitz.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-10-31.021790.jgb.nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -26930,7 +26857,7 @@
       "date": "1988-11-04",
       "venue": "Cascade Showroom, Caesar's Palace",
       "city": "Stateline, NV",
-      "row": 1249,
+      "row": 1247,
       "archiveId": "jg88-11-04.014398.jgb.nak700.unknown.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -26956,7 +26883,7 @@
       "date": "1988-11-05",
       "venue": "Cascade Showroom, Caesar's Palace",
       "city": "Stateline, NV",
-      "row": 1250,
+      "row": 1248,
       "archiveId": "jg88-11-05.019837.jgb.nak700.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-11-05.099565.jgb.late.sbd.minches.t-flac16"
@@ -26998,7 +26925,7 @@
       "date": "1988-11-25",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1252,
+      "row": 1250,
       "archiveId": "jg88-11-25.017376.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-11-25.088954.jgb.sennMKE2002.tdarian-corso.french.sbeok.t-flac16"
@@ -27040,7 +26967,7 @@
       "date": "1988-11-26",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1254,
+      "row": 1252,
       "archiveId": "jg88-11-26.012023.jgb.sbd.angus-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-11-26.088955.jgb.sennMKE2002.tdarian-corso.french.sbeok.t-flac16"
@@ -27082,7 +27009,7 @@
       "date": "1988-11-27",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1256,
+      "row": 1254,
       "archiveId": "jg88-11-27.084824.jgb.sbd.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-11-27.088956.jgb.sennMKE2002.tdarian-corso.french.sbeok.t-flac16"
@@ -27124,7 +27051,7 @@
       "date": "1988-12-02",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1258,
+      "row": 1256,
       "archiveId": "jg88-12-02.019969.jgb.schoeps.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-12-02.020833.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -27166,7 +27093,7 @@
       "date": "1988-12-03",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1260,
+      "row": 1258,
       "archiveId": "jg88-12-03.019970.jgb.schoeps.unknown.powell-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-12-03.020834.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -27208,7 +27135,7 @@
       "date": "1988-12-04",
       "venue": "Oakland-Alameda County Coliseum Arena",
       "city": "Oakland, CA",
-      "row": 1262,
+      "row": 1260,
       "archiveId": "jg88-12-04.015009.gww.sbd.willy.sbeok.t-flac16",
       "altArchiveIds": [
         "jg88-12-04.092381.gww.fob-nak700.PS.t-flac16"
@@ -27250,7 +27177,7 @@
       "date": "1989-01-27",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1264,
+      "row": 1262,
       "archiveId": "jg89-01-27.016577.jgb.fob-sonyECM77b.cole.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-01-27.084866.jgb.sbd.moses.sbeok.t-flac16"
@@ -27292,7 +27219,7 @@
       "date": "1989-01-28",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1266,
+      "row": 1264,
       "archiveId": "jg89-01-28.028352.jgb.sbd.goetz.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27318,7 +27245,7 @@
       "date": "1989-03-03",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1267,
+      "row": 1265,
       "archiveId": "jg89-03-03.017554.jgb.fob-schoepsCMC34.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-03-03.021091.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16",
@@ -27390,7 +27317,7 @@
       "date": "1989-03-04",
       "venue": "Orpheum Theatre",
       "city": "San Francisco, CA",
-      "row": 1271,
+      "row": 1269,
       "archiveId": "jg89-03-04.021139.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27416,7 +27343,7 @@
       "date": "1989-03-22",
       "venue": "Gift Center Pavilion",
       "city": "San Francisco, CA",
-      "row": 1272,
+      "row": 1270,
       "archiveId": "jg89-03-22.093889.jgbwjk.fob-nak700.PS.t-flac16",
       "altArchiveIds": [
         "jg89-03-22.093896.cjm.fob-nak700.PS.t-flac16"
@@ -27458,7 +27385,7 @@
       "date": "1989-04-24",
       "venue": "Sweetwater",
       "city": "Mill Valley, CA",
-      "row": 1274,
+      "row": 1272,
       "archiveId": "jg89-04-24.078006.ecf.sbd.goodbear.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27484,7 +27411,7 @@
       "date": "1989-05-19",
       "venue": "Irvine Meadows Amphitheatre",
       "city": "Irvine, CA",
-      "row": 1275,
+      "row": 1273,
       "archiveId": "jg89-05-19.015189.jgb.fob-sennMKE2002.tfh.georges.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-05-19.024537.jgb.fob-sennMKE2002.tfh.sbeok.t-flac16"
@@ -27526,7 +27453,7 @@
       "date": "1989-05-20",
       "venue": "Open Air Theatre, San Diego State University",
       "city": "San Diego, CA",
-      "row": 1277,
+      "row": 1275,
       "archiveId": "jg89-05-20.020679.jgb.sbd.miller.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27552,7 +27479,7 @@
       "date": "1989-05-22",
       "venue": "Universal Amphitheatre",
       "city": "Universal City, CA",
-      "row": 1278,
+      "row": 1276,
       "archiveId": "jg89-05-22.020505.jgb.psbd.goetz.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27578,7 +27505,7 @@
       "date": "1989-05-26",
       "venue": "New George's",
       "city": "San Rafael, CA",
-      "row": 1279,
+      "row": 1277,
       "archiveId": "jg89-05-26.032336.loslobos.aud.ovalle.pantagruel.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27604,7 +27531,7 @@
       "date": "1989-05-27",
       "venue": "Oakland-Alameda County Coliseum Stadium",
       "city": "Oakland, CA",
-      "row": 1280,
+      "row": 1278,
       "archiveId": "jg89-05-27.079809.fogerty.sbd.sirmick.gems.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-05-27.100114.fogerty.pzm.russjcan.sbeok.t-flac16",
@@ -27691,7 +27618,7 @@
       "date": "1989-06-10",
       "venue": "French's Camp on the Eel River",
       "city": "Piercy, CA",
-      "row": 1285,
+      "row": 1283,
       "archiveId": "jg89-06-10.017116.jgb.schoeps.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27717,7 +27644,7 @@
       "date": "1989-07-02",
       "venue": "Sullivan Stadium Parking Lot",
       "city": "Foxboro, MA",
-      "row": 1286,
+      "row": 1284,
       "archiveId": "jg89-07-02.012470.jgbwll.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27743,7 +27670,7 @@
       "date": "1989-08-26",
       "venue": "William Randolph Hearst Greek Theatre, UC Berkeley",
       "city": "Berkeley, CA",
-      "row": 1287,
+      "row": 1285,
       "archiveId": "jg89-08-26.014208.jgb.bk4011.buick-webber-small.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-08-26.021789.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16",
@@ -27800,7 +27727,7 @@
       "date": "1989-09-01",
       "venue": "Merriweather Post Pavilion",
       "city": "Columbia, MD",
-      "row": 1290,
+      "row": 1288,
       "archiveId": "jg89-09-01.015062.jgb.fob-schoeps.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27826,7 +27753,7 @@
       "date": "1989-09-02",
       "venue": "Merriweather Post Pavilion",
       "city": "Columbia, MD",
-      "row": 1291,
+      "row": 1289,
       "archiveId": "jg89-09-02.004375.jgb.fob-schoeps.oade.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -27852,7 +27779,7 @@
       "date": "1989-09-03",
       "venue": "Spectrum",
       "city": "Philadelphia, PA",
-      "row": 1292,
+      "row": 1290,
       "archiveId": "jg89-09-03.025625.jgb.fob-senn421.toddw.t-flac16",
       "altArchiveIds": [
         "jg89-09-03.028755.jgb.fob-schoepsCMC34.travitz.t-flac1648",
@@ -27909,7 +27836,7 @@
       "date": "1989-09-05",
       "venue": "Hartford Civic Center",
       "city": "Hartford, CT",
-      "row": 1295,
+      "row": 1293,
       "archiveId": "jg89-09-05.024221.jgb.fob-senn2000.bulger.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-05.083466.jgb.sbd.patched.tetzeli.sbeok.t-flac16",
@@ -27981,7 +27908,7 @@
       "date": "1989-09-06",
       "venue": "Nassau Veterans Memorial Coliseum",
       "city": "Uniondale, NY",
-      "row": 1299,
+      "row": 1297,
       "archiveId": "jg89-09-06.024418.jgb.fob-senn2000.bulger.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-06.079721.jgb.set2.fob-akg414.alexander.tetzeli.sbeok.t-flac16",
@@ -28053,7 +27980,7 @@
       "date": "1989-09-07",
       "venue": "Meadowlands Arena",
       "city": "East Rutherford, NJ",
-      "row": 1303,
+      "row": 1301,
       "archiveId": "jg89-09-07.014318.jgb.schoepsCMC34.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-07.032713.jgb.fob-senn2002.unknown.mccue-ford.sbeok.t-flac16",
@@ -28110,7 +28037,7 @@
       "date": "1989-09-09",
       "venue": "Great Woods Center for the Performing Arts",
       "city": "Mansfield, MA",
-      "row": 1306,
+      "row": 1304,
       "archiveId": "jg89-09-09.009718.jgb.fob-nak700.unknown.venezia.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-09.097385.jgb.aud.unknown.t-flac16",
@@ -28197,7 +28124,7 @@
       "date": "1989-09-10",
       "venue": "Great Woods Center for the Performing Arts",
       "city": "Mansfield, MA",
-      "row": 1311,
+      "row": 1309,
       "archiveId": "jg89-09-10.014311.jgb.fob-schoepsCMC34.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-10.027358.jgb.sbd.ladner.t-flac16",
@@ -28299,7 +28226,7 @@
       "date": "1989-09-11",
       "venue": "Centrum",
       "city": "Worcester, MA",
-      "row": 1317,
+      "row": 1315,
       "archiveId": "jg89-09-11.022511.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -28325,7 +28252,7 @@
       "date": "1989-09-13",
       "venue": "Seashore Performing Arts Center",
       "city": "Old Orchard Beach, ME",
-      "row": 1318,
+      "row": 1316,
       "archiveId": "jg89-09-13.019775.jgb.sennME80.gardner.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-13.094057.jgb.fob-nak300.wcc.andrewf.sbeok.t-flac16"
@@ -28367,7 +28294,7 @@
       "date": "1989-09-15",
       "venue": "Alpine Valley Music Theatre",
       "city": "East Troy, WI",
-      "row": 1320,
+      "row": 1318,
       "archiveId": "jg89-09-15.008295.jgb.aud.unknown.t-flac16",
       "altArchiveIds": [
         "jg89-09-15.084359.jgb.nak100.holtz.jaz.t-flac16",
@@ -28454,7 +28381,7 @@
       "date": "1989-09-16",
       "venue": "Poplar Creek Music Theatre",
       "city": "Hoffman Estates, IL",
-      "row": 1325,
+      "row": 1323,
       "archiveId": "jg89-09-16.007325.jgb.sbd.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-09-16.099149.jgb.fob-nak100.holtz.jaz.t-flac16",
@@ -28526,7 +28453,7 @@
       "date": "1989-10-31",
       "venue": "Concord Pavilion",
       "city": "Concord, CA",
-      "row": 1329,
+      "row": 1327,
       "archiveId": "jg89-10-31.013415.jgb.bk4011.webber-small-buick.t-flac16",
       "altArchiveIds": [
         "jg89-10-31.014025.jgb.bk4011.webber-small-buick.ashley.sbeok.t-flac16",
@@ -28583,7 +28510,7 @@
       "date": "1989-12-01",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1332,
+      "row": 1330,
       "archiveId": "jg89-12-01.006348.jgb.bk4011.hughes-buick-katzeff.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-12-01.094353.jgb.akgC1000.miller.t-flac16"
@@ -28625,7 +28552,7 @@
       "date": "1989-12-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1334,
+      "row": 1332,
       "archiveId": "jg89-12-02.022513.jgb.sbd.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg89-12-02.081060.jgb.bk4011.buick.minches.sbeok.t-flac16",
@@ -28697,7 +28624,7 @@
       "date": "1989-12-11",
       "venue": "Garcia, Weir NPR",
       "city": "San Francisco, CA",
-      "row": 1338,
+      "row": 1336,
       "archiveId": "jg89-12-11.023114.jgbw.fm.rockline.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -28723,7 +28650,7 @@
       "date": "1989-12-16",
       "venue": "Club Front",
       "city": "San Rafael, CA",
-      "row": 1339,
+      "row": 1337,
       "archiveId": "jg89-12-16.107856.ebrwjg.sbd.walker-scotton.miller.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -28749,7 +28676,7 @@
       "date": "1990-02-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1340,
+      "row": 1338,
       "archiveId": "jg90-02-02.086658.jgb.neumannKM140.darroch-paul.buick.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -28775,7 +28702,7 @@
       "date": "1990-02-03",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1341,
+      "row": 1339,
       "archiveId": "jg90-02-03.012843.jgb.sbd.s1.ladner.12843.sbeok.shnf",
       "altArchiveIds": [
         "jg90-02-03.081174.jgb.set1.josephsonKD200.katzeff-hughes-buick.minches.sbeok.t-flac16",
@@ -28832,7 +28759,7 @@
       "date": "1990-02-04",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1344,
+      "row": 1342,
       "archiveId": "jg90-02-04.030811.jgb.josephsonKD200.buick.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-02-04.114126.jgb.sbd.seaweed.s1p-s2all.flac16",
@@ -28889,7 +28816,7 @@
       "date": "1990-03-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1347,
+      "row": 1345,
       "archiveId": "jg90-03-02.118910.jgb.partial.aud.unknown.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -28915,7 +28842,7 @@
       "date": "1990-04-13",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1348,
+      "row": 1346,
       "archiveId": "jg90-04-13.009459.jgb.fob-nak700.reutelhuber.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-04-13.084845.jgb.fob-neumannKM140.darroch-paul.minches.sbeok.t-flac16"
@@ -28957,7 +28884,7 @@
       "date": "1990-04-14",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1350,
+      "row": 1348,
       "archiveId": "jg90-04-14.009458.jgb.nak700.reutelheuber.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-04-14.111504.jgb.neumanKMF4.daweez.d5scott.sbeok.t-flac16"
@@ -28999,7 +28926,7 @@
       "date": "1990-04-15",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1352,
+      "row": 1350,
       "archiveId": "jg90-04-15.030639.jgb.set1.fob-neumannKM100.darroch-paul.minches.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29025,7 +28952,7 @@
       "date": "1990-04-29",
       "venue": "South of Market Cultural Center",
       "city": "San Francisco, CA",
-      "row": 1353,
+      "row": 1351,
       "archiveId": "jg90-04-29.096344.animalmind.sbd.vern.sirmick.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-04-29.jgf.sbd.jim.12896.sbeok.shnf"
@@ -29067,7 +28994,7 @@
       "date": "1990-05-12",
       "venue": "Waikiki Shell",
       "city": "Honolulu, HI",
-      "row": 1355,
+      "row": 1353,
       "archiveId": "jg90-05-12.089212.jgb.fob-neumannKM86.trip.gems.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29093,7 +29020,7 @@
       "date": "1990-05-19",
       "venue": "Garcia Hotel Room",
       "city": "Kona, HI",
-      "row": 1356,
+      "row": 1354,
       "archiveId": "jg90-05-19.086228.interview.steve.sbefail.t-flac16.90-05-11",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29119,7 +29046,7 @@
       "date": "1990-05-20",
       "venue": "Afook-Chinen Civic Auditorium",
       "city": "Hilo, HI",
-      "row": 1357,
+      "row": 1355,
       "archiveId": "jg90-05-20.087671.jgb.fob-neumannKM86.trip.gems.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29145,7 +29072,7 @@
       "date": "1990-06-12",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1358,
+      "row": 1356,
       "archiveId": "jg90-06-12.011365.jgb.aud.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-06-12.108908.jgb.set2.fob-schoepsMK4.reutelhuber.miller.t-flac16"
@@ -29187,7 +29114,7 @@
       "date": "1990-06-13",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1360,
+      "row": 1358,
       "archiveId": "jg90-06-13.011366.jgb.aud.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-06-13.085819.jgb.neumannKM140.buick-katzeff.minches.sbeok.t-flac16"
@@ -29229,7 +29156,7 @@
       "date": "1990-08-05",
       "venue": "William Randolph Hearst Greek Theatre, UC Berkeley",
       "city": "Berkeley, CA",
-      "row": 1362,
+      "row": 1360,
       "archiveId": "jg90-08-05.006347.jgb.fob-nak700.unknown.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-08-05.022083.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -29271,7 +29198,7 @@
       "date": "1990-08-07",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1364,
+      "row": 1362,
       "archiveId": "jg90-08-07.022379.jgb.sony.miller.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-08-07.030740.jgb.neumannKM140.darroch-paul.minches.sbeok.t-flac16"
@@ -29313,7 +29240,7 @@
       "date": "1990-08-08",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1366,
+      "row": 1364,
       "archiveId": "jg90-08-08.022378.jgb.aud.unknown.powell-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-08-08.030810.jgb.neumannKM140.darroch-paul.minches.sbeok.t-flac16"
@@ -29355,7 +29282,7 @@
       "date": "1990-08-09",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1368,
+      "row": 1366,
       "archiveId": "jg90-08-09.022377.jgb.aud.unknown.powell-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-08-09.085818.jgb.set1.schoepsCMC44.unknown.minches.sbeok.t-flac16"
@@ -29397,7 +29324,7 @@
       "date": "1990-09-01",
       "venue": "Shoreline Amphitheatre",
       "city": "Mountain View, CA",
-      "row": 1370,
+      "row": 1368,
       "archiveId": "jg90-09-01.22085.jgb.fob-reutelhuber.miller.sbeok.shnf",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29423,7 +29350,7 @@
       "date": "1990-11-11",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1371,
+      "row": 1369,
       "archiveId": "jg90-11-11.023855.jgb.toaDM1200.detally.flair.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-11-11.110665.jgb.neumannKMF4.daweez.d5scott.t-flac16"
@@ -29465,7 +29392,7 @@
       "date": "1990-11-12",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1373,
+      "row": 1371,
       "archiveId": "jg90-11-12.jgb.fob.102652.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29491,7 +29418,7 @@
       "date": "1990-11-13",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1374,
+      "row": 1372,
       "archiveId": "jg90-11-13.023743.jgb.toaDM1200.detally.flair.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29517,7 +29444,7 @@
       "date": "1990-11-15",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1375,
+      "row": 1373,
       "archiveId": "jg90-11-15.023774.jgb.toaDM1200.detally.flair.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29543,7 +29470,7 @@
       "date": "1990-11-16",
       "venue": "Wiltern Theatre",
       "city": "Los Angeles, CA",
-      "row": 1376,
+      "row": 1374,
       "archiveId": "jg90-11-16.023829.jgb.toaDM1200.detally.flair.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29569,7 +29496,7 @@
       "date": "1990-11-20",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1377,
+      "row": 1375,
       "archiveId": "jg90-11-20.018967.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-11-20.022086.jgb.set1.fob-nak700.reutelhuber.miller.sbeok.t-flac16"
@@ -29611,7 +29538,7 @@
       "date": "1990-11-21",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1379,
+      "row": 1377,
       "archiveId": "jg90-11-21.022087.jgb.fob-nak700.reutelhuber.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-11-21.111702.jgb.neumannKMF4.daweez.d5scott.t-flac16"
@@ -29653,7 +29580,7 @@
       "date": "1990-11-24",
       "venue": "Henry J. Kaiser Convention Center",
       "city": "Oakland, CA",
-      "row": 1381,
+      "row": 1379,
       "archiveId": "jg90-11-24.010122.jgb.akgC1000.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg90-11-24.097720.jgb.GEMS.FOB.BrenneckeYoung.flac16",
@@ -29740,7 +29667,7 @@
       "date": "1990-12-17",
       "venue": "Sweetwater",
       "city": "Mill Valley, CA",
-      "row": 1386,
+      "row": 1384,
       "archiveId": "jg90-12-17.008065.jgdg.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29766,7 +29693,7 @@
       "date": "1990-12-22",
       "venue": "San Francisco Civic Auditorium",
       "city": "San Francisco, CA",
-      "row": 1387,
+      "row": 1385,
       "archiveId": "jg90-12-22.013205.jgb.fob-nak700.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29792,7 +29719,7 @@
       "date": "1991-01-29",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1388,
+      "row": 1386,
       "archiveId": "jg91-01-29.028844.jgb.aud.unknown-geer.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -29818,7 +29745,7 @@
       "date": "1991-01-30",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1389,
+      "row": 1387,
       "archiveId": "jg91-01-30.087243.jgb.set1.schoepsCMC34.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-01-30.jgb.fob.nak.16712.flac16"
@@ -29860,7 +29787,7 @@
       "date": "1991-01-31",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1391,
+      "row": 1389,
       "archiveId": "jg91-01-31.022159.jgb.schoeps.unknown.powell-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-01-31.112138.jgb.set2.neumannKMF4.daweez.d5scott.sbeok.t-flac16"
@@ -29902,7 +29829,7 @@
       "date": "1991-02-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1393,
+      "row": 1391,
       "archiveId": "jg91-02-02.007323.jgdg.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-02-02.011168.jgdg.dsbd.unknown.sbeok.t-flac16",
@@ -29974,7 +29901,7 @@
       "date": "1991-02-03",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1397,
+      "row": 1395,
       "archiveId": "jg91-02-03.021788.jgdg.sbd.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-02-03.097321.jgdg.set2.aud.unknown.minches.t-flac16"
@@ -30016,7 +29943,7 @@
       "date": "1991-02-28",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1399,
+      "row": 1397,
       "archiveId": "jg91-02-28.034070.jgb.schoepsMK4.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-02-28.117853.jgb.set2.neumannKMF4.daweez.d5scott.sbeok.t-flac16"
@@ -30058,7 +29985,7 @@
       "date": "1991-03-01",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1401,
+      "row": 1399,
       "archiveId": "jg91-03-01.007329.jgb.fob-bk4011.unknown.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-03-01.109050.jgb.neumannKMF4.daweez.d5scott.t-flac16"
@@ -30100,7 +30027,7 @@
       "date": "1991-03-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1403,
+      "row": 1401,
       "archiveId": "jg91-03-02.015584.jgb.fob-schoepsMK4.unknown.miller-ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-03-02.114535.jgb.neumannKMF4.daweez.d5scott.t-flac16",
@@ -30157,7 +30084,7 @@
       "date": "1991-04-19",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1406,
+      "row": 1404,
       "archiveId": "jg91-04-19.023225.jgb.set1.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-04-19.111926.jgb.set1.neumannKMF4.daweez.d5scott.sbeok.t-flac16"
@@ -30199,7 +30126,7 @@
       "date": "1991-04-20",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1408,
+      "row": 1406,
       "archiveId": "jg91-04-20.015083.jgb.fob-schoepsMK4.unknown.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -30225,7 +30152,7 @@
       "date": "1991-04-21",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1409,
+      "row": 1407,
       "archiveId": "jg91-04-21.006346.jgb.fob.Gardner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -30251,7 +30178,7 @@
       "date": "1991-05-22",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1410,
+      "row": 1408,
       "archiveId": "jg91-05-22.151452.jgb.aud.flac2448",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -30277,7 +30204,7 @@
       "date": "1991-05-23",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1411,
+      "row": 1409,
       "archiveId": "jg91-05-23.009460.jgb.fob-schoeps.unknown.miller.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-05-23.151460.jgb.aud.flac2448"
@@ -30319,7 +30246,7 @@
       "date": "1991-08-10",
       "venue": "French's Camp on the Eel River",
       "city": "Piercy, CA",
-      "row": 1413,
+      "row": 1411,
       "archiveId": "jg91-08-10.014932.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-08-10.030813.jgb.schoepsCMC32.buick-katzeff-hughes.minches.sbeok.t-flac16",
@@ -30376,7 +30303,7 @@
       "date": "1991-08-24",
       "venue": "Goldcoast Concert Bowl",
       "city": "Olympic Valley, CA",
-      "row": 1416,
+      "row": 1414,
       "archiveId": "jg91-08-24.004371.jgb.sbd.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-08-24.026497.jgb.mtx.reutelhuber.sbeok.t-flac16",
@@ -30433,7 +30360,7 @@
       "date": "1991-08-25",
       "venue": "Goldcoast Concert Bowl",
       "city": "Olympic Valley, CA",
-      "row": 1419,
+      "row": 1417,
       "archiveId": "jg91-08-25.004370.jgdg.sbd.walker.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-08-25.026573.jgdg.mtx.reutelhuber.sbeok.t-flac16",
@@ -30505,7 +30432,7 @@
       "date": "1991-11-06",
       "venue": "Capital Centre",
       "city": "Landover, MD",
-      "row": 1423,
+      "row": 1421,
       "archiveId": "jg91-11-06.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-06.016671.jgb.fob-schoeps.unknown.ladner.t-flac16",
@@ -30562,7 +30489,7 @@
       "date": "1991-11-07",
       "venue": "Capital Centre",
       "city": "Landover, MD",
-      "row": 1426,
+      "row": 1424,
       "archiveId": "jg91-11-07.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-07.013561.jgb.schoeps.unknown.ladner.sbeok.t-flac16",
@@ -30619,7 +30546,7 @@
       "date": "1991-11-09",
       "venue": "Hampton Coliseum",
       "city": "Hampton, VA",
-      "row": 1429,
+      "row": 1427,
       "archiveId": "jg91-11-09.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-09.004368.jgb.fob-schoepsMK4.unknown.sbeok.t-flac16",
@@ -30691,7 +30618,7 @@
       "date": "1991-11-10",
       "venue": "Charlotte Coliseum",
       "city": "Charlotte, NC",
-      "row": 1433,
+      "row": 1431,
       "archiveId": "jg91-11-10.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-10.015265.jgb.aud.unknown.ladner.sbeok.t-flac16"
@@ -30733,7 +30660,7 @@
       "date": "1991-11-12",
       "venue": "Spectrum",
       "city": "Philadelphia, PA",
-      "row": 1435,
+      "row": 1433,
       "archiveId": "jg91-11-12.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-12.013604.jgb.fob-nak700.unknown.misSHN.sbeok.t-flac16",
@@ -30790,7 +30717,7 @@
       "date": "1991-11-13",
       "venue": "Centrum",
       "city": "Worcester, MA",
-      "row": 1438,
+      "row": 1436,
       "archiveId": "jg91-11-13.016377.jgb.fob-schoeps.unknown.ladner.t-flac16",
       "altArchiveIds": [
         "jg91-11-13.081368.jgb.fob-schoeps.mutterperl.gmb.t-flac16",
@@ -30847,7 +30774,7 @@
       "date": "1991-11-15",
       "venue": "Madison Square Garden",
       "city": "New York, NY",
-      "row": 1441,
+      "row": 1439,
       "archiveId": "jg91-11-15.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-15.023343.jgb.fob-schoeps.unknown.ladner.sbeok.t-flac16",
@@ -30904,7 +30831,7 @@
       "date": "1991-11-16",
       "venue": "Knickerbocker Arena",
       "city": "Albany, NY",
-      "row": 1444,
+      "row": 1442,
       "archiveId": "jg91-11-16.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-16.004367.jgb.fob-nak700.unknown.sbeok.t-flac16",
@@ -30976,7 +30903,7 @@
       "date": "1991-11-17",
       "venue": "Hartford Civic Center",
       "city": "Hartford, CT",
-      "row": 1448,
+      "row": 1446,
       "archiveId": "jg91-11-17.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-17.007321.jgb.fob-schoeps.unknown.greider-eD.sbeok.t-flac16",
@@ -31048,7 +30975,7 @@
       "date": "1991-11-19",
       "venue": "Providence Civic Center",
       "city": "Providence, RI",
-      "row": 1452,
+      "row": 1450,
       "archiveId": "jg91-11-19.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-19.011858.jgb.fob-schoepsCMC54.leclair.masiello.sbeok.t-flac16",
@@ -31120,7 +31047,7 @@
       "date": "1991-11-20",
       "venue": "Rochester Community War Memorial",
       "city": "Rochester, NY",
-      "row": 1456,
+      "row": 1454,
       "archiveId": "jg91-11-20.jgb-fob-schoeps-brotman-metchick-anon-noel-t-flac1648",
       "altArchiveIds": [
         "jg91-11-20.004366.jgb.fob-schoeps.unknown.vacchetto.t-flac16",
@@ -31192,7 +31119,7 @@
       "date": "1991-11-22",
       "venue": "Rosemont Horizon",
       "city": "Rosemont, IL",
-      "row": 1460,
+      "row": 1458,
       "archiveId": "jg91-11-22.009461.jgb.fob-schoeps.unknown.greider-eD.t-flac16",
       "altArchiveIds": [
         "jg91-11-22.111927.jgb.fob-sonicstudios.schmit.mallick.t-flac16"
@@ -31234,7 +31161,7 @@
       "date": "1991-11-23",
       "venue": "Bradley Center",
       "city": "Milwaukee, WI",
-      "row": 1462,
+      "row": 1460,
       "archiveId": "jg91-11-23.004364.jgb.fob-nak300.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-11-23.015266.jgb.nak700.unknown.nawrocki.sbeok.t-flac16",
@@ -31321,7 +31248,7 @@
       "date": "1991-11-24",
       "venue": "Target Center",
       "city": "Minneapolis, MN",
-      "row": 1467,
+      "row": 1465,
       "archiveId": "jg91-11-24.012025.jgb.fob-schoeps.unknown.greider-eD.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-11-24.112043.jgb.aud.flac16",
@@ -31378,7 +31305,7 @@
       "date": "1991-12-07",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1470,
+      "row": 1468,
       "archiveId": "jg91-12-07.023118.jgdg.neumannKM54.vasseur.powell-ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -31404,7 +31331,7 @@
       "date": "1991-12-08",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1471,
+      "row": 1469,
       "archiveId": "jg91-12-08.004369.jgdg.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-12-08.029549.jgdg.sbd.nashphil.sbeok.t-flac16",
@@ -31476,7 +31403,7 @@
       "date": "1991-12-09",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1475,
+      "row": 1473,
       "archiveId": "jg91-12-09.008790.jgdg.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg91-12-09.023145.jgdg.neumannKM54.vasseur.powell-ladner.sbeok.t-flac16"
@@ -31518,7 +31445,7 @@
       "date": "1992-02-07",
       "venue": "Henry J. Kaiser Convention Center",
       "city": "Oakland, CA",
-      "row": 1477,
+      "row": 1475,
       "archiveId": "jg92-02-07.004363.jgb.fob-schoeps.unknown.aj.t-flac16",
       "altArchiveIds": [
         "jg92-02-07.jgb.GEMS.FOB.BrenneckeYoung.97987.flac16"
@@ -31560,7 +31487,7 @@
       "date": "1992-04-25",
       "venue": "Event Center Arena, San Jose State University",
       "city": "San Jose, CA",
-      "row": 1479,
+      "row": 1477,
       "archiveId": "jg92-04-25.014351.jgb.neumannKM54.vasseur.conner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-04-25.083713.jgb.sonyECM939.cate.sbeok.t-flac16",
@@ -31617,7 +31544,7 @@
       "date": "1992-04-29",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1482,
+      "row": 1480,
       "archiveId": "jg92-04-29.006630.jgb.fob-schoepsMK4.unknown.miller.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -31643,7 +31570,7 @@
       "date": "1992-04-30",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1483,
+      "row": 1481,
       "archiveId": "jg92-04-30.006345.jgb.fob-schoepsCMC34.unknown.gardner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -31669,7 +31596,7 @@
       "date": "1992-05-01",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1484,
+      "row": 1482,
       "archiveId": "jg92-05-xx.004365.jgdg.dsbd.t-flac16",
       "altArchiveIds": [
         "jg92-05-01.111746.jgb.neumannKMF4.daweez.dscott.t-flac16",
@@ -31726,7 +31653,7 @@
       "date": "1992-05-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1487,
+      "row": 1485,
       "archiveId": "jg92-05-02.019535.jgb.nak700.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-05-02.030275.jgb.neumannKM150.unknown.braveman.sbeok.t-flac16",
@@ -31783,7 +31710,7 @@
       "date": "1992-05-03",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1490,
+      "row": 1488,
       "archiveId": "jg92-05-03.016713.jgb.fob-schoepsCMC34.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-05-03.106771.jgb.schoepsMK4.lucien.t-flac16"
@@ -31825,7 +31752,7 @@
       "date": "1992-05-07",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1492,
+      "row": 1490,
       "archiveId": "jg92-05-07.013348.jgdg.aud.unknown.jupille.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-05-07.081061.jgdg.schoepsCMC34.buick.minches.sbeok.t-flac16"
@@ -31867,7 +31794,7 @@
       "date": "1992-05-08",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1494,
+      "row": 1492,
       "archiveId": "jg92-05-08.013349.jgdg.aud.unknown.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -31893,7 +31820,7 @@
       "date": "1992-05-09",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1495,
+      "row": 1493,
       "archiveId": "jg92-05-09.013362.jgdg.aud.unknown.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -31919,7 +31846,7 @@
       "date": "1992-05-10",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1496,
+      "row": 1494,
       "archiveId": "jg92-05-10.013364.jgdg.aud.unknown.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -31945,7 +31872,7 @@
       "date": "1992-07-24",
       "venue": "Cal Expo Amphitheatre",
       "city": "Sacramento, CA",
-      "row": 1497,
+      "row": 1495,
       "archiveId": "jg92-07-24.016187.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-07-24.084442.jgb.sony939.cate.sbeok.t-flac16"
@@ -31987,7 +31914,7 @@
       "date": "1992-07-26",
       "venue": "Shoreline Amphitheatre",
       "city": "Mountain View, CA",
-      "row": 1499,
+      "row": 1497,
       "archiveId": "jg92-07-26.086551.jgb.fob-sonicsDSM3.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-07-26.090014.jgb.schoepsMK4.unknown.minches.t-flac16"
@@ -32029,7 +31956,7 @@
       "date": "1992-07-29",
       "venue": "Universal Amphitheatre",
       "city": "Universal City, CA",
-      "row": 1501,
+      "row": 1499,
       "archiveId": "jg92-07-29.006344.jgb.beyer201.unknown.aj.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-07-29.097986.jgb.GEMS.FOB.BrenneckeYoung.flac16"
@@ -32071,7 +31998,7 @@
       "date": "1992-07-31",
       "venue": "Ventura County Fairgrounds",
       "city": "Ventura, CA",
-      "row": 1503,
+      "row": 1501,
       "archiveId": "jg92-07-31.015799.jgb.fob.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-07-31.108675.jgb.fob-neumannKM140.unknown.bowen.t-flac16"
@@ -32113,7 +32040,7 @@
       "date": "1992-08-01",
       "venue": "Irvine Meadows Amphitheatre",
       "city": "Irvine, CA",
-      "row": 1505,
+      "row": 1503,
       "archiveId": "jg92-08-01.018965.jgb.fob-nak700.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-08-01.093914.jgb.fob-schoeps.smole.t-flac16"
@@ -32155,7 +32082,7 @@
       "date": "1992-08-02",
       "venue": "Devore Field, Southwestern College",
       "city": "Chula Vista, CA",
-      "row": 1507,
+      "row": 1505,
       "archiveId": "jg92-08-02.014309.jgb.fob-akg480.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-08-02.098016.jgb.GEMS.FOB.BrenneckeYoung.flac16"
@@ -32197,7 +32124,7 @@
       "date": "1992-10-31",
       "venue": "Oakland-Alameda County Coliseum Arena",
       "city": "Oakland, CA",
-      "row": 1509,
+      "row": 1507,
       "archiveId": "jg92-10-31.014310.jgb.sbd.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg92-10-31.083474.jgb.fob-senn421.litzenberger.sbeok.t-flac16",
@@ -32284,7 +32211,7 @@
       "date": "1992-12-19",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1514,
+      "row": 1512,
       "archiveId": "jg92-12-19.111375.jgb.neumannKMF4.daweez.d5scott.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32310,7 +32237,7 @@
       "date": "1992-12-21",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1515,
+      "row": 1513,
       "archiveId": "jg92-12-21.008914.jgb.fob-schoeps.wiley.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32336,7 +32263,7 @@
       "date": "1993-01-28",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1516,
+      "row": 1514,
       "archiveId": "jg93-01-28.012255.jgb.neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32362,7 +32289,7 @@
       "date": "1993-01-29",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1517,
+      "row": 1515,
       "archiveId": "jg93-01-29.021133.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32388,7 +32315,7 @@
       "date": "1993-01-30",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1518,
+      "row": 1516,
       "archiveId": "jg93-01-30.021134.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-01-30.111374.jgb.neumannKMF4.daweez.d5scott.t-flac16"
@@ -32430,7 +32357,7 @@
       "date": "1993-02-25",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1520,
+      "row": 1518,
       "archiveId": "jg93-02-25.012685.jgb.neumannKM54.vasseur.connor.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32456,7 +32383,7 @@
       "date": "1993-02-26",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1521,
+      "row": 1519,
       "archiveId": "jg93-02-26.013035.jgb.neumannKM54.vasseur.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-02-26.076436.jgb.set1.dsbd.GEMS.sbeok.t-flac16",
@@ -32513,7 +32440,7 @@
       "date": "1993-02-27",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1524,
+      "row": 1522,
       "archiveId": "jg93-02-27.013036.jgb.neumannKM54.vasseur.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-02-27.029344.jgb.fob-neumannKM54.unknown.lance.sbefail.t-flac16"
@@ -32555,7 +32482,7 @@
       "date": "1993-04-12",
       "venue": "Candlestick Park",
       "city": "San Francisco, CA",
-      "row": 1526,
+      "row": 1524,
       "archiveId": "jg93-04-12.026477.jgf.tv.ssb.sbefail.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32581,7 +32508,7 @@
       "date": "1993-04-16",
       "venue": "Pauley Pavilion, UCLA",
       "city": "Los Angeles, CA",
-      "row": 1527,
+      "row": 1525,
       "archiveId": "jg93-04-16.019280.jgb.aud.unknown.minches.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-04-16.032751.jgb.neumannKM140.chip.evans.sbeok.t-flac16"
@@ -32623,7 +32550,7 @@
       "date": "1993-04-17",
       "venue": "Pauley Pavilion, UCLA",
       "city": "Los Angeles, CA",
-      "row": 1529,
+      "row": 1527,
       "archiveId": "jg93-04-17.019281.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-04-17.033599.jgb.fob-neumannKM140.unknown.GEMS.sbeok.t-flac16"
@@ -32665,7 +32592,7 @@
       "date": "1993-04-18",
       "venue": "San Diego Sports Arena",
       "city": "San Diego, CA",
-      "row": 1531,
+      "row": 1529,
       "archiveId": "jg93-04-18.016375.jgb.aud.unknown.wiley.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-04-18.021135.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
@@ -32722,7 +32649,7 @@
       "date": "1993-04-23",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1534,
+      "row": 1532,
       "archiveId": "jg93-04-23.015923.jgb.fob-neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32748,7 +32675,7 @@
       "date": "1993-04-24",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1535,
+      "row": 1533,
       "archiveId": "jg93-04-24.022254.jgb.set1.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -32774,7 +32701,7 @@
       "date": "1993-04-25",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1536,
+      "row": 1534,
       "archiveId": "jg93-04-25.016151.jgb.neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-04-25.111674.jgb.neumannKMF4.daweez.d5scott.t-flac16"
@@ -32816,7 +32743,7 @@
       "date": "1993-08-07",
       "venue": "Seattle Center Memorial Stadium",
       "city": "Seattle, WA",
-      "row": 1538,
+      "row": 1536,
       "archiveId": "jg93-08-07.006631.jgb.neumann.shaw.popi.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-08-07.027359.jgb.aud.unknown.sbeok.t-flac16",
@@ -32903,7 +32830,7 @@
       "date": "1993-08-08",
       "venue": "Portland Meadows",
       "city": "Portland, OR",
-      "row": 1543,
+      "row": 1541,
       "archiveId": "jg93-08-08.013134.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-08-08.034588.jgb.fob-schoepsMK4.bearpalm.gems.sbeok.t-flac16",
@@ -32975,7 +32902,7 @@
       "date": "1993-08-14",
       "venue": "Shoreline Amphitheatre",
       "city": "Mountain View, CA",
-      "row": 1547,
+      "row": 1545,
       "archiveId": "jg93-08-14.012632.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -33001,7 +32928,7 @@
       "date": "1993-09-17",
       "venue": "NPR Studios",
       "city": "New York, NY",
-      "row": 1548,
+      "row": 1546,
       "archiveId": "jg93-09-17.015886.jgdg.sbd.jim.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -33027,7 +32954,7 @@
       "date": "1993-10-05",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1549,
+      "row": 1547,
       "archiveId": "jg93-10-05.017887.jgb.neumannKM54.porter.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -33053,7 +32980,7 @@
       "date": "1993-10-06",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1550,
+      "row": 1548,
       "archiveId": "jg93-10-06.012252.jgb.neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-10-06.086861.jgb.aud.unknown.sbeok.t-flac16"
@@ -33095,7 +33022,7 @@
       "date": "1993-10-07",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1552,
+      "row": 1550,
       "archiveId": "jg93-10-07.012251.jgb.neumannKM54.unknown.misSHN.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-10-07.029354.jgb.fob-neumannKM54.lance.sbefail.t-flac16"
@@ -33137,7 +33064,7 @@
       "date": "1993-10-31",
       "venue": "Meadowlands Arena",
       "city": "East Rutherford, NJ",
-      "row": 1554,
+      "row": 1552,
       "archiveId": "jg93-10-31.004350.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-10-31.012824.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
@@ -33209,7 +33136,7 @@
       "date": "1993-11-01",
       "venue": "Nassau Veterans Memorial Coliseum",
       "city": "Uniondale, NY",
-      "row": 1558,
+      "row": 1556,
       "archiveId": "jg93-11-01.012630.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -33235,7 +33162,7 @@
       "date": "1993-11-03",
       "venue": "Knickerbocker Arena",
       "city": "Albany, NY",
-      "row": 1559,
+      "row": 1557,
       "archiveId": "jg93-11-03.004349.jgb.fob-senn441.unknown.sbefail.t-flac16",
       "altArchiveIds": [
         "jg93-11-03.012631.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
@@ -33307,7 +33234,7 @@
       "date": "1993-11-04",
       "venue": "Rochester Community War Memorial",
       "city": "Rochester, NY",
-      "row": 1563,
+      "row": 1561,
       "archiveId": "jg93-11-04.012842.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-04.084869.jgb.fob-schoepsMK4.brennecke.herrold.t-flac1648"
@@ -33349,7 +33276,7 @@
       "date": "1993-11-05",
       "venue": "Buffalo Memorial Auditorium",
       "city": "Buffalo, NY",
-      "row": 1565,
+      "row": 1563,
       "archiveId": "jg93-11-05.012568.jgb.fob-akg460.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-05.012633.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
@@ -33436,7 +33363,7 @@
       "date": "1993-11-07",
       "venue": "USAir Arena",
       "city": "Landover, MD",
-      "row": 1570,
+      "row": 1568,
       "archiveId": "jg93-11-07.015192.jgb.schoepsMK4.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-07.085752.jgb.fob-schoepsMK4.brennecke.herrold.t-flac1648"
@@ -33478,7 +33405,7 @@
       "date": "1993-11-08",
       "venue": "Hartford Civic Center",
       "city": "Hartford, CT",
-      "row": 1572,
+      "row": 1570,
       "archiveId": "jg93-11-08.012841.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-08.035144.jgb.fob-schoepsMK4.brennecke-jones.GEMS.t-flac1648",
@@ -33550,7 +33477,7 @@
       "date": "1993-11-09",
       "venue": "Cumberland County Civic Center",
       "city": "Portland, ME",
-      "row": 1576,
+      "row": 1574,
       "archiveId": "jg93-11-09.011925.jgb.fob-schoepsMK4.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-09.096488.jgb.fob-schoepsMK4.unknown.miller.sbeok.t-flac16"
@@ -33592,7 +33519,7 @@
       "date": "1993-11-11",
       "venue": "Providence Civic Center",
       "city": "Providence, RI",
-      "row": 1578,
+      "row": 1576,
       "archiveId": "jg93-11-11.013421.jgb.nak700.gindoff.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-11.095709.jgb.fob-senn421.alabamabob.andrewf.sbeok.t-flac16",
@@ -33649,7 +33576,7 @@
       "date": "1993-11-12",
       "venue": "Madison Square Garden",
       "city": "New York, NY",
-      "row": 1581,
+      "row": 1579,
       "archiveId": "jg93-11-12.004348.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-12.013414.jgb.fob-schoepsMK4.brennecke-litzenberger.sacks.sbeok.t-flac16",
@@ -33721,7 +33648,7 @@
       "date": "1993-11-14",
       "venue": "Onondaga County War Memorial",
       "city": "Syracuse, NY",
-      "row": 1585,
+      "row": 1583,
       "archiveId": "jg93-11-14.023341.jgb.fob-schoepsCMC34.brennecke-jones.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-14.035146.jgb.fob-schoepsCMC34.brennecke-jones.gems.t-flac1648",
@@ -33793,7 +33720,7 @@
       "date": "1993-11-15",
       "venue": "Centrum",
       "city": "Worcester, MA",
-      "row": 1589,
+      "row": 1587,
       "archiveId": "jg93-11-15.026375.jgb.fob-schoepsMK4.brennecke-jones.larson.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-15.035147.jgb.fob-schoepsMK4.brennecke-jones.GEMS.t-flac1648"
@@ -33835,7 +33762,7 @@
       "date": "1993-11-16",
       "venue": "Spectrum",
       "city": "Philadelphia, PA",
-      "row": 1591,
+      "row": 1589,
       "archiveId": "jg93-11-16.013811.jgb.fob.unknown-brennecke-jones.wiley.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -33861,7 +33788,7 @@
       "date": "1993-11-18",
       "venue": "Richmond Coliseum",
       "city": "Richmond, VA",
-      "row": 1592,
+      "row": 1590,
       "archiveId": "jg93-11-18.014350.jgb.fob-schoepsMK4.brennecke.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -33887,7 +33814,7 @@
       "date": "1993-11-19",
       "venue": "Hampton Coliseum",
       "city": "Hampton, VA",
-      "row": 1593,
+      "row": 1591,
       "archiveId": "jg93-11-19.004347.jgb.fob-akg460.unknown.watkins.sbeok.t-flac16",
       "altArchiveIds": [
         "jg93-11-19.077281.jgb.fob-schoepsMK4.unknown.miller.sbeok.t-flac16",
@@ -33944,7 +33871,7 @@
       "date": "1994-01-12",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1596,
+      "row": 1594,
       "archiveId": "jg94-01-12.011169.jgdg.aud.jupille.sbeok.shnf",
       "altArchiveIds": [
         "jg94-01-12.30691.jgdg.aud.jupille.loy.sbeok.flac16"
@@ -33986,7 +33913,7 @@
       "date": "1994-01-13",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1598,
+      "row": 1596,
       "archiveId": "jg94-01-13.030962.daud.unknown.minches-jupille-loy.sbeok.flac16",
       "altArchiveIds": [
         "jg94-01-13.032833.jgdg.neumannKM54.evans.braveman.t-flac1648",
@@ -34058,7 +33985,7 @@
       "date": "1994-02-04",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1602,
+      "row": 1600,
       "archiveId": "jg94-02-04.015602.jgb.neumannKM54.vasseur.connor.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-02-04.094747.jgb.neumannKM54.vasseur.litzenberger.t-flac16"
@@ -34100,7 +34027,7 @@
       "date": "1994-02-05",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1604,
+      "row": 1602,
       "archiveId": "jg94-02-05.004346.jgb.sbd.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-02-05.015675.jgb.neumannKM54.vasseur.connor.sbeok.t-flac16",
@@ -34172,7 +34099,7 @@
       "date": "1994-02-06",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1608,
+      "row": 1606,
       "archiveId": "jg94-02-06.012256.jgb.sbd-neumannKM104.sanders.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-02-06.015676.jgb.neumannKM54.vasseur.connor.sbeok.t-flac16",
@@ -34229,7 +34156,7 @@
       "date": "1994-03-09",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1611,
+      "row": 1609,
       "archiveId": "jg94-03-09.016670.jgb.fob-neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34255,7 +34182,7 @@
       "date": "1994-04-18",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1612,
+      "row": 1610,
       "archiveId": "jg94-04-18.016376.jgb.neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34281,7 +34208,7 @@
       "date": "1994-04-19",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1613,
+      "row": 1611,
       "archiveId": "jg94-04-19.023229.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-04-19135214.jgb.vasseur-neumann.ladner.flac16"
@@ -34323,7 +34250,7 @@
       "date": "1994-04-20",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1615,
+      "row": 1613,
       "archiveId": "jg94-04-20.021299.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34349,7 +34276,7 @@
       "date": "1994-04-25",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1616,
+      "row": 1614,
       "archiveId": "jg94-04-25.012257.jgb.set2.sbd.sanders.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-04-25.077711.jgb.set2.sbd.goodbear.sbeok.t-flac16",
@@ -34406,7 +34333,7 @@
       "date": "1994-04-26",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1619,
+      "row": 1617,
       "archiveId": "jg94-04-26.021746.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34432,7 +34359,7 @@
       "date": "1994-04-27",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1620,
+      "row": 1618,
       "archiveId": "jg94-04-27.015819.jgb.sbd.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34458,7 +34385,7 @@
       "date": "1994-05-04",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1621,
+      "row": 1619,
       "archiveId": "jg94-05-04.009715.jgdg.schoepsCMC34.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34484,7 +34411,7 @@
       "date": "1994-05-05",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1622,
+      "row": 1620,
       "archiveId": "jg94-05-05.012503.jgdg.aud.unknown.jupille.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34510,7 +34437,7 @@
       "date": "1994-05-13",
       "venue": "Blockbuster Pavilion",
       "city": "Glen Helen, CA",
-      "row": 1623,
+      "row": 1621,
       "archiveId": "jg94-05-13.jgb.mattman.dvdf",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34536,7 +34463,7 @@
       "date": "1994-05-14",
       "venue": "Ventura County Fairgrounds",
       "city": "Ventura, CA",
-      "row": 1624,
+      "row": 1622,
       "archiveId": "jg94-05-14.020604.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-05-14.113811.jgb.neumannKMF4.daweez.d5scott.t-flac16"
@@ -34578,7 +34505,7 @@
       "date": "1994-05-15",
       "venue": "Irvine Meadows Amphitheatre",
       "city": "Irvine, CA",
-      "row": 1626,
+      "row": 1624,
       "archiveId": "jg94-05-15.006632.jgb.aud.unknown.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34604,7 +34531,7 @@
       "date": "1994-05-17",
       "venue": "Starlight Bowl",
       "city": "San Diego, CA",
-      "row": 1627,
+      "row": 1625,
       "archiveId": "jg94-05-17.016186.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34630,7 +34557,7 @@
       "date": "1994-05-18",
       "venue": "Starlight Bowl",
       "city": "San Diego, CA",
-      "row": 1628,
+      "row": 1626,
       "archiveId": "jg94-05-18.030850.jgb.fob-at831b.steveM.misSHN.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34656,7 +34583,7 @@
       "date": "1994-05-19",
       "venue": "Blockbuster Desert Sky Pavilion",
       "city": "Phoenix, AZ",
-      "row": 1629,
+      "row": 1627,
       "archiveId": "jg94-05-19.097700.jgb.aud.unknown.ebel.flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34682,7 +34609,7 @@
       "date": "1994-08-12",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1630,
+      "row": 1628,
       "archiveId": "jg94-08-12.015885.jgb.neumannKM54.kyle.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34708,7 +34635,7 @@
       "date": "1994-08-13",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1631,
+      "row": 1629,
       "archiveId": "jg94-08-13.015191.jgb.neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34734,7 +34661,7 @@
       "date": "1994-08-14",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1632,
+      "row": 1630,
       "archiveId": "jg94-08-14.004306.jgb.sbd.unknown.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-08-14.012022.jgb.sbd.mercatoris.sbeok.t-flac16"
@@ -34776,7 +34703,7 @@
       "date": "1994-09-01",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1634,
+      "row": 1632,
       "archiveId": "jg94-09-01.012024.jgb.fob-neumannKM140.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34802,7 +34729,7 @@
       "date": "1994-09-02",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1635,
+      "row": 1633,
       "archiveId": "jg94-09-02.012254.jgb.neumannKM54.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34828,7 +34755,7 @@
       "date": "1994-09-10",
       "venue": "Reno Hilton Amphitheatre",
       "city": "Reno, NV",
-      "row": 1636,
+      "row": 1634,
       "archiveId": "jg94-09-10.023791.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg94-09-10.097863.jgb.schoeps441unknown.ebel.flac16"
@@ -34870,7 +34797,7 @@
       "date": "1994-09-24",
       "venue": "Berkeley Community Theater",
       "city": "Berkeley, CA",
-      "row": 1638,
+      "row": 1636,
       "archiveId": "jg94-09-24.078005.paf.mtx.sirmick.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34896,7 +34823,7 @@
       "date": "1994-11-11",
       "venue": "Henry J. Kaiser Convention Center",
       "city": "Oakland, CA",
-      "row": 1639,
+      "row": 1637,
       "archiveId": "jg94-11-11.015882.jgb.fob-neumannKM440.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -34922,7 +34849,7 @@
       "date": "1995-01-13",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1640,
+      "row": 1638,
       "archiveId": "jg95-01-13.021484.jgb.neuKM54.vasseur.ladner.t-flac16",
       "altArchiveIds": [
         "jg95-01-13.079638.jgb.set2.schoepsMK4.sisler.goodbear.t-flac1648"
@@ -34964,7 +34891,7 @@
       "date": "1995-01-14",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1642,
+      "row": 1640,
       "archiveId": "jg95-01-14.015798.jgb.aud.unknown.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg95-01-14.021744.jgb.neumannKM54.vasseur.ladner.t-flac16",
@@ -35021,7 +34948,7 @@
       "date": "1995-01-15",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1645,
+      "row": 1643,
       "archiveId": "jg95-01-15.021745.jgb.neuKM54.vasseur.ladner.t-flac16",
       "altArchiveIds": [
         "jg95-01-15.079665.jgb.set2.schoepsMK4.sisler.goodbear.t-flac1648"
@@ -35063,7 +34990,7 @@
       "date": "1995-03-04",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1647,
+      "row": 1645,
       "archiveId": "jg95-03-04.016443.jgb.neumannKM54.vasseur.ladner.sbeok.t-flac16",
       "altArchiveIds": [
         "jg95-03-04.079635.jgb.schoepsMK4.russB.goodbear.t-flac1648"
@@ -35105,7 +35032,7 @@
       "date": "1995-03-05",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1649,
+      "row": 1647,
       "archiveId": "jg95-03-05.022194.jgb.set2.neumannKM54.vasseur.ladner.t-flac16",
       "altArchiveIds": [
         "jg95-03-05.079634.jgb.sonics.michaelB.goodbear.t-flac16"
@@ -35147,7 +35074,7 @@
       "date": "1995-04-14",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1651,
+      "row": 1649,
       "archiveId": "jg95-04-14.017556.jgb.neumannKM54.vasseur.ladner.t-flac16",
       "altArchiveIds": [
         "jg95-04-14.024990.jgb.neuKM54vasseur.ladner.t-flac16"
@@ -35189,7 +35116,7 @@
       "date": "1995-04-15",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1653,
+      "row": 1651,
       "archiveId": "jg95-04-15.021825.jgb.neuKM54.vasseur.ladner.t-flac16",
       "altArchiveIds": [
         "jg95-04-15.094692.jgb.neumannKM54.vasseur.t-flac16"
@@ -35231,7 +35158,7 @@
       "date": "1995-04-21",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1655,
+      "row": 1653,
       "archiveId": "jg95-04-21.021900.jgb.neumann.vasseur.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",
@@ -35257,7 +35184,7 @@
       "date": "1995-04-22",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1656,
+      "row": 1654,
       "archiveId": "jg95-04-22.004305.jgb.fob-neumannKM150.unknown.estim8ted.t-flac16",
       "altArchiveIds": [
         "jg95-04-22.097637.jgb.fob-sonicDSM6.unknown.sbeok.t-flac16"
@@ -35299,7 +35226,7 @@
       "date": "1995-04-23",
       "venue": "Warfield Theatre",
       "city": "San Francisco, CA",
-      "row": 1658,
+      "row": 1656,
       "archiveId": "jg95-04-23.017557.jgb.aud.unknown.ladner.t-flac16",
       "altArchiveIds": [],
       "sourceLock": "",

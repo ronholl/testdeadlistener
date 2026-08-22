@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.20</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.21</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.20</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.21</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.20';
+const APP_BUILD = '2.1.21';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1450,6 +1450,76 @@ function normalizeArchiveId(v){
   if(!s||isArchiveNoAudioHint(s))return '';
   const m=s.match(/archive\.org\/(?:details|download)\/([^/?#]+)/i);
   return (m?m[1]:s).replace(/^https?:\/\/archive\.org\/details\//i,'').replace(/[?#].*$/,'').trim();
+}
+function archiveIdDate(v){
+  const id=normalizeArchiveId(v);
+  // Archive concert IDs normally begin with a band prefix followed by the
+  // performance date (jg81-08-21, gd1977-05-08, etc.). Anchor there so a
+  // later transfer/date note in an otherwise undated ID is not mistaken for
+  // the concert date.
+  const m=id.match(/^[^0-9]*((?:19|20)\d{2}|\d{2})-(\d{2})-(\d{2})(?:[^0-9]|$)/);
+  if(!m)return '';
+  let year=m[1];
+  if(year.length===2)year=(Number(year)>=50?'19':'20')+year;
+  return year+'-'+m[2]+'-'+m[3];
+}
+function archiveSourceMatchesShowDate(show,archiveId){
+  const id=normalizeArchiveId(archiveId||'');
+  const assigned=normalizeArchiveId(show&&show.archiveIdHint||'');
+  // A source explicitly assigned by the current catalog is authoritative.
+  // This preserves a few historical entries whose catalog date is intentionally
+  // approximate while still blocking stale/restored sources from another date.
+  if(id&&assigned&&id===assigned)return true;
+  const sourceDate=archiveIdDate(id);
+  const showDate=displayDate(show&&show.date||'').substring(0,10);
+  // IDs without a recognizable date are allowed; a recognizable conflicting
+  // date is never allowed to attach to or play for this show.
+  return !sourceDate||!showDate||sourceDate===showDate;
+}
+function repairWrongDateSource(show,reason){
+  if(!show)return false;
+  const wrong=[];
+  const remember=function(id){
+    id=normalizeArchiveId(id||'');
+    if(id&&!archiveSourceMatchesShowDate(show,id)&&wrong.indexOf(id)<0)wrong.push(id);
+  };
+  remember(show.archiveIdHint);
+  remember(show.archiveId);
+  (show.recordings||[]).forEach(function(r){remember(r&&r.id);});
+  if(!wrong.length)return false;
+  if(wrong.indexOf(normalizeArchiveId(show.archiveIdHint||''))>=0)show.archiveIdHint='';
+  if(wrong.indexOf(normalizeArchiveId(show.archiveId||''))>=0)show.archiveId=null;
+  show.recordings=(show.recordings||[]).filter(function(r){return archiveSourceMatchesShowDate(show,r&&r.id);});
+  show.tracks=null;show.totalDur=0;show.songs=null;show.setBreaks=[];
+  show.metaLoaded=false;show.notAvail=false;show.cachePlayable=false;show.setlistCached=false;show.setlistTrusted=false;
+  show.archiveIdHintLoaded='';show._archiveHintRefreshNeeded=true;show._archiveHintChanged=true;
+  show._needsArchive=true;show._archiveTempFail=false;show._archiveDeferred=false;
+  show._displayNameMap=null;show._visibleTrackMap=null;show._visibleTrackLabels=null;show._tapeHeavyDisplay=false;
+  removeShowFromSongIndex(show);
+  try{
+    show._allowSetlistCacheClear=true;
+    clearCachedSetlistForShow(show);
+    show._allowSetlistCacheClear=false;
+    clearShowFlagsForShow(show);
+    clearMetaLoaded(show);
+  }catch(e){show._allowSetlistCacheClear=false;}
+  window._gdWrongDateSourceRepair={at:Date.now(),reason:reason||'guard',showId:show.id,date:show.date,venue:show.venue,removed:wrong.slice()};
+  console.warn('[GD] Removed wrong-date source for '+show.date+': '+wrong.join(', '));
+  return true;
+}
+function recoverWrongDateSource(show,reason){
+  if(!repairWrongDateSource(show,reason))return Promise.resolve(false);
+  setHdrSt('Correcting mismatched recording…','warn');
+  return prepareShowSetlistFromDataset(show).then(function(){return loadShowMeta(show,true);}).then(function(){
+    if(curShow&&curShow.id===show.id)renderSetlistBody(show);
+    renderList();
+    setHdrSt('✓ Correct recording restored','ok');
+    setTimeout(function(){setHdrSt('','');},3000);
+    return true;
+  }).catch(function(){
+    setHdrSt('Recording mismatch removed — tap show to retry','warn');
+    return false;
+  });
 }
 function setHeaderGuestMode(on){
   const hdr=document.getElementById('hdrUser');
@@ -4206,9 +4276,11 @@ function onLoaded(list,opts){
         if(showFlags[s.id].archiveId) s.archiveId=showFlags[s.id].archiveId;
         if(showFlags[s.id].archiveIdHintLoaded) s.archiveIdHintLoaded=showFlags[s.id].archiveIdHintLoaded;
       }
+      const wrongDateRepaired=repairWrongDateSource(s,'startup-cache');
+      if(wrongDateRepaired)delete showFlags[s.id];
       // Restore the best cached setlist for this date into the search index.
       // Some dates exist under multiple show IDs; prefer the longest cached setlist.
-      const bestCachedSongs = bestCachedSetlistForShow(cached, s);
+      const bestCachedSongs = wrongDateRepaired?datasetSetlistForShow(s):bestCachedSetlistForShow(cached, s);
       if(bestCachedSongs.length && !s.songs && !s.archiveNoAudioHint){
         s.songs = bestCachedSongs;
         s.setlistCached = true;
@@ -4237,7 +4309,7 @@ function onLoaded(list,opts){
         if(s.relistenAvail&&!s.metaLoaded)s.notAvail=false;
       }
       if(s.songs&&s.songs.length) s.cachePlayable=true;
-      applyArchiveHintInvalidation(s,showFlags[s.id],archiveHintFp);
+      applyArchiveHintInvalidation(s,wrongDateRepaired?null:showFlags[s.id],archiveHintFp);
       if(showAssumedNoAudioNoSource(s)&&!showLooksIndexed(s)){
         s._needsArchive=false;
         s._archiveTempFail=false;
@@ -6572,6 +6644,11 @@ function archiveDescriptionSongsTrusted(show,songs,rawDesc,tracks){
 }
 
 function applyArchiveMetaToShow(show,meta,archiveId,rating){
+  if(archiveId&&!archiveSourceMatchesShowDate(show,archiveId)){
+    show.archiveId=archiveId;
+    repairWrongDateSource(show,'archive-metadata-blocked');
+    return false;
+  }
   if(archiveId)show.archiveId=archiveId;
   if(rating)show.rating=rating||0;
   const rawDesc=(meta.metadata&&meta.metadata.description)||'';
@@ -6611,9 +6688,16 @@ function applyArchiveMetaToShow(show,meta,archiveId,rating){
   if(!show.notAvail) clearMetaLoaded(show);
   saveMetaLoaded(show);
   cacheArchiveSourceForShow(show,'archive.org');
+  return true;
 }
 
 function applyRelistenSourceToShow(show,src,archiveId){
+  const sourceId=normalizeArchiveId((src&&src.upstream_identifier)||archiveId||'');
+  if(sourceId&&!archiveSourceMatchesShowDate(show,sourceId)){
+    show.archiveId=sourceId;
+    repairWrongDateSource(show,'relisten-source-blocked');
+    return false;
+  }
   removeShowFromSongIndex(show);
   show.recordings=mergeSourceRecords(show.recordings,[{
     id:src.upstream_identifier||archiveId,
@@ -6667,6 +6751,7 @@ function applyRelistenSourceToShow(show,src,archiveId){
   if(!show.notAvail) clearMetaLoaded(show);
   saveMetaLoaded(show);
   cacheArchiveSourceForShow(show,'relisten');
+  return true;
 }
 
 function sortedRelistenSources(d){
@@ -6683,7 +6768,7 @@ function sortedRelistenSources(d){
 
 function applyRelistenShowDataToShow(show,d,preferredArchiveId){
   const preferred=normalizeArchiveId(preferredArchiveId||'');
-  const srcs=sortedRelistenSources(d);
+  const srcs=sortedRelistenSources(d).filter(function(s){return archiveSourceMatchesShowDate(show,s&&s.upstream_identifier);});
   if(!srcs.length)return false;
   const recs=srcs.map(function(s){return {
     id:s.upstream_identifier,
@@ -6696,7 +6781,7 @@ function applyRelistenShowDataToShow(show,d,preferredArchiveId){
   };});
   const exact=preferred?srcs.find(function(s){return normalizeArchiveId(s.upstream_identifier||'')===preferred;}):null;
   const chosen=exact||srcs[0];
-  applyRelistenSourceToShow(show,chosen,exact?preferred:(chosen&&chosen.upstream_identifier));
+  if(!applyRelistenSourceToShow(show,chosen,exact?preferred:(chosen&&chosen.upstream_identifier)))return false;
   show.recordings=recs;
   return true;
 }
@@ -6874,6 +6959,7 @@ async function getArchiveHintMetadata(archiveHint,tOut){
 }
 
 async function loadShowMeta(show,priority,forceArchiveBg){
+  repairWrongDateSource(show,'metadata-load');
   if(!priority && (show.songs&&show.songs.length)){
     show.setlistCached=true;
     show.cachePlayable=true;
@@ -7689,6 +7775,11 @@ function cancelPlayback(){
 function startPlayback(show,idx,resumeAt){
   blurActiveInput();
   window._gdStartPlaybackLast={showId:show&&show.id,rawId:show&&showStorageId(show),mode:show&&showModeLabel(show),trackIdx:idx,resumeAt:resumeAt||0,at:Date.now()};
+  const guardedTrack=show&&show.tracks&&show.tracks[idx];
+  if(!archiveSourceMatchesShowDate(show,show&&show.archiveId||'')||!archiveSourceMatchesShowDate(show,guardedTrack&&guardedTrack.mp3||'')){
+    recoverWrongDateSource(show,'playback-blocked');
+    return;
+  }
   // Use preloaded audio if available for this exact track (seamless transition)
   // Relisten tracks have direct mp3 URL; archive tracks need base URL + filename
   const track=show.tracks[idx];
@@ -7836,9 +7927,13 @@ function startPlayback(show,idx,resumeAt){
 
 function preloadNextTrack(show,nextIdx){
   if(!show.tracks||nextIdx>=show.tracks.length)return;
+  const nextTrack=show.tracks[nextIdx];
+  if(!archiveSourceMatchesShowDate(show,show.archiveId||'')||!archiveSourceMatchesShowDate(show,nextTrack&&nextTrack.mp3||'')){
+    recoverWrongDateSource(show,'preload-blocked');
+    return;
+  }
   // Cancel any existing preload
   if(preloadAudio){preloadAudio.src='';preloadAudio=null;}
-  const nextTrack=show.tracks[nextIdx];
   const url=nextTrack.mp3||('https://archive.org/download/'+show.archiveId+'/'+nextTrack.name);
   const a=new Audio();
   a.preload='auto';
@@ -10138,6 +10233,10 @@ async function switchRecording(showId,newId,opts){
   opts=opts||{};
   const show=shows.find(function(s){return s.id===showId;});
   newId=normalizeArchiveId(newId||'');
+  if(show&&!archiveSourceMatchesShowDate(show,newId)){
+    recoverWrongDateSource(show,'source-switch-blocked');
+    return;
+  }
   if(!show||normalizeArchiveId(show.archiveId||'')===newId)return;
   const prevId=normalizeArchiveId(show.archiveId||show.archiveIdHint||'');
   if(prevId)show.recordings=mergeSourceRecords(show.recordings,[{id:prevId,rating:show.rating||0,reviews:show.numReviews||0,sbd:!!show.isSoundboard,restricted:false,manual:true,sheetDefault:prevId===normalizeArchiveId(show.archiveIdHint||'')}]);
@@ -10488,6 +10587,10 @@ function restoreLastPosition(){
 function pauseAtPosition(show,trackIdx,pos){
   const track=show.tracks[trackIdx];
   if(!track)return;
+  if(!archiveSourceMatchesShowDate(show,show.archiveId||'')||!archiveSourceMatchesShowDate(show,track.mp3||'')){
+    recoverWrongDateSource(show,'restore-playback-blocked');
+    return;
+  }
   const url=track.mp3||('https://archive.org/download/'+show.archiveId+'/'+track.name);
   // Create audio element paused at position
   if(audio){playIntent=false;_interruptionResumeWanted=false;audio.pause();audio=null;}
@@ -10740,11 +10843,11 @@ function sourceRecordsForShow(show){
   const recs=[];
   (show&&show.recordings||[]).forEach(function(r){
     const id=normalizeArchiveId((r&&r.id)||'');
-    if(!id||seen.has(id))return;
+    if(!id||seen.has(id)||!archiveSourceMatchesShowDate(show,id))return;
     seen.add(id);
     recs.push(Object.assign({},r,{id:id}));
   });
-  if(selected&&!seen.has(selected)){
+  if(selected&&!seen.has(selected)&&archiveSourceMatchesShowDate(show,selected)){
     recs.unshift({
       id:selected,
       rating:show.rating||0,
@@ -11129,14 +11232,15 @@ function refreshInstallButton(){
   if(!btn)return;
   const mobile=installDevice().mobile;
   const installed=isHomeScreenApp();
-  btn.style.display=mobile?'flex':'none';
-  btn.textContent=installed?'SHARE':'INSTALL';
-  btn.title=installed?'Share Ron\'s Deadhead Listener':'Add this app to your Home Screen';
+  const shareMode=installed||!mobile;
+  btn.style.display='flex';
+  btn.textContent=shareMode?'SHARE':'INSTALL';
+  btn.title=shareMode?'Share Ron\'s Deadhead Listener':'Add this app to your Home Screen';
   btn.setAttribute('aria-label',btn.title);
 }
 
 function handleInstallShare(){
-  if(isHomeScreenApp())openShareHelp();
+  if(isHomeScreenApp()||!installDevice().mobile)openShareHelp();
   else openInstallHelp();
 }
 

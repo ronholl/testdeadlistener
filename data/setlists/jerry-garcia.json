@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "mode": "Jerry Garcia",
   "modeKey": "jerry-garcia",
-  "updated": "2026-08-12T16:58:30.402Z",
+  "updated": "2026-08-21T22:46:08.790Z",
   "setlists": {
     "JerryGarcia1963-05-04.JerryandSaraGarciaTopoftheTangent": [
       "Deep Elem Blues",
@@ -21690,47 +21690,6 @@
         "best": true
       }
     ],
-    "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16": [
-      {
-        "id": "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16",
-        "title": "Jerry Garcia live at Keystone, Berkeley, CA on 1981-08-21",
-        "trackCount": 22,
-        "setlistCount": 11,
-        "namedCount": 11,
-        "genericCount": 0,
-        "durationSeconds": 14040.82,
-        "score": 13725.14,
-        "manual": true,
-        "sheetAlt": true,
-        "best": false
-      },
-      {
-        "id": "jg81-08-21.076344.jgb.nak300.vita.minches.t-flac16",
-        "title": "Jerry Garcia live at Keystone, Berkeley, CA on 1981-08-21",
-        "trackCount": 18,
-        "setlistCount": 8,
-        "namedCount": 8,
-        "genericCount": 0,
-        "durationSeconds": 10202.52,
-        "score": 9980.42,
-        "manual": true,
-        "sheetAlt": true,
-        "best": false
-      },
-      {
-        "id": "jg81-08-21.110342.jgb.psbd.pasternak.flac16",
-        "title": "Jerry Garcia live at Keystone, Berkeley, CA on 1981-08-21",
-        "trackCount": 12,
-        "setlistCount": 13,
-        "namedCount": 13,
-        "genericCount": 0,
-        "durationSeconds": 9138.84,
-        "score": 14978.14,
-        "manual": true,
-        "sheetAlt": true,
-        "best": true
-      }
-    ],
     "jg81-09-18.013881.jgb.sbd.rehearsals.unknown.t-flac16": [
       {
         "id": "jg81-09-18.013881.jgb.sbd.rehearsals.unknown.t-flac16",
@@ -22281,19 +22240,6 @@
         "best": false
       },
       {
-        "id": "jg82-04-10.015847.solo.sbd.early.sbeok.t-flac16",
-        "title": "Jerry Garcia live at Capitol Theatre, Passaic, NJ on 1982-04-10",
-        "trackCount": 26,
-        "setlistCount": 13,
-        "namedCount": 13,
-        "genericCount": 0,
-        "durationSeconds": 7938.980000000001,
-        "score": 14778.16,
-        "manual": true,
-        "sheetAlt": true,
-        "best": false
-      },
-      {
         "id": "jg82-04-10.015848.solo.sbd.late.sbeok.t-flac16",
         "title": "Jerry Garcia live at Capitol Theatre, Passaic, NJ on 1982-04-10",
         "trackCount": 30,
@@ -22318,32 +22264,6 @@
         "manual": true,
         "sheetAlt": true,
         "best": true
-      },
-      {
-        "id": "jg82-04-10.109415.solo.nak700.early.cousinit.sbeok.t-flac16",
-        "title": "Jerry Garcia live at Capitol Theatre, Passaic, NJ on 1982-04-10",
-        "trackCount": 24,
-        "setlistCount": 12,
-        "namedCount": 12,
-        "genericCount": 0,
-        "durationSeconds": 7636.969999999999,
-        "score": 13692.83,
-        "manual": true,
-        "sheetAlt": true,
-        "best": false
-      },
-      {
-        "id": "jg82-04-10.127046.beyerM88.stankiewicz.2496",
-        "title": "Jerry Garcia live at Capitol Theatre, Passaic, NJ on 1982-04-10",
-        "trackCount": 24,
-        "setlistCount": 25,
-        "namedCount": 25,
-        "genericCount": 0,
-        "durationSeconds": 7760.239999999999,
-        "score": 27168.37,
-        "manual": true,
-        "sheetAlt": true,
-        "best": false
       },
       {
         "id": "jg82-04-10.132111.mtx.seamons.ht105.flac16",
@@ -30980,7 +30900,6 @@
     "jg81-05-30.030792.jgb.pset2-sbd.unknown.t-flac16": "jg81-05-30.xxxxxx.jgb.aud.motb0169.flac16",
     "jg81-06-26.014482.jgb.psbd.vernon.t-flac16": "jg81-06-26.089566.jgb.naks.senicola-poris.minches.t-flac16",
     "jg81-07-26.089202.jgb.sbd.GEMS.sbeok.t-flac16": "jg81-07-26.xxxxxx.jgb.sbd.GEMS.patched.remastered.flac1644",
-    "jg81-08-21.016694.jgb.sbd.ladner.sbeok.t-flac16": "jg81-08-21.110342.jgb.psbd.pasternak.flac16",
     "jg81-09-18.013881.jgb.sbd.rehearsals.unknown.t-flac16": "jg81-09-18.033742.jgb.aud.wise.minches.sbeok.t-flac16",
     "jg81-11-06.024865.jgb.early.sonyECM23f.weinberg.t-flac16": "jg81-11-06.111581.jgb.aud.sharpless.flac16",
     "jg81-11-07.024991.jgb.sbd.partial.unknown.t-flac16": "jg81-11-07.089466.jgb.nak300.biodtl-sirmick.sbeok.t-flac16",
