@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.23">
+  <link rel="manifest" href="manifest.json?v=1.7.24">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.22</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.23</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.22</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.23</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.22';
+const APP_BUILD = '2.1.23';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -11267,7 +11267,8 @@ function installDevice(){
   const chrome=/CriOS/i.test(ua);
   const firefox=/FxiOS/i.test(ua);
   const safari=ios&&!chrome&&!firefox;
-  return {ios:ios,android:android,samsung:samsung,chrome:chrome,firefox:firefox,safari:safari,mobile:ios||android};
+  const inApp=/FBAN|FBAV|Instagram|GSA\/|Line\/|Twitter|LinkedInApp|wv\)/i.test(ua);
+  return {ios:ios,android:android,samsung:samsung,chrome:chrome,firefox:firefox,safari:safari,inApp:inApp,mobile:ios||android};
 }
 
 function refreshInstallButton(){
@@ -11295,14 +11296,20 @@ function installDirectionsHtml(){
   if(d.ios&&d.safari){
     return '<b>1.</b> Tap the <b>•••</b> button at the bottom-right of Safari, then tap <b>Share</b> <span aria-label="share icon">□↑</span>.<br><span style="color:var(--muted)">If Share is already visible on your toolbar, tap it directly.</span><br><b>2.</b> Scroll down and tap <b>Add to Home Screen</b>.<br><b>3.</b> Make sure <b>Open as Web App</b> is on, then tap <b>Add</b>.';
   }
+  if(d.ios&&d.inApp){
+    return '<b>This browser cannot install apps.</b><br><b>1.</b> Open its menu and choose <b>Open in Safari</b>.<br><b>2.</b> In Safari, tap <b>•••</b>, then <b>Share</b> <span aria-label="share icon">□↑</span>.<br><b>3.</b> Tap <b>Add to Home Screen</b>, then <b>Add</b>.';
+  }
   if(d.ios){
     return '<b>1.</b> Tap this browser’s <b>Share</b> button <span aria-label="share icon">□↑</span>.<br><b>2.</b> Tap <b>Add to Home Screen</b>.<br><b>3.</b> Tap <b>Add</b> to finish.<br><span style="color:var(--muted)">If you do not see that choice, open this page in Safari and use its Share button.</span>';
   }
   if(d.android&&d.samsung){
     return '<b>1.</b> Tap the <b>≡ menu</b> at the bottom of Samsung Internet.<br><b>2.</b> Tap <b>Add page to</b>.<br><b>3.</b> Choose <b>Home screen</b>.';
   }
+  if(d.android&&d.inApp){
+    return '<b>This browser cannot install apps.</b><br><b>1.</b> Open its menu and choose <b>Open in Chrome</b>.<br><b>2.</b> In Chrome, tap the <b>⋮ menu</b>.<br><b>3.</b> Tap <b>Install app</b> or <b>Add to Home screen</b>.';
+  }
   if(d.android){
-    return '<b>1.</b> Tap the <b>⋮ menu</b> in the top-right corner.<br><b>2.</b> Tap <b>Install app</b> or <b>Add to Home screen</b>.<br><b>3.</b> Tap <b>Install</b> to confirm.';
+    return '<b>1.</b> Tap the <b>⋮ menu</b> in the top-right corner.<br><b>2.</b> Tap <b>Install app</b> or <b>Add to Home screen</b>.<br><span style="color:var(--muted)">Menu names vary. If needed, swipe upward inside the menu to see more choices.</span><br><b>3.</b> Tap <b>Install</b> to confirm.<br><span style="color:var(--muted)">If neither choice appears, reopen this page in regular Chrome—not an in-app or Incognito browser.</span>';
   }
   return 'Open this page on your iPhone or Android phone, then use its browser menu to choose <b>Add to Home Screen</b> or <b>Install app</b>.';
 }
@@ -11409,6 +11416,13 @@ window.addEventListener('appinstalled',function(){
 });
 window.addEventListener('DOMContentLoaded',refreshInstallButton);
 window.matchMedia('(display-mode: standalone)').addEventListener?.('change',refreshInstallButton);
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').catch(function(error){
+      console.warn('[GD] Install helper could not start:',error);
+    });
+  });
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Capacitor Native Bridge

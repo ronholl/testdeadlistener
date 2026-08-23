@@ -1,6 +1,7 @@
 {
   "name": "RonsDeadListener",
   "short_name": "RonsDeadListener",
+  "id": "./",
   "description": "Grateful Dead live shows 1965–1995",
   "start_url": "./",
   "scope": "./",
@@ -8,6 +9,7 @@
   "background_color": "#1a1a1a",
   "theme_color": "#1a1a1a",
   "orientation": "portrait",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "favicon_tight_32.png",
