@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.23</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.24</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.23</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.24</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.23';
+const APP_BUILD = '2.1.24';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -698,13 +698,14 @@ const SOURCE_LOCK_HEADERS=['source lock','sourcelock'];
 const MODE_NON_USER_HEADERS=['notes','note'];
 const SHEET_CACHE_SCHEMA_VERSION=4;
 const DEFAULT_MODE={key:'gd',label:'Grateful Dead',sheetName:'Sheet1',isDefault:true};
-const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Phil Lesh','MODE Bob Weir'];
+const FALLBACK_MODE_SHEETS=['MODE Jerry Garcia','MODE Robert Hunter','MODE Phil Lesh','MODE Bob Weir'];
 const ACTIVE_MODE_KEY='gd_active_mode';
 const LAST_VIEW_STATE_KEY='gd_last_view_state';
 let modes=[DEFAULT_MODE],activeMode=DEFAULT_MODE,loadedCatalogModeKey='',modeCatalogCache={},modeLiveCatalogs={},modeJsonCounts={},allModeShowTotal=0,_inactiveModePreloadStarted=false,_modeSwitchToken=0,_sheetRefreshToken=0,_modeSelectWatchStarted=false,_modeSwitchBusy=false,_modeSwitchStartedAt=0,_modeSwitchTargetKey='',_modeLoadFailures={},_startupCatalogMissing=false,_setlistHydrateToken=0,_setlistHydrateRunning=false;
 const SETLIST_DATASET_PATHS={
   gd:'grateful-dead',
   'jerry-garcia':'jerry-garcia',
+  'robert-hunter':'robert-hunter',
   'phil-lesh':'phil-lesh',
   'bob-weir':'bob-weir'
 };
@@ -8309,6 +8310,7 @@ function isSongSuggestionCandidate(song){
 const FEATURED_SONGS=['Dark Star','Scarlet Begonias','Fire on the Mountain','Terrapin Station','Eyes of the World','Franklin\'s Tower','Sugar Magnolia','Friend of the Devil','Estimated Prophet','Cassidy','Cumberland Blues','Wharf Rat','St. Stephen','The Other One','Truckin\'','Casey Jones','Jack Straw','Ramble On Rose','Brokedown Palace','Ripple','China Cat Sunflower','I Know You Rider','Playing in the Band','Ship of Fools','Loser','Row Jimmy','Brown Eyed Women','Weather Report Suite','Stella Blue','High Time'];
 const MODE_FEATURED_SONGS={
   'jerry-garcia':['How Sweet It Is','Sugaree','Mission in the Rain','Cats Under the Stars','The Harder They Come','After Midnight','Tore Up Over You','Run for the Roses','Deal','Midnight Moonlight','I Shall Be Released','Dear Prudence','That Lucky Old Sun','Tangled Up in Blue','Simple Twist of Fate','Sisters and Brothers','They Love Each Other','Don\'t Let Go','The Way You Do the Things You Do','Waiting for a Miracle'],
+  'robert-hunter':['Ripple','Boys In The Barroom','Box Of Rain','Tiger Rose','Easy Wind','Cruel White Water','Brown Eyed Women','Promontory Rider','Wharf Rat','Deal','Jack Straw','Scarlet Begonias','Dire Wolf','Friend Of The Devil','New Speedway Boogie','Rum Runners','It Must Have Been The Roses','Keys To The Rain','Yellow Moon','Stagger Lee'],
   'bob-weir':['Playing in the Band','Cassidy','Looks Like Rain','One More Saturday Night','Sugar Magnolia','Estimated Prophet','The Music Never Stopped','Black-Throated Wind','Mexicali Blues','Me and My Uncle','Victim or the Crime','Throwing Stones','Lost Sailor','Saint of Circumstance','Easy to Slip','Ashes and Glass','Two Djinn','October Queen'],
   'phil-lesh':['Box of Rain','Unbroken Chain','Pride of Cucamonga','New Potato Caboose','Passenger','Just a Little Light','Broken Arrow','Mason\'s Children','Celebration','Patchwork Quilt','Night of a Thousand Stars','Low Spark of High-Heeled Boys','Again and Again','No More Do I','Into the Mystic','Midnight Train']
 };
