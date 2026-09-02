@@ -239,8 +239,7 @@ body{display:flex;justify-content:center}
 .source-row select{flex:1;min-width:0;margin-top:0!important}
 .alt-source-btn{min-width:108px;min-height:44px;border-radius:10px;border:1.5px solid rgba(200,168,75,.58);background:rgba(200,168,75,.12);color:var(--gold);font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
 .alt-source-btn:active{background:var(--gold);color:#000;transform:scale(.98)}
-.sp-actions{display:flex;align-items:stretch;justify-content:flex-end;flex-shrink:0;min-width:86px}
-.source-archive-row{display:flex;justify-content:flex-end;margin-top:3px;margin-bottom:3px}
+.sp-actions{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;flex-shrink:0;min-width:86px}
 .sp-arc{font-size:10px;color:var(--gold);background:transparent;border:1px solid rgba(200,168,75,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center}
 .sp-arc:active{background:rgba(200,168,75,.1)}
 .sp-wake{min-width:86px;min-height:58px;font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--text);background:rgba(82,183,136,.07);border:1.5px solid rgba(82,183,136,.38);border-radius:10px;padding:8px 10px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center}
@@ -487,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.27</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.28</span></div>
     </div>
     
 
@@ -604,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.27</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.28</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -685,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.27';
+const APP_BUILD = '2.1.28';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -10921,17 +10920,16 @@ function sourcePickerHtml(show,recs,selected){
   const sourceBtn=showSourceBtn
     ? '<button data-source-retry="'+show.id+'" onclick="retryArchiveSources(this.dataset.sourceRetry)" title="Find alternate sources" style="background:transparent;border:1px solid rgba(200,168,75,.35);border-radius:4px;color:var(--gold);font-family:var(--mono);font-size:9px;padding:2px 6px;margin-left:6px;cursor:pointer;vertical-align:1px">'+(looking?'<span class="spinner" style="width:9px;height:9px;margin-right:4px;vertical-align:-1px"></span>':'')+(show._sourceListRefreshFailed?'try sources':'sources')+'</button>'
     : '';
-  const archiveBtn='<div class="source-archive-row"><button class="sp-arc" onclick="event.stopPropagation();openArchive()">archive ↗</button></div>';
   if(recs.length>1){
     const opts=recs.map(function(r){
       const id=normalizeArchiveId(r.id||'');
       const label=sourceOptionLabel(r,selected);
       return '<option value='+JSON.stringify(id)+(id===selected?' selected':'')+'>'+esc(label)+'</option>';
     }).join('');
-    return archiveBtn+'<div class="source-row"><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;width:100%">'+opts+'</select>'+altBtn+sourceBtn+'</div>';
+    return '<div class="source-row"><select data-sid="'+show.id+'" onchange="switchRecording(this.dataset.sid,this.value)" style="background:var(--surf);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:3px 6px;width:100%">'+opts+'</select>'+altBtn+sourceBtn+'</div>';
   }
-  if(!selected)return archiveBtn;
-  return archiveBtn+'<div style="background:var(--surf);color:var(--muted);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:4px 6px;margin-top:4px;width:100%;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
+  if(!selected)return '';
+  return '<div style="background:var(--surf);color:var(--muted);border:1px solid var(--border);border-radius:4px;font-family:var(--mono);font-size:10px;padding:4px 6px;margin-top:4px;width:100%;box-sizing:border-box;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+
     esc(selected)+sourceBtn+
     '</div>';
 }
@@ -11263,6 +11261,7 @@ function stopArchiveAutoRetry(){
     <div class="sp-meta" id="sp-meta">
       <div class="sp-meta-txt" id="sp-meta-txt"><span class="spinner"></span></div>
       <div class="sp-actions">
+        <button class="sp-arc" onclick="openArchive()">archive ↗</button>
         <button class="sp-wake" id="sp-wake" onclick="toggleScreenWakeLock()" title="Keep screen awake while this app stays open">AWAKE</button>
       </div>
     </div>
