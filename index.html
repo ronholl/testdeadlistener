@@ -239,10 +239,10 @@ body{display:flex;justify-content:center}
 .source-row select{flex:1;min-width:0;margin-top:0!important}
 .alt-source-btn{min-width:108px;min-height:44px;border-radius:10px;border:1.5px solid rgba(200,168,75,.58);background:rgba(200,168,75,.12);color:var(--gold);font-family:var(--mono);font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
 .alt-source-btn:active{background:var(--gold);color:#000;transform:scale(.98)}
-.sp-actions{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;flex-shrink:0;min-width:86px}
+.sp-actions{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:4px;flex-shrink:0;min-width:96px}
 .sp-arc{font-size:10px;color:var(--gold);background:transparent;border:1px solid rgba(200,168,75,.3);border-radius:6px;padding:3px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center}
 .sp-arc:active{background:rgba(200,168,75,.1)}
-.sp-wake{min-width:86px;min-height:58px;font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--text);background:rgba(82,183,136,.07);border:1.5px solid rgba(82,183,136,.38);border-radius:10px;padding:8px 10px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center}
+.sp-wake{min-width:96px;min-height:58px;font-size:11px;font-weight:800;letter-spacing:.35px;color:var(--text);background:rgba(82,183,136,.07);border:1.5px solid rgba(82,183,136,.38);border-radius:10px;padding:8px 8px;cursor:pointer;font-family:var(--mono);flex-shrink:0;text-align:center;white-space:nowrap}
 .sp-wake.on{color:var(--green);border-color:rgba(82,183,136,.6);background:rgba(82,183,136,.12)}
 .sp-wake.pending{color:var(--gold);border-color:rgba(200,168,75,.45);background:rgba(200,168,75,.08)}
 .sp-wake.unsupported{opacity:.55}
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.28</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.29</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.28</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.29</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.28';
+const APP_BUILD = '2.1.29';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -7538,7 +7538,7 @@ function updateScreenWakeLockUI(){
   btn.classList.toggle('pending',screenWakeLockPending);
   btn.classList.toggle('unsupported',!supported);
   btn.setAttribute('aria-pressed',screenWakeLockWanted?'true':'false');
-  btn.textContent=screenWakeLockPending?'…':(active?'✓ AWAKE':'AWAKE');
+  btn.textContent=screenWakeLockPending?'AWAKE…':(active?'✓ AWAKE ON':'AWAKE OFF');
   btn.title=!supported
     ? 'Keep awake is not supported here'
     : (active?'Screen will stay awake while the app is visible':'Keep screen awake while this app stays open');
@@ -11262,7 +11262,7 @@ function stopArchiveAutoRetry(){
       <div class="sp-meta-txt" id="sp-meta-txt"><span class="spinner"></span></div>
       <div class="sp-actions">
         <button class="sp-arc" onclick="openArchive()">archive ↗</button>
-        <button class="sp-wake" id="sp-wake" onclick="toggleScreenWakeLock()" title="Keep screen awake while this app stays open">AWAKE</button>
+        <button class="sp-wake" id="sp-wake" onclick="toggleScreenWakeLock()" title="Keep screen awake while this app stays open">AWAKE OFF</button>
       </div>
     </div>
     <div id="sp-audio-err" style="display:none;padding:10px 16px;background:rgba(180,140,40,.1);border-bottom:1px solid rgba(180,140,40,.25);font-size:12px;color:var(--text);font-family:var(--mono);line-height:1.6"></div>
