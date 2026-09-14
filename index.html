@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.25">
+  <link rel="manifest" href="manifest.json?v=1.7.26">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.30</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.31</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.30</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.31</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.29';
+const APP_BUILD = '2.1.31';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1836,6 +1836,7 @@ try{const p=localStorage.getItem('gd_pos');if(p)positions=JSON.parse(p);}catch(e
 const PLAYBACK_POS_WRITE_MS=5000;
 const PLAYBACK_HISTORY_WRITE_MS=15000;
 let _lastPlaybackPosWriteAt=0,_lastPlaybackHistoryWriteAt=0,_pendingPlaybackPosTimer=0,_pendingPlaybackPos=null;
+let _restoreLastPositionStarted=false;
 // Update the Recently Played history entry for a show with its current playback position.
 // Defined here (near savePos) so it's available from both savePos and pauseAudio.
 function saveHistoryPosition(show, trackIdx, pos){
@@ -4473,8 +4474,9 @@ function onLoaded(list,opts){
   }else{
     updateSongCntProgress();
   }
-  // Restore last playback position after a short delay
-  if(!opts.fromCache)setTimeout(restoreLastPosition, 3000);
+  // Restore from whichever catalog rendered first, including fast cached startup.
+  // The one-shot guard prevents later refreshes from replacing the restored player.
+  setTimeout(restoreLastPosition,opts.fromCache?500:800);
   loadFavorites(); // Load immediately - uses cache for instant display
   if(curUser){updateViewStats();scheduleAdminMsgCheck(opts.fromCache?4500:3500);trackVisit(curUser);}
   else if(guestMode){trackVisit('guest');}
@@ -7664,16 +7666,9 @@ function _rememberPlaybackIntent(reason){
   _interruptionResumeWanted=true;
   try{
     if(playingShow&&audio&&isFinite(audio.currentTime)){
-      saveHistoryPosition(playingShow, playingTrackIdx, audio.currentTime||0);
-      setLocalStorageJsonSafe('gd_restore',{
-        showId:showStorageId(playingShow),
-        mode:showModeLabel(playingShow),
-        trackIdx:playingTrackIdx,
-        pos:Math.floor(audio.currentTime||0),
-        ts:Date.now(),
-        interrupted:true,
-        reason:reason||''
-      });
+      positions[playingShow.id]=Math.floor(audio.currentTime||0);
+      writePlaybackPositionNow(playingShow.id,audio.currentTime||0,{force:true,forceHistory:true});
+      window._gdPlaybackInterrupted={reason:reason||'',pos:Math.floor(audio.currentTime||0),at:Date.now()};
     }
   }catch(e){}
 }
@@ -8020,6 +8015,20 @@ function resumeAudio(opts){
   if(!audio)return;
   opts=opts||{};
   playIntent=true;
+  // A suspended mobile browser can retain the Audio object while losing its
+  // media position. Put it back at the last saved point before resuming.
+  if((opts.fromInterruption||_interruptionResumeWanted)&&playingShow&&audio){
+    const resumeAt=currentPlaybackResumePosition(playingShow,playingTrackIdx);
+    const current=isFinite(audio.currentTime)?audio.currentTime:0;
+    if(resumeAt>2&&current<Math.max(1,resumeAt-5)){
+      const seekBack=function(){
+        if(!audio)return;
+        try{audio.currentTime=Math.max(0,resumeAt-1);}catch(e){}
+      };
+      seekBack();
+      if(audio.readyState<1)audio.addEventListener('loadedmetadata',seekBack,{once:true});
+    }
+  }
   function doPlay(){
     audio.play().then(function(){
       playing=true;
@@ -10620,13 +10629,19 @@ function stopLoadingDots(elId){
 }
 
 // ── RESTORE LAST POSITION ─────────────────────────────────────────
-function restoreLastPosition(){
+async function restoreLastPosition(){
   try{
+    if(_restoreLastPositionStarted)return;
+    _restoreLastPositionStarted=true;
     const saved=JSON.parse(localStorage.getItem('gd_restore')||'null');
     if(!saved)return;
-    // Only restore if saved within last 24 hours
-    if(Date.now()-saved.ts > 86400000){localStorage.removeItem('gd_restore');return;}
-    if(saved.mode&&!sameModeLabel(saved.mode,activeMode.label))return;
+    // Playback restoration intentionally has no age limit. Load the saved mode
+    // first so a show can be restored even when another mode was viewed last.
+    if(saved.mode&&!sameModeLabel(saved.mode,activeMode.label)){
+      const savedMode=modeForLabel(saved.mode);
+      await changeMode(savedMode.key);
+      if(!activeMode||!sameModeLabel(saved.mode,activeMode.label))return;
+    }
     const show=shows.find(s=>s.id===saved.showId||showStorageId(s)===saved.showId);
     if(!show)return;
     // If the show isn't visible (myOnly filter excludes it), temporarily show all
