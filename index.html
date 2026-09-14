@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.27">
+  <link rel="manifest" href="manifest.json?v=1.7.28">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.32</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.33</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.32</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.33</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.32';
+const APP_BUILD = '2.1.33';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -8133,9 +8133,9 @@ function bindSetlistTransportControls(){
   document.querySelectorAll('[data-sp-transport]').forEach(function(btn){
     if(btn.dataset.transportBound==='1') return;
     btn.dataset.transportBound='1';
-    const action=btn.dataset.spTransport;
-    btn.addEventListener('pointerdown',function(ev){setlistTransportPress(ev,action);},{passive:false});
-    btn.addEventListener('touchstart',function(ev){setlistTransportPress(ev,action);},{passive:false});
+    // Use the button's native click, which fires only after a completed tap.
+    // Running transport actions on touchstart made an iPhone home/app-switcher
+    // swipe trigger Pause or Previous before iOS recognized the swipe gesture.
   });
 }
 
