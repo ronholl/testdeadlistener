@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.30">
+  <link rel="manifest" href="manifest.json?v=1.7.31">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.35</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.36</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.35</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.36</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.35';
+const APP_BUILD = '2.1.36';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -766,7 +766,16 @@ function showModeLabel(show){
   return storageModeLabel(show&&show.modeLabel);
 }
 function favoriteModeLabel(f){
-  return storageModeLabel(f&&f.mode);
+  const explicit=String((f&&f.mode)||'').trim();
+  if(explicit)return normalizeModeLabel(explicit);
+  const id=String((f&&f.showId)||'');
+  const colon=id.indexOf(':');
+  if(colon>0){
+    const key=id.slice(0,colon).toLowerCase();
+    const found=modes.find(function(m){return m.key.toLowerCase()===key;});
+    if(found)return found.label;
+  }
+  return DEFAULT_MODE.label;
 }
 function sameModeLabel(a,b){
   return storageModeLabel(a).toLowerCase()===storageModeLabel(b).toLowerCase();
@@ -8759,6 +8768,53 @@ function favoriteClassForShow(showId,user) {
   return f ? favoriteClass(f) : '';
 }
 
+let _favoriteModeRepairRunning=null;
+function favoriteIdentityMatch(a,b){
+  if(!a||!b)return false;
+  if(a.user!==b.user)return false;
+  if(a.showId&&b.showId&&rawShowId(a.showId)===rawShowId(b.showId))return true;
+  return !!(favoriteDateKey(a.date)&&favoriteDateKey(a.date)===favoriteDateKey(b.date)&&
+    String(a.venue||'').trim().toLowerCase()===String(b.venue||'').trim().toLowerCase());
+}
+
+async function repairMissingFavoriteModes(){
+  if(_favoriteModeRepairRunning)return _favoriteModeRepairRunning;
+  const missing=allFavorites.filter(function(f){return !String(f&&f.mode||'').trim();});
+  if(!missing.length)return false;
+  _favoriteModeRepairRunning=(async function(){
+    const catalogs=[];
+    for(let i=0;i<modes.length;i++){
+      const mode=modes[i];
+      const list=await loadModeCatalogFromJson(mode,{timeout:8000});
+      if(Array.isArray(list)&&list.length)catalogs.push({mode:mode,list:list});
+    }
+    let changed=false;
+    missing.forEach(function(f){
+      const candidates=[];
+      catalogs.forEach(function(entry){
+        const match=findFavoriteMatchInList(entry.list,f);
+        if(match)candidates.push({mode:entry.mode,show:match});
+      });
+      if(candidates.length!==1)return;
+      const repaired=candidates[0];
+      f.mode=repaired.mode.label;
+      changed=true;
+      postScriptAction({
+        action:'updateFavoriteMode',user:f.user,showId:f.showId||'',date:f.date||'',venue:f.venue||'',mode:f.mode
+      },3500);
+    });
+    if(changed){
+      localStorage.setItem('gd_favorites',JSON.stringify(allFavorites));
+      renderList();
+      renderJamFavorites();
+      updateSpFavBtn();
+    }
+    return changed;
+  })();
+  try{return await _favoriteModeRepairRunning;}
+  finally{_favoriteModeRepairRunning=null;}
+}
+
 async function loadFavorites() {
   // Show cached favorites instantly while fetching fresh data
   try {
@@ -8768,6 +8824,7 @@ async function loadFavorites() {
       favoritesLoaded = true;
       renderList();
       renderJamFavorites();
+      repairMissingFavoriteModes();
     }
   } catch(e) {}
 
@@ -8779,6 +8836,12 @@ async function loadFavorites() {
     if (r.ok) {
       const d = await r.json();
       let fresh = pruneExpiredFavorites(d.favorites || []);
+      // Preserve modes already repaired on this device until the sheet update is visible.
+      fresh.forEach(function(f){
+        if(String(f.mode||'').trim())return;
+        const prior=allFavorites.find(function(old){return String(old.mode||'').trim()&&favoriteIdentityMatch(old,f);});
+        if(prior)f.mode=prior.mode;
+      });
       // Don't restore locally-removed favorites - sheet may lag behind
       // Keep local removals authoritative for this session
       const localRemoved = JSON.parse(localStorage.getItem('gd_fav_removed')||'[]');
@@ -8796,6 +8859,7 @@ async function loadFavorites() {
       }
       // Always update cache with fresh data
       localStorage.setItem('gd_favorites', JSON.stringify(fresh));
+      repairMissingFavoriteModes();
     }
   } catch(e) {}
 }
@@ -9431,10 +9495,19 @@ async function addFavoriteRecordFromJam(showId,modeLabel){
 }
 
 async function openFavoriteRecord(showId,modeLabel){
-  const m=modeForLabel(modeLabel);
-  const fav=activeFavorites(allFavorites).find(function(x){
+  let fav=activeFavorites(allFavorites).find(function(x){
     return (x.showId===showId||rawShowId(x.showId)===rawShowId(showId))&&sameModeLabel(favoriteModeLabel(x),modeLabel);
+  })||activeFavorites(allFavorites).find(function(x){
+    return !String(x.mode||'').trim()&&(x.showId===showId||rawShowId(x.showId)===rawShowId(showId));
   });
+  if(fav&&!String(fav.mode||'').trim()){
+    await repairMissingFavoriteModes();
+    fav=activeFavorites(allFavorites).find(function(x){
+      return x===fav||(x.showId===showId||rawShowId(x.showId)===rawShowId(showId));
+    })||fav;
+    modeLabel=favoriteModeLabel(fav);
+  }
+  const m=modeForLabel(modeLabel);
   // Favorites and Box of Tapes span every mode. Activate the favorite's own
   // catalog first so opening and playback resolve against the same show list.
   if(!sameModeLabel(m.label,activeMode.label)||loadedCatalogModeKey!==m.key){
