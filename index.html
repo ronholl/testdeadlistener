@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.29">
+  <link rel="manifest" href="manifest.json?v=1.7.30">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.34</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.35</span></div>
     </div>
     
 
@@ -603,7 +603,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.34</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.35</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +684,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.34';
+const APP_BUILD = '2.1.35';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -3608,12 +3608,6 @@ function mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,mode
   const rawId=`${d}-${r}`;
   return{id:makeModeShowId(mode,rawId),rawId:rawId,modeKey:mode.key,modeLabel:mode.label,sheetName:mode.sheetName,date:d,year:d.substring(0,4),venue:v,city:c,attended:att,
     _sheetRow:r,songs:null,archiveId:null,archiveIdHint:normalizeArchiveId(archiveIdHint||''),archiveNoAudioHint:!!archiveNoAudioHint,sourceLockHint:normalizeSourceLock(sourceLockHint||''),tracks:null,totalDur:0,rating:0,notAvail:false,metaLoaded:false};
-}
-
-function logVisit(){
-  try{
-    fetch(SCRIPT_URL+'?action=logVisit',{signal:AbortSignal.timeout(8000)}).catch(function(){});
-  }catch(e){}
 }
 
 function bestCachedSetlistForShow(cached, show){
@@ -8636,7 +8630,6 @@ function switchTab(name){
 const _gdCachedStartup=shouldUseCachedStartup();
 if(!_gdCachedStartup)restoreSavedUserShell();
 loadData();
-setTimeout(logVisit,0);
 // Set poster button visible once DOM is ready (element is below the script tag)
 document.addEventListener('DOMContentLoaded',function(){
   const pb=document.getElementById('viewPosterBtn');
