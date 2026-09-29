@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.32">
+  <link rel="manifest" href="manifest.json?v=1.7.35">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.37</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.40</span></div>
     </div>
     
 
@@ -525,7 +525,7 @@ body{display:flex;justify-content:center}
           <text x="10" y="27" font-size="5" fill="rgba(255,255,255,0.85)" font-family="serif" font-weight="bold">FURTHER</text>
         </svg>
       </div>
-      <div>
+      <div id="nuNameBlock">
         <div style="font-size:17px;font-weight:600;background:linear-gradient(90deg,#e63946,#f4a261,#2a9d8f,#9b5de5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Get on the Bus</div>
         <div style="font-size:11px;color:var(--muted);margin-top:3px">Take the Trip, Explore the Archive</div>
         <div style="font-size:11px;color:var(--muted);margin-top:1px">Add Shows or Favorites to Join</div>
@@ -579,7 +579,7 @@ body{display:flex;justify-content:center}
       <div style="width:60px"></div>
     </div>
     <div class="nu-body">
-      <div>
+      <div id="nuPinBlock">
         <div class="nu-label">Your name</div>
         <input class="nu-input" id="nuName" type="text" placeholder="First name or nickname" maxlength="20" oninput="nuValidate()"/>
       </div>
@@ -592,9 +592,10 @@ body{display:flex;justify-content:center}
           <input class="nu-pin-digit" id="nup3" type="number" min="0" max="9" maxlength="1" placeholder="·" oninput="nuPinInput(3)" onkeydown="nuPinKey(event,3)">
         </div>
       </div>
-      <div style="font-size:12px;color:var(--gold);text-align:center;line-height:1.6;padding:0 8px">Your name and PIN are saved on this device. You'll be added to the shared list only when you add a show or favorite.</div>
+      <div id="nuInfo" style="font-size:12px;color:var(--gold);text-align:center;line-height:1.6;padding:0 8px">Choose a name and PIN to join.</div>
       <div class="nu-msg" id="nuMsg"></div>
       <button class="nu-submit" id="nuSubmit" onclick="registerNewUser()" disabled>Join the tour</button>
+      <button id="nuExisting" type="button" onclick="showExistingUserLogin()" style="width:100%;background:transparent;border:1px solid rgba(200,168,75,.45);border-radius:10px;padding:12px;color:var(--gold);font-family:var(--mono);font-size:13px;cursor:pointer">Already registered? Sign in</button>
     </div>
   </div>
 
@@ -603,7 +604,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.37</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.40</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -684,7 +685,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.37';
+const APP_BUILD = '2.1.40';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1585,7 +1586,7 @@ function setHeaderGuestMode(on){
 
 // ── STATE ─────────────────────────────────────────────────────────
 let shows=[], filtered=[], users=[], userCols={}, userPins={}, userCountCache={modes:{},totals:{}};
-let userLimit=0; // 0 = no limit; set from B4 in sheet
+let userLimit=0; // Configurable limit from Sheet1 cell B4.
 let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
 let attendanceLoadState={}; // modeKey -> pending | ready | error
 function rebuildAttCache(){
@@ -3321,7 +3322,7 @@ function parseGviz(table,mode){
     if(v)userPins[u]=v;
   });
 
-  // Row 1 = totals (sheet row 3) — read B4 as user limit
+  // Row 1 = totals (sheet row 3) — read the configurable limit from B4.
   const totalsRow=(rows[1]||{}).c||[];
   const limitCell=totalsRow[1];
   userLimit=(limitCell&&limitCell.v!=null&&Number(limitCell.v)>0)?Number(limitCell.v):0;
@@ -3576,7 +3577,7 @@ function parseCSV(csv){
       if(v)userPins[u]=v;
     });
   }
-  // Row 3 = totals — read B4 (col index 1) as user limit
+  // Row 3 = totals — read the configurable limit from B4 (col index 1).
   const totalsCSV=parseRow(lines[3]||'');
   const limitValCSV=parseInt((totalsCSV[1]||'').trim(),10);
   userLimit=(limitValCSV>0)?limitValCSV:0;
@@ -4625,7 +4626,9 @@ function checkPin(){
   if(!pinTarget){showLogin();return;}
   const correct=userPins[pinTarget];
   if(!correct||pinBuffer===String(correct)){
-    loginAs(pinTarget,true);
+    const signedInUser=pinTarget;
+    loginAs(signedInUser,true);
+    completePendingSignupActionForExistingUser(signedInUser);
   }else{
     // Shake and show error
     for(let i=0;i<4;i++)document.getElementById('pd'+i).classList.add('error');
@@ -4709,18 +4712,35 @@ function showNewUser(returnTo){
   _signupReturnTarget=returnTo||null;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('newUserScreen').style.display='flex';
+  // Always restore the normal form first. A prior capacity warning may have
+  // hidden these controls on this device.
+  document.getElementById('nuNameBlock').style.display='';
+  document.getElementById('nuPinBlock').style.display='';
+  document.getElementById('nuInfo').style.display='';
+  document.getElementById('nuSubmit').style.display='';
+  document.getElementById('nuExisting').style.display='';
   document.getElementById('nuName').value='';
   for(let i=0;i<4;i++)document.getElementById('nup'+i).value='';
   document.getElementById('nuMsg').textContent='';
+  document.getElementById('nuMsg').className='nu-msg';
   document.getElementById('nuSubmit').disabled=true;
+  document.getElementById('nuSubmit').textContent='Join the tour';
+  const info=document.getElementById('nuInfo');
+  if(_pendingSignupAction&&_pendingSignupAction.type==='attended'){
+    info.textContent='Joining will add your name and PIN to the shared list and save this show to your personal show list.';
+  }else if(_pendingSignupAction&&_pendingSignupAction.type==='favorite'){
+    info.textContent='Joining will add your name and PIN to the shared list and save this show as a favorite.';
+  }else{
+    info.textContent='Choose a name and PIN to join.';
+  }
   document.getElementById('nuName').focus();
-  // Check if we're at the user limit (read from B4 in sheet)
+  // Check against the configurable registration limit from B4.
   if(userLimit>0 && users.length>=userLimit){
     // Hide the form fields and submit button
-    document.getElementById('nuName').closest('div').style.display='none';
-    document.getElementById('nup0').closest('div').parentElement.style.display='none';
+    document.getElementById('nuNameBlock').style.display='none';
+    document.getElementById('nuPinBlock').style.display='none';
+    document.getElementById('nuInfo').style.display='none';
     document.getElementById('nuSubmit').style.display='none';
-    document.getElementById('nuSubmit').nextElementSibling.style.display='none';
     // Show a prominent limit message
     const msg=document.getElementById('nuMsg');
     msg.className='nu-limit-msg';
@@ -4730,8 +4750,21 @@ function showNewUser(returnTo){
       +' \u2014 browse shows, search songs, and listen to recordings.'
       +'<br><span style="font-size:12px;color:var(--muted)">Note: guests can\'t save a personal show list or suggest favorites.</span>'
       +'<br><br>To request access, email<br><a href="mailto:ronsdeadheadlistener@gmail.com" style="color:var(--gold)">ronsdeadheadlistener@gmail.com</a>'
-      +'<br><span style="font-size:12px;color:var(--muted)">We\'ll let you know when a spot opens up!</span>';
+      +'<br><span style="font-size:12px;color:var(--muted)">We\'ll let you know when a spot opens up!</span>'
+      +'<br><br><b>Already registered?</b><br>Use the Sign in button below and enter your PIN.';
   }
+}
+
+function showExistingUserLogin(){
+  document.getElementById('newUserScreen').style.display='none';
+  renderLoginScreen();
+  document.getElementById('loginScreen').style.display='flex';
+  const close=document.getElementById('loginCloseBtn');
+  if(close)close.style.display='none';
+  setTimeout(function(){
+    const search=document.getElementById('loginSearch');
+    if(search)search.focus();
+  },0);
 }
 
 function cancelSignup(){
@@ -4802,6 +4835,26 @@ function promptSignup(action){
   _pendingSignupAction=action||null;
   _signupUiState=captureSignupUiState();
   showNewUser('app');
+}
+
+async function completePendingSignupActionForExistingUser(user){
+  const action=_pendingSignupAction;
+  const returnState=_signupUiState;
+  if(!action||!user)return;
+  _pendingSignupAction=null;
+  try{
+    if(action.type==='favorite'){
+      await addFavoriteForUser(action.showId,user);
+    }else if(action.type==='attended'){
+      const show=shows.find(function(s){return s.id===action.showId;});
+      if(show)await doMarkAttended(show,user,true);
+    }
+    restoreSignupUiState(returnState);
+  }catch(e){
+    setHdrSt('Signed in — tap again to save','warn');
+  }finally{
+    _signupUiState=null;
+  }
 }
 
 function nuPinInput(idx){
@@ -8259,14 +8312,14 @@ async function markAttended(){
   if(!writeUser){
     const btn=document.getElementById('sp-att');
     if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
-    setTimeout(function(){promptSignup({type:'attended',showId:curShow.id});},800);
+    promptSignup({type:'attended',showId:curShow.id});
     return;
   }
   const user=writeUser;
   if(!user||user==='all'){
     const btn=document.getElementById('sp-att');
     if(btn){btn.textContent='join to mark';setTimeout(function(){updateSpAttBtn();},1500);}
-    setTimeout(function(){promptSignup(curShow?{type:'attended',showId:curShow.id}:null);},800);
+    promptSignup(curShow?{type:'attended',showId:curShow.id}:null);
     return;
   }
   if(curShow.attended[user]){confirmRemove(curShow,user);return;}
@@ -8971,12 +9024,7 @@ async function addFavoriteForUser(id,user){
 async function toggleFavorite(id) {
   const writeUser=activeWriteUser();
   if (!writeUser) {
-    // Find whichever button triggered this - row star or player star
-    const rowBtn = document.querySelector('.fav-btn[data-id="' + id + '"]');
-    const playerBtn = document.getElementById('sp-fav');
-    const btn = rowBtn || playerBtn;
-    if (btn) showMineTooltip(btn, 'Join to save favorites →');
-    setTimeout(function(){promptSignup({type:'favorite',showId:id});}, 800);
+    promptSignup({type:'favorite',showId:id});
     return;
   }
   const alreadyFav = isFavorited(id);
@@ -9475,7 +9523,7 @@ async function addFavoriteRecordFromJam(showId,modeLabel){
   if(!writeUser){
     const btn=document.querySelector('.fav-btn[data-id="'+showId+'"]');
     if(btn)showMineTooltip(btn,'Join to save favorites →');
-    setTimeout(function(){promptSignup({type:'favorite',showId:showId});},800);
+    promptSignup({type:'favorite',showId:showId});
     return;
   }
   const mode=modeForLabel(modeLabel);
@@ -10494,6 +10542,10 @@ function toggleTracksPanel(el){
 
 function enterGuestMode(){
   guestMode=true;curUser=null;
+  // Treat returning to Guest as canceling any signup-triggered save.
+  _signupReturnTarget=null;
+  _pendingSignupAction=null;
+  _signupUiState=null;
   // Save flag so next reload reopens directly as guest (no login screen)
   try{localStorage.setItem('gd_prior_guest','1');}catch(e){}
   // Clear saved login so next reload won't try to re-log in
@@ -10520,17 +10572,12 @@ function enterGuestMode(){
 async function toggleMine(id){
   const writeUser=activeWriteUser();
   if(!writeUser){
-    // Show tooltip right on the button that was tapped
-    const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
-    if(btn) showMineTooltip(btn,'Join to add shows →');
-    setTimeout(function(){promptSignup({type:'attended',showId:id});},800);
+    promptSignup({type:'attended',showId:id});
     return;
   }
   const user=writeUser;
   if(!user||user==='all'){
-    const btn=document.querySelector('.mine-btn[onclick*="'+id+'"]');
-    if(btn) showMineTooltip(btn,'Join to add shows →');
-    setTimeout(function(){promptSignup({type:'attended',showId:id});},800);
+    promptSignup({type:'attended',showId:id});
     return;
   }
   const show=shows.find(function(s){return s.id===id;});
