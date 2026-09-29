@@ -445,7 +445,7 @@ body{display:flex;justify-content:center}
   <link rel="apple-touch-icon" sizes="180x180" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="152x152" href="favicon_tight_180.png">
   <link rel="apple-touch-icon" sizes="120x120" href="favicon_tight_180.png">
-  <link rel="manifest" href="manifest.json?v=1.7.35">
+  <link rel="manifest" href="manifest.json?v=1.7.36">
 </head>
 <body>
 <div id="app">
@@ -486,7 +486,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.40</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.41</span></div>
     </div>
     
 
@@ -604,7 +604,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.40</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.41</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -685,7 +685,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.40';
+const APP_BUILD = '2.1.41';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -4708,7 +4708,19 @@ function switchUser(){
 }
 
 // ── NEW USER REGISTRATION ─────────────────────────────────────────
-function showNewUser(returnTo){
+let _signupLimitCheckToken=0;
+async function liveRegistrationStatus(){
+  try{
+    const d=await fetchJsonQuiet(SCRIPT_URL+'?action=getUserCount&t='+Date.now(),6000);
+    const count=Number(d&&d.count);
+    const limit=Number(d&&d.limit);
+    if(!Number.isFinite(count)||!Number.isFinite(limit)||limit<=0)return null;
+    return {count:count,limit:limit};
+  }catch(e){return null;}
+}
+
+async function showNewUser(returnTo){
+  const checkToken=++_signupLimitCheckToken;
   _signupReturnTarget=returnTo||null;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('newUserScreen').style.display='flex';
@@ -4734,8 +4746,14 @@ function showNewUser(returnTo){
     info.textContent='Choose a name and PIN to join.';
   }
   document.getElementById('nuName').focus();
-  // Check against the configurable registration limit from B4.
-  if(userLimit>0 && users.length>=userLimit){
+  // The phone may still have an older B4 value cached. Ask Apps Script for the
+  // live count and limit before blocking registration. If it is unavailable,
+  // leave the form open; addUser remains the authoritative server-side guard.
+  const liveStatus=await liveRegistrationStatus();
+  if(checkToken!==_signupLimitCheckToken)return;
+  if(liveStatus)userLimit=liveStatus.limit;
+  const registrationIsFull=!!(liveStatus&&liveStatus.count>=liveStatus.limit);
+  if(registrationIsFull){
     // Hide the form fields and submit button
     document.getElementById('nuNameBlock').style.display='none';
     document.getElementById('nuPinBlock').style.display='none';
