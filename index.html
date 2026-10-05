@@ -61,6 +61,20 @@ body{display:flex;justify-content:center}
 .login-avatar-sm{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:14px;font-weight:700;flex-shrink:0}
 .login-compact-name{flex:1;font-size:15px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .login-compact-cnt{font-size:11px;color:var(--muted);white-space:nowrap;margin-right:6px}
+.login-signin-panel{width:100%;padding:6px 0 0}
+.login-signin-title{font-family:var(--serif);font-size:19px;color:var(--text);text-align:center;margin:2px 0 3px}
+.login-signin-copy{font-size:10px;color:var(--muted);line-height:1.5;text-align:center;margin-bottom:12px}
+.login-search-label{display:flex;align-items:center;gap:7px;color:var(--gold);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:13px 0 7px 2px}
+.login-search-wrap{position:relative;width:100%}
+.login-search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:18px;pointer-events:none}
+.login-search{width:100%;background:#1b1812;border:2px solid rgba(200,168,75,.68);border-radius:12px;padding:13px 14px 13px 43px;color:var(--text);font-family:var(--mono);font-size:14px;outline:none;box-shadow:0 0 0 3px rgba(200,168,75,.05)}
+.login-search:focus{border-color:var(--gold2);box-shadow:0 0 0 3px rgba(200,168,75,.14)}
+.login-search::placeholder{color:#a79d8e;opacity:1}
+.login-recent-label{font-size:9px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;margin:0 0 6px 2px}
+.login-result-hint{text-align:center;color:var(--muted);font-size:10px;line-height:1.55;padding:9px 6px 3px}
+.login-directory-toggle{width:100%;background:transparent;border:0;color:var(--gold);font-family:var(--mono);font-size:11px;padding:11px 8px;cursor:pointer}
+.login-create-btn{width:100%;background:rgba(200,168,75,.08);border:1px dashed rgba(200,168,75,.45);border-radius:10px;color:var(--gold);font-family:var(--mono);font-size:12px;padding:12px 14px;cursor:pointer;margin-top:2px}
+.login-create-btn:active,.login-directory-toggle:active{color:var(--gold2)}
 .login-user-btn{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;user-select:none}
 .login-user-btn:active{border-color:var(--gold);background:rgba(200,168,75,.08)}
 .login-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:20px;font-weight:700;flex-shrink:0}
@@ -486,7 +500,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.42</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.44</span></div>
     </div>
     
 
@@ -604,7 +618,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.42</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.44</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -685,7 +699,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.42';
+const APP_BUILD = '2.1.44';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -4582,53 +4596,84 @@ function showErr(){
 // ── LOGIN / PIN FLOW ──────────────────────────────────────────────
 function renderLoginScreen(){
   const el=document.getElementById('loginUsers');
-  const totalShows=shows.length;
+  if(!el)return;
 
-  // Current user always first, then sort rest by show count descending
+  // Alphabetical browsing stays predictable as show counts change.
   const sorted=[...users].sort(function(a,b){
-    if(a===curUser) return -1;
-    if(b===curUser) return 1;
-    const ca=displayUserTotalCount(a);
-    const cb=displayUserTotalCount(b);
-    return cb-ca;
+    return a.localeCompare(b,undefined,{sensitivity:'base'});
   });
+  let directoryExpanded=false;
+  let recentUser=curUser||'';
+  try{
+    if(!recentUser)recentUser=localStorage.getItem('gd_last_user')||localStorage.getItem('gd_user')||'';
+    if(!recentUser){
+      const cached=JSON.parse(localStorage.getItem('gd_current_user_cache')||'{}');
+      recentUser=cached.name||'';
+    }
+  }catch(e){}
+  if(!users.includes(recentUser))recentUser='';
 
-  function buildCards(filter){
+  function buildCard(u,recent){
+    const i=users.indexOf(u);
+    const cnt=displayUserTotalCount(u);
+    const col=USER_COLORS[(i>=0?i:0)%USER_COLORS.length];
+    const isMe=u===curUser;
+    const action=isMe?'cancelLogin()':'showPin(users['+i+'])';
+    const badge=isMe
+      ?'<span style="font-size:9px;background:rgba(82,183,136,.15);color:var(--green);border:1px solid rgba(82,183,136,.3);border-radius:8px;padding:2px 7px;flex-shrink:0">logged in</span>'
+      :'<span style="font-size:15px;color:var(--muted);opacity:.4">›</span>';
+    return (recent?'<div class="login-recent-label">Last used on this device</div>':'')
+      +'<div class="login-user-compact" onclick="'+action+'" style="'+(recent?'border-color:rgba(200,168,75,.35);background:rgba(200,168,75,.04)':'')+'">'
+      +'<div class="login-avatar-sm" style="background:'+col+'22;color:'+col+'">'+esc(u).charAt(0)+'</div>'
+      +'<div class="login-compact-name">'+esc(u)+'</div>'
+      +'<div class="login-compact-cnt">'+cnt.toLocaleString()+' shows</div>'
+      +badge
+      +'</div>';
+  }
+
+  function buildCards(filter,browseAll){
     const q=(filter||'').toLowerCase().trim();
+    if(!q&&!browseAll){
+      return '<div class="login-result-hint">Matches appear here as you type.</div>';
+    }
     const matched=sorted.filter(function(u){
       return !q||u.toLowerCase().includes(q);
     });
     if(!matched.length){
       return '<div style="text-align:center;color:var(--muted);font-size:12px;padding:12px">No match</div>';
     }
-    return matched.map(function(u){
-      const i=users.indexOf(u);
-      const cnt=displayUserTotalCount(u);
-      const col=USER_COLORS[i%USER_COLORS.length];
-      const isMe=u===curUser;
-      const action=isMe?'cancelLogin()':'showPin(\''+u+'\')';
-      const badge=isMe
-        ?'<span style="font-size:9px;background:rgba(82,183,136,.15);color:var(--green);border:1px solid rgba(82,183,136,.3);border-radius:8px;padding:2px 7px;flex-shrink:0">logged in</span>'
-        :'<span style="font-size:15px;color:var(--muted);opacity:.4">›</span>';
-      return '<div class="login-user-compact" onclick="'+action+'" style="'+(isMe?'border-color:rgba(82,183,136,.3);background:rgba(82,183,136,.04)':'')+'">'
-        +'<div class="login-avatar-sm" style="background:'+col+'22;color:'+col+'">'+u[0]+'</div>'
-        +'<div class="login-compact-name">'+esc(u)+'</div>'
-        +'<div class="login-compact-cnt">'+cnt.toLocaleString()+' shows</div>'
-        +badge
-        +'</div>';
-    }).join('');
+    return matched.map(function(u){return buildCard(u,false);}).join('');
   }
 
-  // Search box + list
-  el.innerHTML='<div style="padding:0 0 8px">'
-    +'<input id="loginSearch" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Search Deadheads…" '
-    +'oninput="document.getElementById(\'loginUserList\').innerHTML=buildLoginCards(this.value)" '
-    +'style="width:100%;box-sizing:border-box;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:9px 14px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none;margin-bottom:8px">'
-    +'</div>'
-    +'<div id="loginUserList">'+buildCards('')+'</div>';
+  el.innerHTML='<div class="login-signin-panel">'
+    +'<div class="login-signin-title">Welcome back</div>'
+    +'<div class="login-signin-copy">Sign in to see your shows and manage favorites.</div>'
+    +(recentUser?'<div id="loginRecentUser">'+buildCard(recentUser,true)+'</div>':'')
+    +'<label class="login-search-label" for="loginSearch"><span aria-hidden="true">⌕</span> Find your account</label>'
+    +'<div class="login-search-wrap"><span class="login-search-icon" aria-hidden="true">⌕</span>'
+    +'<input id="loginSearch" class="login-search" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" inputmode="search" enterkeyhint="search" placeholder="Tap here, then type your name" aria-label="Find your account by name" '
+    +'oninput="updateLoginResults(this.value)"></div>'
+    +'<div id="loginUserList">'+buildCards('',false)+'</div>'
+    +'<button id="loginBrowseToggle" class="login-directory-toggle" type="button" onclick="toggleLoginDirectory()">Browse all '+users.length+' accounts</button>'
+    +'<button class="login-create-btn" type="button" onclick="showNewUser()">+ Create a new account</button>'
+    +'</div>';
 
-  // Expose buildCards globally for the oninput handler
-  window.buildLoginCards=buildCards;
+  window.updateLoginResults=function(value){
+    const list=document.getElementById('loginUserList');
+    const toggle=document.getElementById('loginBrowseToggle');
+    if(!list)return;
+    const hasQuery=!!String(value||'').trim();
+    list.innerHTML=buildCards(value,hasQuery||directoryExpanded);
+    if(toggle)toggle.style.display=hasQuery?'none':'block';
+  };
+  window.toggleLoginDirectory=function(){
+    directoryExpanded=!directoryExpanded;
+    const search=document.getElementById('loginSearch');
+    const list=document.getElementById('loginUserList');
+    const toggle=document.getElementById('loginBrowseToggle');
+    if(list)list.innerHTML=buildCards(search?search.value:'',directoryExpanded);
+    if(toggle)toggle.textContent=directoryExpanded?'Hide account list':'Browse all '+users.length+' accounts';
+  };
 }
 
 function showLogin(){
@@ -4688,6 +4733,7 @@ function checkPin(){
 function loginAs(name,save){
   curUser=name;
   guestMode=false;
+  try{localStorage.setItem('gd_last_user',name);}catch(e){}
   // Clear guest-session flag so next reload shows login normally
   try{localStorage.removeItem('gd_prior_guest');}catch(e){}
   // Hide all login screens IMMEDIATELY - before anything else that could throw
@@ -4983,9 +5029,6 @@ async function registerNewUser(){
       _pendingSignupAction=null;
     }
     msg.textContent=pendingAction?'Added. Logging you in…':'Saved on this device. Logging you in…';msg.className='nu-msg ok';
-    // A newly-created profile must receive the current Ron message even when
-    // another Deadhead already dismissed it on this same phone.
-    try{localStorage.setItem(adminMsgNewUserKey(name),'1');}catch(e){}
     setTimeout(function(){
       loginAs(name,true);
       restoreSignupUiState(returnState);
@@ -10313,15 +10356,12 @@ async function prefetchRelistenAvailability(){
 // ── ADMIN BROADCAST MESSAGE ────────────────────────────────────────
 // Ron updates the message by editing the sheet (Apps Script getMessage action).
 // Format returned: {id:'msg-001', text:'Hello Deadheads...'} or {id:'', text:''}
-// Seen state is per Deadhead, so a new profile on a shared phone still gets
-// the current message. The legacy device-wide key is migrated only for the
-// existing profile that was already saved on that device.
+// Seen state is per browser/device and message ID. Switching accounts on the
+// same device must not reopen an announcement that was already dismissed.
 function adminMsgUserToken(name){
   return encodeURIComponent(String(name||'guest').trim().toLowerCase());
 }
 function adminMsgSeenKey(name){return 'gd_msg_seen_user_'+adminMsgUserToken(name);}
-function adminMsgNewUserKey(name){return 'gd_msg_new_user_pending_'+adminMsgUserToken(name);}
-const _legacyAdminMsgOwner=localStorage.getItem('gd_user')||'';
 async function checkAdminMsg(){
   try{
     const r=await fetch(SCRIPT_URL+'?action=getMessage',{signal:AbortSignal.timeout(6000)});
@@ -10330,20 +10370,10 @@ async function checkAdminMsg(){
     let d;
     try{d=JSON.parse(text);}catch(e){console.warn('getMessage bad JSON',text.slice(0,100));return;}
     if(!d.id||!d.text){console.log('getMessage: no active message',JSON.stringify(d));return;}
-    const userName=curUser||'guest';
-    const seenKey=adminMsgSeenKey(userName);
-    const newUserPending=localStorage.getItem(adminMsgNewUserKey(userName))==='1';
-    let seen=localStorage.getItem(seenKey)||'';
-    // Preserve the old once-only behavior for the profile that owned this
-    // device before per-user receipts were introduced. Never do this for a
-    // freshly registered profile.
-    if(!seen&&!newUserPending&&curUser&&_legacyAdminMsgOwner===curUser){
-      seen=localStorage.getItem('gd_msg_seen')||'';
-      if(seen)localStorage.setItem(seenKey,seen);
-    }
+    const seen=localStorage.getItem('gd_msg_seen')||'';
     if(seen===d.id){console.log('getMessage: already seen',d.id);return;}
     console.log('getMessage: showing message',d.id);
-    showMsg(d.id,d.text,userName);
+    showMsg(d.id,d.text);
   }catch(e){console.warn('checkAdminMsg error',e.message);}
 }
 let _adminMsgCheckScheduled=false;
@@ -10352,13 +10382,12 @@ function scheduleAdminMsgCheck(delay){
   _adminMsgCheckScheduled=true;
   setTimeout(function(){_adminMsgCheckScheduled=false;checkAdminMsg();}, delay||3500);
 }
-function showMsg(id,text,userName){
+function showMsg(id,text){
   const overlay=document.getElementById('msgOverlay');
   const el=document.getElementById('msgText');
   if(!overlay||!el)return;
   el.innerHTML=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
   overlay._msgId=id;
-  overlay._msgUser=userName||curUser||'guest';
   overlay.style.display='flex';
   document.body.style.overflow='hidden';
 }
@@ -10366,12 +10395,10 @@ function dismissMsg(){
   const overlay=document.getElementById('msgOverlay');
   if(!overlay)return;
   if(overlay._msgId)try{
-    const messageUser=overlay._msgUser||curUser||'guest';
-    localStorage.setItem(adminMsgSeenKey(messageUser),overlay._msgId);
-    localStorage.removeItem(adminMsgNewUserKey(messageUser));
-    // Keep the old key during rollout for compatibility with an older app
-    // copy that may still be open on this phone.
+    // Device-wide receipt is authoritative in this build.
     localStorage.setItem('gd_msg_seen',overlay._msgId);
+    // Also mark the active account for compatibility with older cached builds.
+    if(curUser)localStorage.setItem(adminMsgSeenKey(curUser),overlay._msgId);
   }catch(e){}
   overlay.style.display='none';
   document.body.style.overflow='';
