@@ -685,7 +685,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.41';
+const APP_BUILD = '2.1.42';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -1238,6 +1238,43 @@ async function fetchJsonQuiet(url,ms){
   finally{if(timer)clearTimeout(timer);}
 }
 
+async function refreshUsersFromServer(){
+  const data=await fetchJsonQuiet(SCRIPT_URL+'?action=getUsers&t='+Date.now(),7000);
+  if(!data||data.error||!Array.isArray(data.users))return false;
+  users=[...new Set(data.users.filter(Boolean))];
+  userPins=Object.assign({},userPins,data.pins||{});
+  userIds=Object.assign({},userIds,data.userIds||{});
+  if(Number(data.limit)>0)userLimit=Number(data.limit);
+  try{
+    localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,ids:userIds,cols:userCols,ts:Date.now()}));
+  }catch(e){}
+  restorePendingLocalUser();
+  const usel=document.getElementById('usel');
+  if(usel){
+    const selected=usel.value||viewUser||'all';
+    while(usel.options.length>1)usel.remove(1);
+    users.forEach(function(name){const option=document.createElement('option');option.value=name;option.textContent=name;usel.appendChild(option);});
+    if(Array.from(usel.options).some(function(option){return option.value===selected;}))usel.value=selected;
+  }
+  if(document.getElementById('loginUsers'))renderLoginScreen();
+  renderOthers();
+  return true;
+}
+
+async function waitForRegisteredUser(name,pin,timeoutMs){
+  const deadline=Date.now()+(timeoutMs||9000);
+  while(Date.now()<deadline){
+    const data=await fetchJsonQuiet(SCRIPT_URL+'?action=getUser&name='+encodeURIComponent(name)+'&pin='+encodeURIComponent(pin||'')+'&t='+Date.now(),3500);
+    if(data&&data.exists&&data.pinMatches===false)return {error:'name_taken'};
+    if(data&&data.exists&&data.pinMatches!==false){
+      if(data.userId)userIds[data.name||name]=data.userId;
+      return data;
+    }
+    await new Promise(function(resolve){setTimeout(resolve,450);});
+  }
+  return null;
+}
+
 async function loadModeCatalogFromJson(mode,opts){
   opts=opts||{};
   mode=mode||activeMode||DEFAULT_MODE;
@@ -1585,7 +1622,7 @@ function setHeaderGuestMode(on){
 }
 
 // ── STATE ─────────────────────────────────────────────────────────
-let shows=[], filtered=[], users=[], userCols={}, userPins={}, userCountCache={modes:{},totals:{}};
+let shows=[], filtered=[], users=[], userCols={}, userPins={}, userIds={}, userCountCache={modes:{},totals:{}};
 let userLimit=0; // Configurable limit from Sheet1 cell B4.
 let attCache={};  // attCache[userName] = count — rebuilt when attendance changes
 let attendanceLoadState={}; // modeKey -> pending | ready | error
@@ -2039,6 +2076,7 @@ async function loadData(){
   // Startup is catalog-first: render the shell and show list from local JSON,
   // then let Google Sheets catch up user identity/overlays in the background.
   applyCachedUserData(activeMode);
+  refreshUsersFromServer();
   // A reload should never wait on the shared Deadhead names list. If we do not
   // already know the signed-in user on this device, open as a usable guest shell
   // and let background sync populate names/Favorites/My Shows later.
@@ -2713,7 +2751,7 @@ async function runBackgroundSheetSync(opts){
       refreshActiveAttendanceFromCache('after-sheet-sync-cache');
     }
     writeModeSheetCache(mode,list,users.slice(),Object.assign({},userPins),userLimit);
-    try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols,ts:Date.now()}));}catch(e){}
+    try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,ids:userIds,cols:userCols,ts:Date.now()}));}catch(e){}
     if(activeMode&&activeMode.key===mode.key){
       rebuildAttCache();
       renderOthers();
@@ -3028,11 +3066,12 @@ function shouldUseCachedStartup(){
 
 function readCachedUserData(mode){
   mode=mode||activeMode||DEFAULT_MODE;
-  const out={users:[],pins:{},favorites:null,attended:null,currentUser:null};
+  const out={users:[],pins:{},ids:{},favorites:null,attended:null,currentUser:null};
   try{
     const uc=JSON.parse(localStorage.getItem('gd_users_cache')||'{}');
     if(Array.isArray(uc.users))out.users=uc.users.filter(Boolean);
     if(uc.pins)out.pins=uc.pins;
+    if(uc.ids)out.ids=uc.ids;
   }catch(e){}
   try{
     const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
@@ -3052,6 +3091,7 @@ function applyCachedUserData(mode){
   restoreUserCountCache();
   if(cached.users.length)users=cached.users.slice();
   if(cached.pins)userPins=Object.assign({},userPins,cached.pins);
+  if(cached.ids)userIds=Object.assign({},userIds,cached.ids);
   if(cached.userLimit)userLimit=cached.userLimit;
   if(Array.isArray(cached.favorites)){
     allFavorites=pruneExpiredFavorites(cached.favorites);
@@ -3347,7 +3387,8 @@ function parseGviz(table,mode){
     list.push(mkShow(d,v,c,att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,mode));
   }
   // Cache users+pins for file:// testing and fast reload
-  try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols}));}catch(e){}
+  hydrateModeAuthUsers();
+  try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,ids:userIds,cols:userCols}));}catch(e){}
   return list;
 }
 
@@ -3441,6 +3482,7 @@ function parseScriptCatalog(data,mode){
   mode=mode||activeMode||DEFAULT_MODE;
   users=Array.isArray(data.users)?data.users.slice():[];
   userPins=data.pins||{};
+  userIds=Object.assign({},userIds,data.userIds||{});
   userCols={};
   users.forEach(function(u,i){userCols[u]=i+3;});
   userLimit=Number(data.userLimit||0)||userLimit||0;
@@ -3467,8 +3509,8 @@ function parseScriptCatalog(data,mode){
     });
     list.push(show);
   });
-  if(!isDefaultMode(mode))hydrateModeAuthUsers();
-  try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,cols:userCols}));}catch(e){}
+  hydrateModeAuthUsers();
+  try{localStorage.setItem('gd_users_cache',JSON.stringify({users:users,pins:userPins,ids:userIds,cols:userCols}));}catch(e){}
   return collapseModeDuplicateShows(list,mode);
 }
 
@@ -3547,6 +3589,7 @@ function hydrateModeAuthUsers(){
   try{
     const cached=JSON.parse(localStorage.getItem('gd_users_cache')||'{}');
     if(cached&&cached.pins)Object.keys(cached.pins).forEach(function(u){if(!userPins[u])userPins[u]=cached.pins[u];});
+    if(cached&&cached.ids)userIds=Object.assign({},userIds,cached.ids);
     if(cached&&Array.isArray(cached.users)){
       cached.users.forEach(function(u){if(u&&!users.includes(u))users.push(u);});
     }
@@ -3599,6 +3642,7 @@ function parseCSV(csv){
     const att={};users.forEach(u=>{const v=(c[userCols[u]]||'').trim().toUpperCase();att[u]=isAttended(v)||v==='V';});
     list.push(mkShow(d,(c[1]||'').trim()||'Unknown Venue',(c[2]||'').trim(),att,r,archiveIdHint,archiveNoAudioHint,sourceLockHint,activeMode));
   }
+  hydrateModeAuthUsers();
   return list;
 }
 function parseRow(line){
@@ -4895,7 +4939,7 @@ function nuValidate(){
   const name=document.getElementById('nuName').value.trim();
   const pin=[0,1,2,3].map(i=>document.getElementById('nup'+i).value).join('');
   const reserved=isReservedName(name);
-  const taken=users.includes(name);
+  const taken=users.some(function(existing){return existing.toLowerCase()===name.toLowerCase();});
   const valid=name.length>=2&&pin.length===4&&!taken&&!reserved;
   document.getElementById('nuSubmit').disabled=!valid;
   const msg=document.getElementById('nuMsg');
@@ -4928,8 +4972,8 @@ async function registerNewUser(){
     localStorage.setItem('gd_pending_user',name);
     localStorage.setItem('gd_pending_pin',pin);
     userPins[name]=pin;
+    await ensureUserRowForAction(name);
     if(pendingAction){
-      await ensureUserRowForAction(name);
       if(pendingAction.type==='favorite'){
         await addFavoriteForUser(pendingAction.showId,name);
       }else if(pendingAction.type==='attended'){
@@ -4958,7 +5002,11 @@ async function ensureUserRowForAction(user){
   const pendingName=localStorage.getItem('gd_pending_user');
   const pendingPin=localStorage.getItem('gd_pending_pin')||userPins[user]||localStorage.getItem('gd_pin')||'';
   if(pendingName!==user)return true;
-  await postScriptAction({action:'addUser',name:user,pin:pendingPin},3500);
+  const sent=await postScriptAction({action:'addUser',name:user,pin:pendingPin,deviceId:getOrCreateGuestId()},3500);
+  if(!sent)throw new Error('Registration request failed');
+  const verified=await waitForRegisteredUser(user,pendingPin,9000);
+  if(!verified||verified.error)throw new Error(verified&&verified.error==='name_taken'?'Name already taken':'Registration could not be verified');
+  if(verified.userId)userIds[verified.name||user]=verified.userId;
   if(!users.includes(user)){
     users.push(user);
     userCols[user]=3+users.length-1;
@@ -4971,6 +5019,7 @@ async function ensureUserRowForAction(user){
       const o=document.createElement('option');o.value=user;o.textContent=user;usel.appendChild(o);
     }
   }
+  await refreshUsersFromServer();
   localStorage.removeItem('gd_pending_user');
   localStorage.removeItem('gd_pending_pin');
   return true;
@@ -9035,7 +9084,7 @@ async function addFavoriteForUser(id,user){
   localStorage.setItem('gd_favorites', JSON.stringify(allFavorites));
   try{localStorage.setItem('gd_fav_last_write',JSON.stringify({action:'addFavorite',user:user,showId:sid,mode:mode,at:Date.now()}));}catch(e){}
   renderList(); renderJamFavorites();
-  postScriptAction({action:'addFavorite',user:user,showId:sid,date:show.date,venue:show.venue,mode:mode},3500);
+  postScriptAction({action:'addFavorite',userId:userIds[user]||'',user:user,showId:sid,date:show.date,venue:show.venue,mode:mode},3500);
   return true;
 }
 
@@ -9560,7 +9609,7 @@ async function addFavoriteRecordFromJam(showId,modeLabel){
   }
   localStorage.setItem('gd_favorites',JSON.stringify(allFavorites));
   renderList();renderJamFavorites();updateSpFavBtn();
-  postScriptAction({action:'addFavorite',user:writeUser,showId:sid,date:date,venue:venue,mode:modeLabel},3500);
+  postScriptAction({action:'addFavorite',userId:userIds[writeUser]||'',user:writeUser,showId:sid,date:date,venue:venue,mode:modeLabel},3500);
 }
 
 async function openFavoriteRecord(showId,modeLabel){
@@ -10649,7 +10698,7 @@ async function doMarkAttended(show,user,attended){
     const resp=await fetch(SCRIPT_URL,{
       method:'POST',
       mode:'no-cors',
-      body:JSON.stringify({action:'markAttended',date:show.date,venue:show.venue,user:user,attended:attended,mode:showModeLabel(show),sheetName:show.sheetName||activeMode.sheetName}),
+      body:JSON.stringify({action:'markAttended',userId:userIds[user]||'',user:user,showId:showStorageId(show),date:show.date,venue:show.venue,city:show.city||'',attended:attended,mode:showModeLabel(show),sheetName:show.sheetName||activeMode.sheetName}),
       headers:{'Content-Type':'text/plain;charset=utf-8'}
     });
     // no-cors always "succeeds" - verify via GET ping
@@ -10730,7 +10779,7 @@ async function trackVisit(userName, force){
     const throttleKey='gd_visit_ping_'+visitorKey;
     const now=Date.now();
     const last=parseInt(localStorage.getItem(throttleKey)||'0',10);
-    if(!force&&last&&now-last<30*60*1000)return;
+    if(!force&&last&&now-last<6*60*60*1000)return;
     localStorage.setItem(throttleKey,String(now));
     const payload={
       action:'trackVisit',
