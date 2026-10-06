@@ -505,7 +505,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.50</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.51</span></div>
     </div>
     
 
@@ -623,7 +623,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.50</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.51</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -704,7 +704,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.50';
+const APP_BUILD = '2.1.51';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -8863,6 +8863,7 @@ let allFavorites = [];
 let favoritesLoaded = false;
 let _pendingFavoritePlay = null;
 let _favoritesFetchSequence = 0;
+const _favoritePreviewModeAttempts = {};
 let _jamReturnState = null;
 let _jamFavoritesView = 'recent';
 let _jamRecentFavoriteLimit = 20;
@@ -9684,6 +9685,10 @@ function jamRecentFavoriteRow(group){
   const favAction=myFav
     ? "toggleFavoriteRecord('"+escJs(myFav.showId||showId)+"','"+escJs(favoriteModeLabel(myFav)||mode)+"')"
     : "addFavoriteRecordFromJam('"+safeShow+"','"+safeMode+"')";
+  if(show&&!(show.songs&&show.songs.length)){
+    const previewSongs=datasetSetlistForShow(show);
+    if(previewSongs.length)hydrateShowFromSetlistSongs(show,previewSongs,'server',{skipSheetCache:true});
+  }
   const songs=show?rowSetlistSummary(show):favoriteCachedSummary(fav);
   const sub=songs?'<div class="row-songs"><span style="color:var(--green)">▶ </span>'+esc(songs)+'</div>':'';
   const modeCity=city?(mode+' · '+city):(mode+' favorite');
@@ -9695,6 +9700,34 @@ function jamRecentFavoriteRow(group){
       +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+esc(showId)+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
       +'<button class="pbtn" onclick="event.stopPropagation();openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">↗</button>'
     +'</div></div></div>';
+}
+
+function scheduleFavoritePreviewHydration(records){
+  const byMode={};
+  (records||[]).forEach(function(f){
+    const mode=modeForFavorite(f);
+    if(mode&&mode.key)byMode[mode.key]=mode;
+  });
+  const now=Date.now();
+  const jobs=[];
+  Object.keys(byMode).forEach(function(key){
+    const mode=byMode[key];
+    const catalogReady=(activeMode&&activeMode.key===key&&shows&&shows.length)||!!_readModeCache(mode);
+    const setlistsReady=!!readModeSetlistDataset(mode);
+    if(catalogReady&&setlistsReady)return;
+    if(now-Number(_favoritePreviewModeAttempts[key]||0)<5*60*1000)return;
+    _favoritePreviewModeAttempts[key]=now;
+    const catalogJob=catalogReady?Promise.resolve(true):loadModeCatalogFromJson(mode,{timeout:4500});
+    const setlistJob=setlistsReady?Promise.resolve(true):loadModeSetlistDataset(mode);
+    jobs.push(Promise.all([catalogJob,setlistJob]).then(function(){
+      const hasCatalog=(activeMode&&activeMode.key===key&&shows&&shows.length)||!!_readModeCache(mode);
+      return !!(hasCatalog&&readModeSetlistDataset(mode));
+    }).catch(function(){return false;}));
+  });
+  if(!jobs.length)return;
+  Promise.all(jobs).then(function(results){
+    if(results.some(Boolean))renderJamFavorites();
+  });
 }
 
 function renderJamFavorites() {
@@ -9713,15 +9746,18 @@ function renderJamFavorites() {
   let out=jamReturnButtonHtml()+jamFavoriteViewsHtml();
   if(_jamFavoritesView==='recent'){
     const groups=groupedRecentFavorites(favorites);
-    groups.slice(0,_jamRecentFavoriteLimit).forEach(function(group){out+=jamRecentFavoriteRow(group);});
+    const visibleGroups=groups.slice(0,_jamRecentFavoriteLimit);
+    visibleGroups.forEach(function(group){out+=jamRecentFavoriteRow(group);});
     if(groups.length>_jamRecentFavoriteLimit){
       out+='<button class="jam-fav-more" type="button" onclick="showMoreJamFavorites()">Show '+Math.min(20,groups.length-_jamRecentFavoriteLimit)+' more favorites</button>';
     }
     el.innerHTML=out;
+    scheduleFavoritePreviewHydration(visibleGroups.map(function(group){return group.favorite;}));
     return;
   }
 
   const byUser={};
+  const visibleFavorites=[];
   favorites.forEach(function(f){if(!byUser[f.user])byUser[f.user]=[];byUser[f.user].push(f);});
   const userOrder=Object.keys(byUser).sort(function(a,b){
     if(a===curUser)return -1;if(b===curUser)return 1;
@@ -9734,6 +9770,7 @@ function renderJamFavorites() {
     const uid='jamfav-'+user.replace(/[^a-z0-9]/gi,'_');
     const isOpen=_jamFavoriteOpenSections.has(uid)||user===curUser;
     if(isOpen)_jamFavoriteOpenSections.add(uid);
+    if(isOpen)visibleFavorites.push.apply(visibleFavorites,favs);
     out+='<div style="margin-bottom:6px">';
     out+='<div onclick="toggleJamFavSection(\''+uid+'\',this)" style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:7px 0;user-select:none">'
       +'<div style="width:22px;height:22px;border-radius:50%;background:'+col+'22;color:'+col+';font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1px solid '+col+'">'+esc(user.charAt(0))+'</div>'
@@ -9748,6 +9785,7 @@ function renderJamFavorites() {
     out+='</div></div>';
   });
   el.innerHTML=out;
+  scheduleFavoritePreviewHydration(visibleFavorites);
 }
 
 function findShowForFavorite(f){
@@ -9886,6 +9924,10 @@ function jamFavoriteShowRow(s,user,fav){
   const hasCachedSetlist=!!(s.songs&&s.songs.length);
   const dot='<span style="color:var(--green)">▶ </span>';
   const prefix=s.relistenSbd?'<span style="color:var(--gold);font-size:9px">SBD </span>':'';
+  if(!(s.songs&&s.songs.length)){
+    const previewSongs=datasetSetlistForShow(s);
+    if(previewSongs.length)hydrateShowFromSetlistSongs(s,previewSongs,'server',{skipSheetCache:true});
+  }
   const songs=rowSetlistSummary(s);
   const sub=songs?'<div class="row-songs">'+dot+prefix+esc(songs)+'</div>':'';
   const safeId=String(s.id).replace(/'/g,"\\'");
@@ -9911,7 +9953,12 @@ function toggleJamFavSection(uid, hdr) {
   const open = el.style.display !== 'none';
   el.style.display = open ? 'none' : 'block';
   if(open)_jamFavoriteOpenSections.delete(uid);
-  else _jamFavoriteOpenSections.add(uid);
+  else{
+    _jamFavoriteOpenSections.add(uid);
+    scheduleFavoritePreviewHydration(activeFavorites(allFavorites).filter(function(f){
+      return 'jamfav-'+String(f.user||'').replace(/[^a-z0-9]/gi,'_')===uid;
+    }));
+  }
   const arrow = hdr && hdr.querySelector('.jfav-arrow');
   if (arrow) arrow.textContent = open ? '▸' : '▾';
 }
