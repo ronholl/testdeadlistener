@@ -209,6 +209,9 @@ body{display:flex;justify-content:center}
 .jam-fav-views{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:3px;margin-bottom:10px}
 .jam-fav-view{border:0;border-radius:7px;background:transparent;color:var(--muted);font-family:var(--mono);font-size:10px;padding:8px 6px;cursor:pointer}
 .jam-fav-view.on{background:rgba(200,168,75,.14);color:var(--gold);box-shadow:inset 0 0 0 1px rgba(200,168,75,.24)}
+.jam-fav-filter{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:rgba(0,0,0,.12)}
+.jam-fav-filter label{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.jam-fav-filter select{min-width:0;flex:1;background:var(--bg);border:1px solid rgba(200,168,75,.28);border-radius:7px;color:var(--gold);font-family:var(--mono);font-size:10px;padding:7px 28px 7px 9px;outline:none}
 .jam-fav-added{font-size:10px;color:rgba(200,168,75,.72);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jam-fav-plays{font-size:10px;color:rgba(82,183,136,.78);margin-top:3px;white-space:nowrap}
 .jam-fav-more{width:100%;background:transparent;border:1px solid rgba(200,168,75,.28);border-radius:9px;color:var(--gold);font-family:var(--mono);font-size:11px;padding:10px;cursor:pointer;margin-top:2px}
@@ -505,7 +508,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.51</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.54</span></div>
     </div>
     
 
@@ -623,7 +626,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.51</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.54</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -704,7 +707,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.51';
+const APP_BUILD = '2.1.54';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -7684,8 +7687,15 @@ function _setMpStatus(msg){
     if(mpEl)mpEl.remove();
   }
 }
+const SCREEN_WAKE_PREF_KEY='gd_screen_wake_wanted';
+function savedScreenWakePreference(){
+  try{return localStorage.getItem(SCREEN_WAKE_PREF_KEY)==='1';}catch(e){return false;}
+}
+function saveScreenWakePreference(wanted){
+  try{localStorage.setItem(SCREEN_WAKE_PREF_KEY,wanted?'1':'0');}catch(e){}
+}
 let screenWakeLock=null;
-let screenWakeLockWanted=false;
+let screenWakeLockWanted=savedScreenWakePreference();
 let screenWakeLockPending=false;
 let nativeIdleTimerAwake=false;
 function nativeIdleTimerAvailable(){
@@ -7714,30 +7724,30 @@ function updateScreenWakeLockUI(){
   btn.classList.toggle('pending',screenWakeLockPending);
   btn.classList.toggle('unsupported',!supported);
   btn.setAttribute('aria-pressed',screenWakeLockWanted?'true':'false');
-  btn.textContent=screenWakeLockPending?'AWAKE…':(active?'✓ AWAKE ON':'AWAKE OFF');
+  btn.textContent=screenWakeLockPending?'AWAKE…':(active?'✓ AWAKE ON':(screenWakeLockWanted?'AWAKE SAVED':'AWAKE OFF'));
   btn.title=!supported
-    ? 'Keep awake is not supported here'
-    : (active?'Screen will stay awake while the app is visible':'Keep screen awake while this app stays open');
+    ? (screenWakeLockWanted?'Awake preference is saved, but keep awake is not supported here':'Keep awake is not supported here')
+    : (active?'Screen will stay awake while the app is visible; this preference is remembered':(screenWakeLockWanted?'Awake preference is saved; tap to turn it off':'Keep screen awake and remember this setting'));
 }
-async function requestScreenWakeLock(){
+async function requestScreenWakeLock(opts){
+  opts=opts||{};
   if(screenWakeLockPending)return false;
+  screenWakeLockWanted=true;
+  saveScreenWakePreference(true);
   if(nativeIdleTimerAvailable()){
-    screenWakeLockWanted=true;
     screenWakeLockPending=false;
     if(setNativeIdleTimerDisabled(true)){
       updateScreenWakeLockUI();
-      _setMpStatus('Keep awake is on. Your screen should stay lit while the app is visible.');
+      if(!opts.silent)_setMpStatus('Keep awake is on and will be restored next time.');
       return true;
     }
   }
   if(!screenWakeLockAvailable()){
-    screenWakeLockWanted=false;
     screenWakeLockPending=false;
     updateScreenWakeLockUI();
-    _setMpStatus('Keep awake is not supported by this browser.');
+    if(!opts.silent)_setMpStatus('Your awake preference is saved, but keep awake is not supported by this browser.');
     return false;
   }
-  screenWakeLockWanted=true;
   screenWakeLockPending=true;
   updateScreenWakeLockUI();
   try{
@@ -7748,26 +7758,26 @@ async function requestScreenWakeLock(){
       updateScreenWakeLockUI();
       if(screenWakeLockWanted&&document.visibilityState==='visible'){
         setTimeout(function(){
-          if(screenWakeLockWanted&&!screenWakeLock)requestScreenWakeLock();
+          if(screenWakeLockWanted&&!screenWakeLock)requestScreenWakeLock({silent:true});
         },700);
       }
     });
     updateScreenWakeLockUI();
-    _setMpStatus('Keep awake is on. Your screen should stay lit while the app is visible.');
+    if(!opts.silent)_setMpStatus('Keep awake is on and will be restored next time.');
     return true;
   }catch(e){
     screenWakeLock=null;
-    screenWakeLockWanted=false;
     screenWakeLockPending=false;
     updateScreenWakeLockUI();
-    if(document.visibilityState==='visible'){
-      _setMpStatus('Keep awake could not start. Check Low Power Mode or browser support, then tap awake again.');
+    if(!opts.silent&&document.visibilityState==='visible'){
+      _setMpStatus('Awake preference saved. Keep awake could not start now; check Low Power Mode or browser support.');
     }
     return false;
   }
 }
 async function releaseScreenWakeLock(){
   screenWakeLockWanted=false;
+  saveScreenWakePreference(false);
   screenWakeLockPending=false;
   setNativeIdleTimerDisabled(false);
   const lock=screenWakeLock;
@@ -7788,7 +7798,7 @@ function toggleScreenWakeLock(){
 }
 document.addEventListener('visibilitychange',function(){
   if(document.visibilityState==='visible'&&screenWakeLockWanted&&!nativeIdleTimerAwake&&!screenWakeLock&&!screenWakeLockPending){
-    requestScreenWakeLock();
+    requestScreenWakeLock({silent:true});
   }else{
     updateScreenWakeLockUI();
   }
@@ -8818,6 +8828,10 @@ document.addEventListener('DOMContentLoaded',function(){
   if(pb&&POSTER_URL)pb.style.display='block';
   bindModeSelectControl();
   bindRollDiceControl();
+  updateScreenWakeLockUI();
+  if(screenWakeLockWanted&&document.visibilityState==='visible'){
+    setTimeout(function(){requestScreenWakeLock({silent:true});},0);
+  }
   document.querySelectorAll('.manual-clear').forEach(function(input){
     input.addEventListener('input',function(){
       const btn=input.parentElement&&input.parentElement.querySelector('.search-clear');
@@ -8866,11 +8880,14 @@ let _favoritesFetchSequence = 0;
 const _favoritePreviewModeAttempts = {};
 let _jamReturnState = null;
 let _jamFavoritesView = 'recent';
+let _jamFavoritesMode = 'all';
 let _jamRecentFavoriteLimit = 20;
 const _jamFavoriteOpenSections = new Set();
 try{
   const savedJamFavoritesView=localStorage.getItem('gd_jam_favorites_view');
   if(savedJamFavoritesView==='recent'||savedJamFavoritesView==='deadheads')_jamFavoritesView=savedJamFavoritesView;
+  const savedJamFavoritesMode=localStorage.getItem('gd_jam_favorites_mode');
+  if(savedJamFavoritesMode)_jamFavoritesMode=savedJamFavoritesMode;
 }catch(e){}
 
 function parseFavoriteDate(value) {
@@ -9650,10 +9667,40 @@ function jamFavoriteViewsHtml(){
     +'</div>';
 }
 
+function jamFavoriteModeFilterHtml(favorites){
+  const labels={};
+  (favorites||[]).forEach(function(f){
+    const label=favoriteModeLabel(f);
+    labels[modeKeyFromLabel(label)]=label;
+  });
+  const keys=[];
+  ['grateful-dead','jerry-garcia','phil-lesh','bob-weir','robert-hunter'].forEach(function(key){
+    if(labels[key]&&!keys.includes(key))keys.push(key);
+  });
+  Object.keys(labels).sort(function(a,b){return labels[a].localeCompare(labels[b]);}).forEach(function(key){if(!keys.includes(key))keys.push(key);});
+  if(_jamFavoritesMode!=='all'&&!labels[_jamFavoritesMode]){
+    _jamFavoritesMode='all';
+    try{localStorage.setItem('gd_jam_favorites_mode','all');}catch(e){}
+  }
+  let options='<option value="all"'+(_jamFavoritesMode==='all'?' selected':'')+'>All modes</option>';
+  keys.forEach(function(key){
+    options+='<option value="'+esc(key)+'"'+(_jamFavoritesMode===key?' selected':'')+'>'+esc(labels[key])+'</option>';
+  });
+  return '<div class="jam-fav-filter"><label for="jamFavModeFilter">Mode</label>'
+    +'<select id="jamFavModeFilter" onchange="setJamFavoritesMode(this.value)">'+options+'</select></div>';
+}
+
 function setJamFavoritesView(view){
   if(view!=='recent'&&view!=='deadheads')return;
   _jamFavoritesView=view;
   try{localStorage.setItem('gd_jam_favorites_view',view);}catch(e){}
+  renderJamFavorites();
+}
+
+function setJamFavoritesMode(modeKey){
+  _jamFavoritesMode=modeKey||'all';
+  _jamRecentFavoriteLimit=20;
+  try{localStorage.setItem('gd_jam_favorites_mode',_jamFavoritesMode);}catch(e){}
   renderJamFavorites();
 }
 
@@ -9676,9 +9723,11 @@ function jamRecentFavoriteRow(group){
   const records=group.favorites.slice().sort(function(a,b){return favoriteAddedValue(b)-favoriteAddedValue(a);});
   const names=[];
   records.forEach(function(record){if(record.user&&!names.includes(record.user))names.push(record.user);});
-  const people=names.length<=2?names.join(' & '):(names.slice(0,2).join(', ')+' +'+(names.length-2));
   const when=favoriteAddedLabel(fav.addedAt);
-  const attribution='Added by '+people+(when?' · '+when:'');
+  const whenText=when||'recently';
+  const attribution=names.length>1
+    ? 'Latest add '+whenText+' · '+names.length+' Deadheads'
+    : 'Added '+whenText+(names[0]?' · '+names[0]:'');
   const groupPlayCount=records.reduce(function(max,record){return Math.max(max,favoritePlayCount(record));},0);
   const plays=groupPlayCount?'<div class="jam-fav-plays">▶ '+groupPlayCount+' play'+(groupPlayCount===1?'':'s')+' from Favorites</div>':'';
   const myFav=records.find(function(record){return record.user===curUser;})||null;
@@ -9745,7 +9794,15 @@ function renderJamFavorites() {
 
   let out=jamReturnButtonHtml()+jamFavoriteViewsHtml();
   if(_jamFavoritesView==='recent'){
-    const groups=groupedRecentFavorites(favorites);
+    out+=jamFavoriteModeFilterHtml(favorites);
+    const recentFavorites=_jamFavoritesMode==='all'?favorites:favorites.filter(function(f){
+      return modeKeyFromLabel(favoriteModeLabel(f))===_jamFavoritesMode;
+    });
+    const groups=groupedRecentFavorites(recentFavorites);
+    if(!groups.length){
+      el.innerHTML=out+'<div class="jam-empty">No current favorites in this mode</div>';
+      return;
+    }
     const visibleGroups=groups.slice(0,_jamRecentFavoriteLimit);
     visibleGroups.forEach(function(group){out+=jamRecentFavoriteRow(group);});
     if(groups.length>_jamRecentFavoriteLimit){
