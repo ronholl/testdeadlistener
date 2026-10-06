@@ -212,6 +212,9 @@ body{display:flex;justify-content:center}
 .jam-fav-filter{display:flex;align-items:center;gap:8px;margin:0 0 10px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:rgba(0,0,0,.12)}
 .jam-fav-filter label{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;white-space:nowrap}
 .jam-fav-filter select{min-width:0;flex:1;background:var(--bg);border:1px solid rgba(200,168,75,.28);border-radius:7px;color:var(--gold);font-family:var(--mono);font-size:10px;padding:7px 28px 7px 9px;outline:none}
+.jam-fav-sort{flex-shrink:0;border:1px solid rgba(200,168,75,.28);border-radius:7px;background:transparent;color:var(--muted);font-family:var(--mono);font-size:9px;padding:7px 8px;white-space:nowrap;cursor:pointer}
+.jam-fav-sort.on{border-color:rgba(82,183,136,.7);background:rgba(82,183,136,.12);color:var(--green)}
+.jam-fav-sort:active{transform:scale(.97)}
 .jam-fav-added{font-size:10px;color:rgba(200,168,75,.72);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jam-fav-plays{font-size:10px;color:rgba(82,183,136,.78);margin-top:3px;white-space:nowrap}
 .jam-favorite-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px;padding:12px}
@@ -526,7 +529,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.62</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.63</span></div>
     </div>
     
 
@@ -644,7 +647,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.62</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.63</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -725,7 +728,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.62';
+const APP_BUILD = '2.1.63';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -8898,6 +8901,7 @@ const _favoritePreviewModeAttempts = {};
 let _jamReturnState = null;
 let _jamFavoritesView = 'recent';
 let _jamFavoritesMode = 'all';
+let _jamFavoritesMostPlayed = false;
 let _jamRecentFavoriteLimit = 20;
 const _jamFavoriteOpenSections = new Set();
 try{
@@ -8905,6 +8909,7 @@ try{
   if(savedJamFavoritesView==='recent'||savedJamFavoritesView==='deadheads')_jamFavoritesView=savedJamFavoritesView;
   const savedJamFavoritesMode=localStorage.getItem('gd_jam_favorites_mode');
   if(savedJamFavoritesMode)_jamFavoritesMode=savedJamFavoritesMode;
+  _jamFavoritesMostPlayed=localStorage.getItem('gd_jam_favorites_most_played')==='1';
 }catch(e){}
 
 function parseFavoriteDate(value) {
@@ -9682,6 +9687,12 @@ function groupedRecentFavorites(list){
   return Object.keys(groups).map(function(key){return groups[key];}).sort(function(a,b){return b.addedAt-a.addedAt;});
 }
 
+function favoriteGroupPlayCount(group){
+  return (group&&group.favorites||[]).reduce(function(max,record){
+    return Math.max(max,favoritePlayCount(record));
+  },0);
+}
+
 function jamFavoriteViewsHtml(){
   return '<div class="jam-fav-views" role="tablist" aria-label="Favorite views">'
     +'<button class="jam-fav-view'+(_jamFavoritesView==='recent'?' on':'')+'" type="button" onclick="setJamFavoritesView(\'recent\')">Recently Added</button>'
@@ -9709,7 +9720,8 @@ function jamFavoriteModeFilterHtml(favorites){
     options+='<option value="'+esc(key)+'"'+(_jamFavoritesMode===key?' selected':'')+'>'+esc(labels[key])+'</option>';
   });
   return '<div class="jam-fav-filter"><label for="jamFavModeFilter">Mode</label>'
-    +'<select id="jamFavModeFilter" onchange="setJamFavoritesMode(this.value)">'+options+'</select></div>';
+    +'<select id="jamFavModeFilter" onchange="setJamFavoritesMode(this.value)">'+options+'</select>'
+    +'<button class="jam-fav-sort'+(_jamFavoritesMostPlayed?' on':'')+'" type="button" aria-pressed="'+(_jamFavoritesMostPlayed?'true':'false')+'" onclick="toggleJamFavoritesMostPlayed()" title="Put most-played favorites first">▶ Most played</button></div>';
 }
 
 function setJamFavoritesView(view){
@@ -9723,6 +9735,13 @@ function setJamFavoritesMode(modeKey){
   _jamFavoritesMode=modeKey||'all';
   _jamRecentFavoriteLimit=20;
   try{localStorage.setItem('gd_jam_favorites_mode',_jamFavoritesMode);}catch(e){}
+  renderJamFavorites();
+}
+
+function toggleJamFavoritesMostPlayed(){
+  _jamFavoritesMostPlayed=!_jamFavoritesMostPlayed;
+  _jamRecentFavoriteLimit=20;
+  try{localStorage.setItem('gd_jam_favorites_most_played',_jamFavoritesMostPlayed?'1':'0');}catch(e){}
   renderJamFavorites();
 }
 
@@ -9753,7 +9772,7 @@ function jamRecentFavoriteRow(group){
   const attribution=names.length>1
     ? 'Latest add '+whenText+' · '+nameSummary
     : 'Added '+whenText+(names[0]?' · '+names[0]:'');
-  const groupPlayCount=records.reduce(function(max,record){return Math.max(max,favoritePlayCount(record));},0);
+  const groupPlayCount=favoriteGroupPlayCount(group);
   const plays=groupPlayCount?'<div class="jam-fav-plays">▶ '+groupPlayCount+' play'+(groupPlayCount===1?'':'s')+' from Favorites</div>':'';
   const myFav=records.find(function(record){return record.user===curUser;})||null;
   const favAction=myFav
@@ -9823,6 +9842,11 @@ function renderJamFavorites() {
       return modeKeyFromLabel(favoriteModeLabel(f))===_jamFavoritesMode;
     });
     const groups=groupedRecentFavorites(recentFavorites);
+    if(_jamFavoritesMostPlayed){
+      groups.sort(function(a,b){
+        return favoriteGroupPlayCount(b)-favoriteGroupPlayCount(a)||b.addedAt-a.addedAt;
+      });
+    }
     if(!groups.length){
       el.innerHTML=out+'<div class="jam-empty">No current favorites in this mode</div>';
       return;
