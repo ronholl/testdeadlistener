@@ -214,6 +214,15 @@ body{display:flex;justify-content:center}
 .jam-fav-filter select{min-width:0;flex:1;background:var(--bg);border:1px solid rgba(200,168,75,.28);border-radius:7px;color:var(--gold);font-family:var(--mono);font-size:10px;padding:7px 28px 7px 9px;outline:none}
 .jam-fav-added{font-size:10px;color:rgba(200,168,75,.72);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .jam-fav-plays{font-size:10px;color:rgba(82,183,136,.78);margin-top:3px;white-space:nowrap}
+.jam-favorite-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:10px;padding:12px}
+.jam-favorite-row .row-info{width:100%;min-width:0;text-align:left}
+.jam-fav-heading{display:flex;align-items:baseline;gap:8px;min-width:0}
+.jam-fav-heading .row-venue{flex:1;min-width:0;text-align:right}
+.jam-fav-heading .row-date{min-width:0;font-size:13px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.jam-favorite-row .row-right{align-self:start}
+.jam-favorite-row .row-btns{flex-direction:column;gap:5px}
+.jam-favorite-row .row-city,.jam-favorite-row .jam-fav-added,.jam-favorite-row .jam-fav-plays{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jam-favorite-row .row-songs{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.35;margin-top:4px}
 .jam-fav-more{width:100%;background:transparent;border:1px solid rgba(200,168,75,.28);border-radius:9px;color:var(--gold);font-family:var(--mono);font-size:11px;padding:10px;cursor:pointer;margin-top:2px}
 .jam-loading{color:var(--muted);font-size:12px;display:flex;align-items:center;gap:8px;padding:8px 0}
 .jam-roll-control{width:100%;box-sizing:border-box;margin-top:12px;background:transparent;border:1px solid var(--border);border-radius:10px;padding:13px 14px;color:var(--gold);font-family:var(--mono);font-size:13px;cursor:pointer;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:rgba(200,168,75,.18);-webkit-user-select:none;user-select:none;position:relative;z-index:2;display:flex;align-items:center;justify-content:center;gap:8px}
@@ -508,7 +517,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.57</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.59</span></div>
     </div>
     
 
@@ -626,7 +635,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.57</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.59</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -707,7 +716,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.57';
+const APP_BUILD = '2.1.59';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -9730,8 +9739,11 @@ function jamRecentFavoriteRow(group){
   records.forEach(function(record){if(record.user&&!names.includes(record.user))names.push(record.user);});
   const when=favoriteAddedLabel(fav.addedAt);
   const whenText=when||'recently';
+  const shownNames=names.slice(0,2);
+  const remainingNames=Math.max(0,names.length-shownNames.length);
+  const nameSummary=shownNames.join(', ')+(remainingNames?' +'+remainingNames:'');
   const attribution=names.length>1
-    ? 'Latest add '+whenText+' · '+names.length+' Deadheads'
+    ? 'Latest add '+whenText+' · '+nameSummary
     : 'Added '+whenText+(names[0]?' · '+names[0]:'');
   const groupPlayCount=records.reduce(function(max,record){return Math.max(max,favoritePlayCount(record));},0);
   const plays=groupPlayCount?'<div class="jam-fav-plays">▶ '+groupPlayCount+' play'+(groupPlayCount===1?'':'s')+' from Favorites</div>':'';
@@ -9746,9 +9758,8 @@ function jamRecentFavoriteRow(group){
   const songs=show?rowSetlistSummary(show):favoriteCachedSummary(fav);
   const sub=songs?'<div class="row-songs"><span style="color:var(--green)">▶ </span>'+esc(songs)+'</div>':'';
   const modeCity=city?(mode+' · '+city):(mode+' favorite');
-  return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
-    +'<div class="row-date">'+esc(displayDate(date))+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(venue)+'</div><div class="row-city">'+esc(modeCity)+'</div>'
+  return '<div class="row jam-favorite-row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
+    +'<div class="row-info"><div class="jam-fav-heading"><div class="row-date">'+esc(displayDate(date))+'</div><div class="row-venue">'+esc(venue)+'</div></div><div class="row-city">'+esc(modeCity)+'</div>'
       +'<div class="jam-fav-added">'+esc(attribution)+'</div>'+plays+sub+'</div>'
     +'<div class="row-right"><div class="row-btns">'
       +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+esc(showId)+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
@@ -9891,9 +9902,8 @@ function jamFavoriteBareRow(user,fav){
     : "addFavoriteRecordFromJam('"+safeShow+"','"+safeMode+"')";
   const songs=favoriteCachedSummary(fav);
   const sub=songs?'<div class="row-songs"><span style="color:var(--green)">▶ </span>'+esc(songs)+'</div>':'';
-  return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
-    +'<div class="row-date">'+esc(displayDate(fav.date||''))+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+' favorite</div>'+favoriteAddedHtml(fav)+favoritePlayHtml(fav)+sub+'</div>'
+  return '<div class="row jam-favorite-row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
+    +'<div class="row-info"><div class="jam-fav-heading"><div class="row-date">'+esc(displayDate(fav.date||''))+'</div><div class="row-venue">'+esc(fav.venue||'')+'</div></div><div class="row-city">'+esc(mode)+' favorite</div>'+favoriteAddedHtml(fav)+favoritePlayHtml(fav)+sub+'</div>'
     +'<div class="row-right"><div class="row-btns">'
       +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+esc(fav.showId||'')+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
       +'<button class="pbtn" onclick="event.stopPropagation();openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">↗</button>'
@@ -10002,9 +10012,8 @@ function jamFavoriteShowRow(s,user,fav){
   const safeFavId=String(favShowId||s.id).replace(/'/g,"\\'");
   const safeMode=String(mode).replace(/'/g,"\\'");
   const favAction="toggleFavorite('"+safeId+"')";
-  return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeFavId+'\',\''+safeMode+'\')">'
-    +'<div class="row-date">'+displayDate(s.date)+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(mode)+' · '+esc(s.city)+'</div>'+favoriteAddedHtml(fav)+favoritePlayHtml(fav)+sub+'</div>'
+  return '<div class="row jam-favorite-row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeFavId+'\',\''+safeMode+'\')">'
+    +'<div class="row-info"><div class="jam-fav-heading"><div class="row-date">'+esc(displayDate(s.date))+'</div><div class="row-venue">'+esc(s.venue)+'</div></div><div class="row-city">'+esc(mode)+' · '+esc(s.city)+'</div>'+favoriteAddedHtml(fav)+favoritePlayHtml(fav)+sub+'</div>'
     +'<div class="row-right">'
       +'<div class="row-btns">'
         +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+s.id+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
