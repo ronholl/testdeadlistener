@@ -505,7 +505,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.49</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.50</span></div>
     </div>
     
 
@@ -623,7 +623,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.49</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.50</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -704,7 +704,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.49';
+const APP_BUILD = '2.1.50';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -8862,6 +8862,7 @@ const FAVORITE_PLAY_ORIGIN_TTL = 15 * 60 * 1000;
 let allFavorites = [];
 let favoritesLoaded = false;
 let _pendingFavoritePlay = null;
+let _favoritesFetchSequence = 0;
 let _jamReturnState = null;
 let _jamFavoritesView = 'recent';
 let _jamRecentFavoriteLimit = 20;
@@ -8999,6 +9000,7 @@ async function repairMissingFavoriteModes(){
 }
 
 async function loadFavorites() {
+  const requestSequence=++_favoritesFetchSequence;
   // Show cached favorites instantly while fetching fresh data
   try {
     const cached = JSON.parse(localStorage.getItem('gd_favorites') || 'null');
@@ -9013,11 +9015,13 @@ async function loadFavorites() {
 
   // Fetch fresh from sheet in background
   try {
-    const r = await fetch(SCRIPT_URL + '?action=getFavorites', {
+    const r = await fetch(SCRIPT_URL + '?action=getFavorites&_ts=' + Date.now(), {
+      cache: 'no-store',
       signal: AbortSignal.timeout(8000)
     });
     if (r.ok) {
       const d = await r.json();
+      if(requestSequence!==_favoritesFetchSequence)return;
       let fresh = pruneExpiredFavorites(d.favorites || []);
       // Preserve modes already repaired on this device until the sheet update is visible.
       fresh.forEach(function(f){
@@ -9373,6 +9377,7 @@ function toggleJamSection(listId,chevId){
   const open=el.style.display!=='none';
   el.style.display=open?'none':'';
   if(ch)ch.style.transform=open?'':'rotate(90deg)';
+  if(!open&&listId==='jamFavList')loadFavorites();
 }
 
 function renderJamRecent(){
