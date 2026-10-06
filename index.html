@@ -73,8 +73,7 @@ body{display:flex;justify-content:center}
 .login-recent-label{font-size:9px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;margin:0 0 6px 2px}
 .login-result-hint{text-align:center;color:var(--muted);font-size:10px;line-height:1.55;padding:9px 6px 3px}
 .login-directory-toggle{width:100%;background:transparent;border:0;color:var(--gold);font-family:var(--mono);font-size:11px;padding:11px 8px;cursor:pointer}
-.login-create-btn{width:100%;background:rgba(200,168,75,.08);border:1px dashed rgba(200,168,75,.45);border-radius:10px;color:var(--gold);font-family:var(--mono);font-size:12px;padding:12px 14px;cursor:pointer;margin-top:2px}
-.login-create-btn:active,.login-directory-toggle:active{color:var(--gold2)}
+.login-directory-toggle:active{color:var(--gold2)}
 .login-user-btn{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;transition:all .15s;user-select:none}
 .login-user-btn:active{border-color:var(--gold);background:rgba(200,168,75,.08)}
 .login-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:20px;font-weight:700;flex-shrink:0}
@@ -500,7 +499,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.45</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.46</span></div>
     </div>
     
 
@@ -618,7 +617,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.45</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.46</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -699,7 +698,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.45';
+const APP_BUILD = '2.1.46';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -4655,7 +4654,6 @@ function renderLoginScreen(){
     +'oninput="updateLoginResults(this.value)"></div>'
     +'<div id="loginUserList">'+buildCards('',false)+'</div>'
     +'<button id="loginBrowseToggle" class="login-directory-toggle" type="button" onclick="toggleLoginDirectory()">Browse all '+users.length+' accounts</button>'
-    +'<button class="login-create-btn" type="button" onclick="showNewUser()">+ Create a new account</button>'
     +'</div>';
 
   window.updateLoginResults=function(value){
