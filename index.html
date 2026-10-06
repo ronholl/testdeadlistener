@@ -508,7 +508,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.54</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.57</span></div>
     </div>
     
 
@@ -626,7 +626,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.54</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.57</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -707,7 +707,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.54';
+const APP_BUILD = '2.1.57';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -9129,6 +9129,11 @@ function favoritePlayHtml(f){
   return count?'<div class="jam-fav-plays">▶ '+count+' play'+(count===1?'':'s')+' from Favorites</div>':'';
 }
 
+function favoriteAddedHtml(f){
+  const when=favoriteAddedLabel(f&&f.addedAt);
+  return when?'<div class="jam-fav-added">Added '+esc(when)+'</div>':'';
+}
+
 function armFavoritePlayback(showId,modeLabel,record){
   record=record||activeFavorites(allFavorites).find(function(f){
     return (f.showId===showId||rawShowId(f.showId)===rawShowId(showId))&&sameModeLabel(favoriteModeLabel(f),modeLabel);
@@ -9277,7 +9282,7 @@ async function toggleFavorite(id) {
     if (mine.length >= 5) {
       const playerBtn = curShow&&curShow.id===id ? document.getElementById('sp-fav') : null;
       const btn = document.querySelector('.fav-btn[data-id="' + id + '"]') || playerBtn;
-      if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)', openJamFavorites);
+      if (btn) showMineTooltip(btn, 'Remove a favorite first (max 5)', openMyJamFavorites);
       return;
     }
     try{
@@ -9860,9 +9865,9 @@ function modeForFavorite(f){
 function favoriteCachedSummary(f){
   try{
     const mode=modeForFavorite(f);
-    const sheetCache=JSON.parse(localStorage.getItem(modeKeyScopedKey('gd_sheet_cache',mode))||'null');
+    const modeCache=_readModeCache(mode);
     const setlists={};
-    const rows=(sheetCache&&sheetCache.shows)||[];
+    const rows=(modeCache&&modeCache.shows)||[];
     const match=rows.find(function(s){return favoriteDateKey(s.date)===favoriteDateKey(f.date)&&String(s.venue||'')===String(f.venue||'');})||
       rows.find(function(s){return rawShowId(s.id)===String(f.showId||'')||String(s.id||'')===String(f.showId||'');});
     if(!match)return '';
@@ -9888,7 +9893,7 @@ function jamFavoriteBareRow(user,fav){
   const sub=songs?'<div class="row-songs"><span style="color:var(--green)">▶ </span>'+esc(songs)+'</div>':'';
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">'
     +'<div class="row-date">'+esc(displayDate(fav.date||''))+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+' favorite</div>'+favoritePlayHtml(fav)+sub+'</div>'
+    +'<div class="row-info"><div class="row-venue">'+esc(fav.venue||'')+'</div><div class="row-city">'+esc(mode)+' favorite</div>'+favoriteAddedHtml(fav)+favoritePlayHtml(fav)+sub+'</div>'
     +'<div class="row-right"><div class="row-btns">'
       +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+esc(fav.showId||'')+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
       +'<button class="pbtn" onclick="event.stopPropagation();openFavoriteRecord(\''+safeShow+'\',\''+safeMode+'\')">↗</button>'
@@ -9901,6 +9906,12 @@ async function addFavoriteRecordFromJam(showId,modeLabel){
     const btn=document.querySelector('.fav-btn[data-id="'+showId+'"]');
     if(btn)showMineTooltip(btn,'Join to save favorites →');
     promptSignup({type:'favorite',showId:showId});
+    return;
+  }
+  if(myFavorites().length>=5){
+    const btn=document.querySelector('.fav-btn[data-id="'+showId+'"]');
+    if(btn)showMineTooltip(btn,'Remove a favorite first (max 5)',openMyJamFavorites);
+    else openMyJamFavorites();
     return;
   }
   const mode=modeForLabel(modeLabel);
@@ -9993,7 +10004,7 @@ function jamFavoriteShowRow(s,user,fav){
   const favAction="toggleFavorite('"+safeId+"')";
   return '<div class="row" style="border-radius:10px;background:var(--bg);border:1px solid var(--border);margin-bottom:6px" onclick="openFavoriteRecord(\''+safeFavId+'\',\''+safeMode+'\')">'
     +'<div class="row-date">'+displayDate(s.date)+'</div>'
-    +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(mode)+' · '+esc(s.city)+'</div>'+favoritePlayHtml(fav)+sub+'</div>'
+    +'<div class="row-info"><div class="row-venue">'+esc(s.venue)+'</div><div class="row-city">'+esc(mode)+' · '+esc(s.city)+'</div>'+favoriteAddedHtml(fav)+favoritePlayHtml(fav)+sub+'</div>'
     +'<div class="row-right">'
       +'<div class="row-btns">'
         +'<button class="fav-btn'+(myFav?favoriteClass(myFav):'')+'" data-id="'+s.id+'" onclick="event.stopPropagation();'+favAction+'" title="'+(myFav?'Remove favorite':'Add favorite')+'">★</button>'
@@ -10063,6 +10074,13 @@ function initJamTab(){
   loadTodayShows();
   loadRandomShow();
   renderJamRecent(); // Restore history from localStorage on every visit
+}
+
+function openMyJamFavorites(){
+  _jamFavoritesView='deadheads';
+  const user=activeWriteUser()||curUser;
+  if(user)_jamFavoriteOpenSections.add('jamfav-'+String(user).replace(/[^a-z0-9]/gi,'_'));
+  openJamFavorites();
 }
 
 function openJamFavorites(){
