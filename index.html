@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.63</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.64</span></div>
     </div>
     
 
@@ -647,7 +647,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.63</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.64</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -728,7 +728,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.63';
+const APP_BUILD = '2.1.64';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -10813,7 +10813,11 @@ async function fetchVisitorStats(){
       html='<b style="color:var(--gold)">'+count+'</b> registered Deadhead'+(count!==1?'s':'');
     }
     html+='<br><span style="color:rgba(255,255,255,.3);font-size:10px">Guests welcome — browse &amp; stream without signing up</span>';
-    if(connections!==undefined){
+    if(connections===null){
+      html+='<br><span style="color:rgba(200,168,75,.55);font-size:10px">Updating today\'s unique connections…</span>';
+    }else if(connections===false){
+      html+='<br><span style="color:rgba(255,255,255,.3);font-size:10px">Today\'s connection count is temporarily unavailable</span>';
+    }else if(connections!==undefined){
       html+='<br><span style="color:rgba(200,168,75,.55);font-size:10px">'+connections+' unique connection'+(connections!==1?'s':'')+' today</span>';
     }
     el.innerHTML=html;
@@ -10821,10 +10825,10 @@ async function fetchVisitorStats(){
 
   // Render immediately from cached startup data, then replace it with the
   // live count and B4 limit returned by Apps Script.
-  renderStats(users.length,userLimit);
+  renderStats(users.length,userLimit,null);
   // Fetch live connection count from Apps Script
   try{
-    const r=await fetch(SCRIPT_URL+'?action=getStats',{signal:AbortSignal.timeout(6000)});
+    const r=await fetch(SCRIPT_URL+'?action=getStats',{signal:AbortSignal.timeout(15000)});
     const d=await r.json();
     if(!d)return;
     const liveLimit=Number(d.limit);
@@ -10832,7 +10836,7 @@ async function fetchVisitorStats(){
     const liveCount=d.named!==undefined&&Number.isFinite(Number(d.named))?Number(d.named):users.length;
     const connections=d.connections!==undefined&&Number.isFinite(Number(d.connections))?Number(d.connections):undefined;
     renderStats(liveCount,userLimit,connections);
-  }catch(e){}
+  }catch(e){renderStats(users.length,userLimit,false);}
 }
 function closeHelp(){
   const screen=document.getElementById('welcomeScreen');
