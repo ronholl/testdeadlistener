@@ -529,7 +529,7 @@ body{display:flex;justify-content:center}
     <div class="login-hero">
       <img src="favicon_tight_180.png" class="login-logo" alt="Ron's Deadhead Listener" loading="eager" decoding="sync" fetchpriority="high"/>
       <div class="login-title">Ron's Deadhead Listener</div>
-      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.65</span></div>
+      <div class="login-sub">1965 – 1995 · <span id="login-show-count">—</span> Shows · <span id="login-version">V2.1.67</span></div>
     </div>
     
 
@@ -647,7 +647,7 @@ body{display:flex;justify-content:center}
     <img src="favicon_tight_180.png" class="hdr-logo" alt="logo" loading="eager" decoding="sync" fetchpriority="high"/>
     <div class="hdr-text">
       <div class="hdr-title">Ron's Deadhead Listener</div>
-          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.65</span></div>
+          <div class="hdr-sub" style="color:rgba(200,168,75,.6)"><span id="hdr-year-range">1965 – 1995</span> · <span id="hdr-show-count">—</span> Shows · <span id="hdr-version" style="opacity:.45">V2.1.67</span></div>
       <div class="hdr-st" id="hdrSt"></div>
     </div>
     <div class="hdr-user" id="hdrUser" onclick="switchUser()">
@@ -728,7 +728,7 @@ body{display:flex;justify-content:center}
 // ── CONFIG ────────────────────────────────────────────────────────
 const SHEET_ID   = '1Hl1iSUkBQbfjbzXpEl5DrpRZQhu_xnOfqgvgmoTMURk';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDkkn9PBWvmBFsjRpoj0-zzM3euaLQt23B64iWn8XO13I4eqeEiCEuB8Zwj0ohObwpMQ/exec';
-const APP_BUILD = '2.1.65';
+const APP_BUILD = '2.1.67';
 // Poster filename — place final_deadhead_poster_web.jpg in the same folder as index.html
 // Leave empty string to disable the poster feature entirely
 const POSTER_FILE = 'final_deadhead_poster_web.jpg';
@@ -2110,6 +2110,25 @@ function firstIntersectingShowRow(list){
   return Array.from(list.querySelectorAll('.row[data-id]')).find(function(row){
     return row.getBoundingClientRect().bottom>top+2;
   })||null;
+}
+function captureListVisualAnchor(list){
+  if(!list||list.scrollTop<=0||!list.getClientRects().length)return null;
+  const row=firstIntersectingShowRow(list);
+  if(!row)return null;
+  return {
+    id:row.dataset.id||'',
+    offset:row.getBoundingClientRect().top-list.getBoundingClientRect().top
+  };
+}
+function restoreListVisualAnchor(list,anchor){
+  if(!list||!anchor||!anchor.id)return false;
+  const row=Array.from(list.querySelectorAll('.row[data-id]')).find(function(candidate){
+    return candidate.dataset.id===anchor.id;
+  });
+  if(!row)return false;
+  const offset=row.getBoundingClientRect().top-list.getBoundingClientRect().top;
+  list.scrollTop=Math.max(0,Math.round(list.scrollTop+(offset-anchor.offset)));
+  return true;
 }
 function restoreListPosition(state){
   if(!state)return;
@@ -5518,6 +5537,7 @@ function kickVisibleSetlistLoads(){
 
 function renderList(){
   const el=document.getElementById('list');
+  const visualAnchor=captureListVisualAnchor(el);
   const activeKey=(activeMode&&activeMode.key)||DEFAULT_MODE.key;
   const waitingKey=_modeSwitchTargetKey||((_modeSwitchBusy||!shows.length||loadedCatalogModeKey!==activeKey)?activeKey:'');
   if(waitingKey&&(_modeSwitchBusy||!shows.length||loadedCatalogModeKey!==activeKey)){
@@ -5575,6 +5595,7 @@ function renderList(){
       </div>
     </div>`;
   }).join('');
+  restoreListVisualAnchor(el,visualAnchor);
   if(filtered.length>_cap)el.innerHTML+=`<div class="empty" style="font-size:9px">First ${_cap} shown — filter to narrow</div>`;
 }
 
@@ -7754,25 +7775,32 @@ function setNativeIdleTimerDisabled(disabled){
 function screenWakeLockAvailable(){
   return !!(typeof navigator!=='undefined'&&navigator.wakeLock&&navigator.wakeLock.request);
 }
+function screenWakeLockActive(){
+  return !!(nativeIdleTimerAwake||(screenWakeLock&&screenWakeLock.released!==true));
+}
 function updateScreenWakeLockUI(){
   const btn=document.getElementById('sp-wake');
   if(!btn)return;
   const supported=nativeIdleTimerAvailable()||screenWakeLockAvailable();
-  const active=!!(nativeIdleTimerAwake||screenWakeLock);
+  const active=screenWakeLockActive();
   btn.classList.toggle('on',active);
   btn.classList.toggle('pending',screenWakeLockPending);
   btn.classList.toggle('unsupported',!supported);
-  btn.setAttribute('aria-pressed',screenWakeLockWanted?'true':'false');
-  btn.textContent=screenWakeLockPending?'AWAKE…':(active?'✓ AWAKE ON':(screenWakeLockWanted?'AWAKE SAVED':'AWAKE OFF'));
+  btn.setAttribute('aria-pressed',active?'true':'false');
+  btn.textContent=active?'AWAKE ON':'AWAKE OFF';
   btn.title=!supported
     ? (screenWakeLockWanted?'Awake preference is saved, but keep awake is not supported here':'Keep awake is not supported here')
-    : (active?'Screen will stay awake while the app is visible; this preference is remembered':(screenWakeLockWanted?'Awake preference is saved; tap to turn it off':'Keep screen awake and remember this setting'));
+    : (active?'Screen will stay awake while the app is visible; tap to turn it off':(screenWakeLockWanted?'Keep awake is saved but currently off; tap to retry':'Keep screen awake and remember this setting'));
 }
 async function requestScreenWakeLock(opts){
   opts=opts||{};
   if(screenWakeLockPending)return false;
   screenWakeLockWanted=true;
   saveScreenWakePreference(true);
+  if(screenWakeLockActive()){
+    updateScreenWakeLockUI();
+    return true;
+  }
   if(nativeIdleTimerAvailable()){
     screenWakeLockPending=false;
     if(setNativeIdleTimerDisabled(true)){
@@ -7832,16 +7860,23 @@ async function releaseScreenWakeLock(){
   },1600);
 }
 function toggleScreenWakeLock(){
-  if(screenWakeLockWanted||screenWakeLock||screenWakeLockPending)releaseScreenWakeLock();
+  if(screenWakeLockActive()||screenWakeLockPending)releaseScreenWakeLock();
   else requestScreenWakeLock();
 }
-document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible'&&screenWakeLockWanted&&!nativeIdleTimerAwake&&!screenWakeLock&&!screenWakeLockPending){
+function refreshSavedScreenWakeLock(){
+  if(document.visibilityState==='visible'&&screenWakeLockWanted&&!screenWakeLockActive()&&!screenWakeLockPending){
     requestScreenWakeLock({silent:true});
   }else{
     updateScreenWakeLockUI();
   }
-});
+}
+document.addEventListener('visibilitychange',refreshSavedScreenWakeLock);
+window.addEventListener('pageshow',refreshSavedScreenWakeLock);
+window.addEventListener('focus',refreshSavedScreenWakeLock);
+document.addEventListener('pointerdown',function(event){
+  if(event.target&&event.target.closest&&event.target.closest('#sp-wake'))return;
+  if(screenWakeLockWanted&&!screenWakeLockActive()&&!screenWakeLockPending)requestScreenWakeLock({silent:true});
+},{passive:true,capture:true});
 function _setMediaPlaybackState(state){
   if('mediaSession' in navigator){
     try{navigator.mediaSession.playbackState=state;}catch(e){}
@@ -11232,20 +11267,32 @@ function stopLoadingDots(elId){
 }
 
 // ── RESTORE LAST POSITION ─────────────────────────────────────────
+function findSavedPlaybackShow(list,savedShowId){
+  const wanted=String(savedShowId||'');
+  const raw=rawShowId(wanted);
+  return (list||[]).find(function(show){
+    return show.id===wanted||showStorageId(show)===wanted||
+      rawShowId(show.id)===raw||rawShowId(showStorageId(show))===raw;
+  })||null;
+}
+
 async function restoreLastPosition(){
   try{
     if(_restoreLastPositionStarted)return;
     _restoreLastPositionStarted=true;
     const saved=JSON.parse(localStorage.getItem('gd_restore')||'null');
     if(!saved)return;
-    // Playback restoration intentionally has no age limit. Load the saved mode
-    // first so a show can be restored even when another mode was viewed last.
-    if(saved.mode&&!sameModeLabel(saved.mode,activeMode.label)){
-      const savedMode=modeForLabel(saved.mode);
-      await changeMode(savedMode.key);
-      if(!activeMode||!sameModeLabel(saved.mode,activeMode.label))return;
+    // Playback restoration intentionally has no age limit, but the player's
+    // show mode is independent from the catalog the user was browsing. Resolve
+    // an inactive catalog without calling changeMode(), which would replace the
+    // user's saved Jerry/GD/etc. view just to rebuild the mini-player.
+    const savedMode=modeForLabel(saved.mode||(activeMode&&activeMode.label)||DEFAULT_MODE.label);
+    const savedModeIsActive=activeMode&&savedMode.key===activeMode.key;
+    let show=savedModeIsActive?findSavedPlaybackShow(shows,saved.showId):findShowInModeCache(savedMode,saved.showId);
+    if(!show&&!savedModeIsActive){
+      const savedCatalog=await loadModeCatalogFromJson(savedMode,{timeout:8000});
+      show=findSavedPlaybackShow(savedCatalog,saved.showId);
     }
-    const show=shows.find(s=>s.id===saved.showId||showStorageId(s)===saved.showId);
     if(!show)return;
     // If the show isn't visible (myOnly filter excludes it), temporarily show all
     // so the user can see what's being restored
@@ -11255,14 +11302,6 @@ async function restoreLastPosition(){
     const afterRestore=function(){
       if(show.tracks&&show.tracks.length>saved.trackIdx){
         pauseAtPosition(show,saved.trackIdx,saved.pos);
-        setTimeout(function(){
-          const idx=filtered.findIndex(s=>s.id===show.id);
-          if(idx<0)return;
-          const list=document.getElementById('list');
-          if(!list)return;
-          const rows=list.querySelectorAll('.row');
-          if(rows[idx])rows[idx].scrollIntoView({block:'center',behavior:'smooth'});
-        },200);
       }
     };
     // Always fetch tracks if missing — songs cached ≠ tracks available
